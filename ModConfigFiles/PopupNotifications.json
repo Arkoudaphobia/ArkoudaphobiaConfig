@@ -1,0 +1,12 @@
+{
+  "DefaultShowDuration": 8.0,
+  "FadeTime": 1.0,
+  "Height": 0.1,
+  "MaxShownMessages": 5,
+  "PositionX": 0.8,
+  "PositionY": 0.78,
+  "ScrollDown": true,
+  "Spacing": 0.01,
+  "Transparency": 0.7,
+  "Width": 0.19
+}
