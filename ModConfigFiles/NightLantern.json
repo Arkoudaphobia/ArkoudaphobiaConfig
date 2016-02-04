@@ -1,0 +1,9 @@
+{
+  "Settings": {
+    "AutoTurnLanterns": true,
+    "includeCampfires": false,
+    "includeJackOLanterns": true,
+    "sunriseHour": "6",
+    "sunsetHour": "18"
+  }
+}
