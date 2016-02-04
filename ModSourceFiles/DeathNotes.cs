@@ -5,23 +5,25 @@ using System.Linq;
 using Oxide.Core;
 using System;
 using Oxide.Core.Plugins;
+using Newtonsoft.Json.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.0.2", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.1.0", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
         bool debug = false;
+        bool killReproducing = false;
 
         Dictionary<ulong, bool> canRead = new Dictionary<ulong, bool>();
         Dictionary<ulong, HitInfo> LastWounded = new Dictionary<ulong, HitInfo>();
 
-        Plugin PopupMessages;
+        Dictionary<string, string> reproduceableKills = new Dictionary<string, string>();
 
-        ////////////////////////////////////////
-        ///     Classes
-        ////////////////////////////////////////
+        Plugin PopupNotifications;
+
+        #region Classes
 
         class Attacker
         {
@@ -161,6 +163,7 @@ namespace Oxide.Plugins
             public string weapon = string.Empty;
             public List<string> attachments = new List<string>();
             public string bodypart = string.Empty;
+            internal float _distance = -1f;
 
             public float distance
             {
@@ -168,6 +171,9 @@ namespace Oxide.Plugins
                 {
                     try
                     {
+                        if (_distance != -1)
+                            return _distance;
+
                         foreach (string death in new List<string> { "Cold", "Drowned", "Heat", "Suicide", "Generic", "Posion", "Radiation", "Thirst", "Hunger", "Fall" })
                         {
                             if (reason == GetDeathReason(death))
@@ -209,7 +215,6 @@ namespace Oxide.Plugins
 
             public DeathReason GetDeathReason(string damage)
             {
-                //Interface.Oxide.RootPluginManager.GetPlugin("DeathNotes").Call("BroadcastChat", "GetDeathReason");
                 List<DeathReason> Reason = (from DeathReason current in Enum.GetValues(typeof(DeathReason)) where current.ToString() == damage select current).ToList();
 
                 if (Reason.Count == 0)
@@ -226,11 +231,45 @@ namespace Oxide.Plugins
                     return JsonConvert.SerializeObject(this, Formatting.Indented);
                 }
             }
+            
+            internal static DeathData Get(object obj)
+            {
+                JObject jobj = (JObject) obj;
+                DeathData data = new DeathData();
+
+                data.bodypart = jobj["bodypart"].ToString();
+                data.weapon = jobj["weapon"].ToString();
+                data.attachments = (from attachment in jobj["attachments"] select attachment.ToString()).ToList();
+                data._distance = Convert.ToSingle(jobj["distance"]);
+
+                /// Victim
+                data.victim.name = jobj["victim"]["name"].ToString();
+
+                List<VictimType> victypes = (from VictimType current in Enum.GetValues(typeof(VictimType)) where current.GetHashCode().ToString() == jobj["victim"]["type"].ToString() select current).ToList();
+
+                if (victypes.Count != 0)
+                    data.victim.type = victypes[0];
+
+                /// Attacker
+                data.attacker.name = jobj["attacker"]["name"].ToString();
+
+                List<AttackerType> attackertypes = (from AttackerType current in Enum.GetValues(typeof(AttackerType)) where current.GetHashCode().ToString() == jobj["attacker"]["type"].ToString() select current).ToList();
+
+                if (attackertypes.Count != 0)
+                    data.attacker.type = attackertypes[0];
+                
+                /// Reason
+                List<DeathReason> reasons = (from DeathReason current in Enum.GetValues(typeof(DeathReason)) where current.GetHashCode().ToString() == jobj["reason"].ToString() select current).ToList();
+                if (reasons.Count != 0)
+                    data.reason = reasons[0];
+
+                return data;
+            }
         }
 
-        ////////////////////////////////////////
-        ///     Enums / Types
-        ////////////////////////////////////////
+        #endregion
+
+        #region Enums / Types
 
         enum VictimType
         {
@@ -280,15 +319,17 @@ namespace Oxide.Plugins
             Unknown
         }
 
-        ////////////////////////////////////////
-        ///     Plugin Related Hooks
-        ////////////////////////////////////////
+        #endregion
+
+        #region General Plugin Hooks
 
         void Loaded()
         {
 #if !RUST
             throw new NotSupportedException("This plugin or the version of this plugin does not support this game!");
 #endif
+            if (killReproducing)
+                RegisterPerm("reproduce");
 
             RegisterPerm("see");
 
@@ -297,12 +338,16 @@ namespace Oxide.Plugins
             LoadMessages();
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
-                if (!canRead.ContainsKey(player.userID) && HasPerm(player.userID, "see"))
+                if (!canRead.ContainsKey(player.userID))
+                {
                     canRead.Add(player.userID, true);
-            
-            PopupMessages = (Plugin)plugins.Find("PopupNotifications");
 
-            if (PopupMessages == null && GetConfig(false, "Settings", "Use Popup Notifications"))
+                    SaveData();
+                }
+
+            PopupNotifications = (Plugin)plugins.Find("PopupNotifications");
+
+            if (PopupNotifications == null && GetConfig(false, "Settings", "Use Popup Notifications"))
                 PrintWarning("You have set 'Use Popup Notifications' to true, but the Popup Notifications plugin is not installed. Popups will not work without it. Get it here: http://oxidemod.org/plugins/1252/");
 
         }
@@ -321,18 +366,30 @@ namespace Oxide.Plugins
             }
         }
 
-        ////////////////////////////////////////
-        ///     Plugin Related Methods
-        ////////////////////////////////////////
+        void OnPluginLoaded(Plugin plugin)
+        {
+            if (plugin.Title == "Popup Notifications")
+                PopupNotifications = (Plugin) plugin;
+        }
+
+        #endregion
+
+        #region Loading
 
         void LoadData()
         {
             canRead = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, bool>>("DeathNotes");
+
+            if (killReproducing)
+                reproduceableKills = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, string>>("DeathNotes_KillReproducing");
         }
 
         void SaveData()
         {
             Interface.Oxide.DataFileSystem.WriteObject("DeathNotes", canRead);
+
+            if (killReproducing)
+                Interface.Oxide.DataFileSystem.WriteObject("DeathNotes_KillReproducing", reproduceableKills);
         }
 
         void LoadConfig()
@@ -345,6 +402,10 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Log to File", false);
             SetConfig("Settings", "Write to Console", true);
             SetConfig("Settings", "Use Popup Notifications", false);
+
+            SetConfig("Settings", "Enable Showdeaths Command", true);
+
+            SetConfig("Settings", "Needs Permission", false);
 
             SetConfig("Settings", "Title", "Death Notes");
             SetConfig("Settings", "Formatting", "[{Title}]: {Message}");
@@ -391,6 +452,16 @@ namespace Oxide.Plugins
             SetConfig("Messages", "Trap", new List<string> { "{victim} ran into a {attacker}" });
             SetConfig("Messages", "Turret", new List<string> { "A {attacker} defended its home against {victim}." });
             SetConfig("Messages", "Unknown", new List<string> { "{victim} died. Nobody knows why, it just happened." });
+            
+            SetConfig("Messages", "Blunt Sleeping", new List<string> { "{attacker} used a {weapon} to turn {victim}'s dream into a nightmare." });
+            SetConfig("Messages", "Bullet Sleeping", new List<string> { "Sleeping {victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." });
+            SetConfig("Messages", "Explosion Sleeping", new List<string> { "{victim} was shredded by {attacker}'s {weapon} while sleeping." });
+            SetConfig("Messages", "Generic Sleeping", new List<string> { "The death took sleeping {victim} with him." });
+            SetConfig("Messages", "Helicopter Sleeping", new List<string> { "{victim} was sleeping when he was shot to pieces by a {attacker}." });
+            SetConfig("Messages", "Animal Sleeping", new List<string> { "{victim} was killed by a {attacker} while having a sleep." });
+            SetConfig("Messages", "Slash Sleeping", new List<string> { "{attacker} slashed sleeping {victim} in half." });
+            SetConfig("Messages", "Stab Sleeping", new List<string> { "{victim} was stabbed to death by {attacker} using a {weapon} before he could even awake." });
+            SetConfig("Messages", "Unknown Sleeping", new List<string> { "{victim} was sleeping when he died. Nobody knows why, it just happened." });
 
             SaveConfig();
         }
@@ -405,9 +476,9 @@ namespace Oxide.Plugins
             }, this);
         }
 
-        ////////////////////////////////////////
-        ///     Commands
-        ////////////////////////////////////////
+        #endregion
+
+        #region Commands
 
         [ChatCommand("showdeaths")]
         void cmdShowDeaths(BasePlayer player, string cmd, string[] args)
@@ -446,9 +517,49 @@ namespace Oxide.Plugins
             GetInfo(player);
         }
 
-        ////////////////////////////////////////
-        ///     DeathNotes Information
-        ////////////////////////////////////////
+        [ConsoleCommand("reproducekill")]
+        void ccmdReproduceKill(ConsoleSystem.Arg arg)
+        {
+            bool hasPerm = false;
+
+            if (arg?.connection == null)
+                hasPerm = true;
+            else
+            {
+                if((BasePlayer)arg.connection.player != null)
+                {
+                    if (HasPerm(arg.connection.userid, "reproduce"))
+                        hasPerm = true;
+                }
+            }
+            
+            if (hasPerm)
+            {
+                if (arg.Args == null || arg.Args.Length != 1)
+                {
+                    arg.ReplyWith("Syntax: reproducekill <datetime>");
+                    return;
+                }
+                
+                if(reproduceableKills.ContainsKey(arg.Args[0]))
+                {
+                    DeathData data = DeathData.Get(JsonConvert.DeserializeObject(reproduceableKills[arg.Args[0]]));
+                    PrintWarning("Reproduced Kill: " + Environment.NewLine + data.JSON);
+
+                    if (data == null)
+                        return;
+
+                    NoticeDeath(data, true);
+                    arg.ReplyWith("Death reproduced!");
+                }
+                else
+                    arg.ReplyWith("No saved kill at that time found!");
+            }
+        }
+
+        #endregion
+
+        #region DeathNotes Information
 
         void GetInfo(BasePlayer player)
         {
@@ -472,9 +583,9 @@ namespace Oxide.Plugins
             }, this);
         }
 
-        ////////////////////////////////////////
-        ///     Death Related
-        ////////////////////////////////////////
+        #endregion
+
+        #region Death Related
 
         HitInfo TryGetLastWounded(ulong uid, HitInfo info)
         {
@@ -546,7 +657,12 @@ namespace Oxide.Plugins
                 data.bodypart = FirstUpper("Body") ?? string.Empty;
 
             data.reason = data.TryGetReason();
-            
+
+            NoticeDeath(data);
+        }
+
+        void NoticeDeath(DeathData data, bool reproduced = false)
+        {
             DeathData newData = UpdateData(data);
 
             if (string.IsNullOrEmpty(GetDeathMessage(newData, false)))
@@ -554,66 +670,57 @@ namespace Oxide.Plugins
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
             {
-                if (!canRead.ContainsKey(player.userID) && HasPerm(player.userID, "see"))
-                    canRead.Add(player.userID, true);
-
-                if (HasPerm(player.userID, "see") && InRadius(player, data.attacker.entity) && canRead.ContainsKey(player.userID) && canRead[player.userID])
+                if (InRadius(player, data.attacker.entity) && CanSee(player))
                     SendChatMessage(player, GetDeathMessage(newData, false), null, GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)"));
             }
 
-            if(GetConfig(true, "Settings", "Write to Console"))
+            if (GetConfig(true, "Settings", "Write to Console"))
                 Puts(StripTags(GetDeathMessage(newData, true)));
 
             if (GetConfig(false, "Settings", "Log to File"))
                 ConVar.Server.Log("oxide/logs/Kills.txt", StripTags(GetDeathMessage(newData, true)));
 
-            if (GetConfig(false, "Settings", "Use Popup Notifications") && PopupMessages != null)
-                PopupMessage(GetDeathMessage(newData, true));
+            if (GetConfig(false, "Settings", "Use Popup Notifications") && PopupNotifications != null)
+                PopupMessage(GetDeathMessage(newData, false));
 
             if (debug)
             {
                 PrintWarning("DATA: " + Environment.NewLine + data.JSON);
                 PrintWarning("UPDATED DATA: " + Environment.NewLine + newData.JSON);
             }
+
+            if (killReproducing && !reproduced)
+            {
+                reproduceableKills.Add(DateTime.Now.ToString(), data.JSON.Replace(Environment.NewLine, ""));
+                SaveData();
+            }
         }
 
-        ////////////////////////////////////////
-        ///     Formatting Methods
-        ////////////////////////////////////////
+        #endregion
+
+        #region Formatting
 
         string FormatThrownWeapon(string unformatted)
         {
             if (unformatted == string.Empty)
                 return string.Empty;
 
-            string formatted = FirstUpper(unformatted.Split('/').Last().Replace(".prefab", "").Replace(".entity", ""));
+            string formatted = FirstUpper(unformatted.Split('/').Last().Replace(".prefab", "").Replace(".entity", "").Replace(".weapon", "").Replace("_", " "));
 
-            if (formatted == "Knife Bone")
+            if (formatted == "Stonehatchet")
+                formatted = "Stone Hatchet";
+            else if (formatted == "Knife Bone")
                 formatted = "Bone Knife";
             else if (formatted == "Spear Wooden")
                 formatted = "Wooden Spear";
             else if (formatted == "Spear Stone")
                 formatted = "Stone Spear";
+            else if (formatted == "Icepick Salvaged")
+                formatted = "Salvaged Icepick";
             else if (formatted == "Axe Salvaged")
                 formatted = "Salvaged Axe";
             else if (formatted == "Hammer Salvaged")
                 formatted = "Salvaged Hammer";
-            else if (formatted == "Icepick Salvaged")
-                formatted = "Salvaged Icepick";
-            else if (formatted == "Stonehatchet")
-                formatted = "Stone Hatchet";
-            else if (formatted == "Explosive Timed")
-                formatted = "Timed Explosive Charge";
-            else if (formatted == "Grenade F1")
-                formatted = "F1 Grenade";
-            else if (formatted == "Rocket Heli")
-                formatted = "Heli Rocket";
-            else if (formatted == "Rocket Hv")
-                formatted = "HV-Rocket";
-            else if (formatted == "Rocket basic")
-                formatted = "Rocket";
-            else if (formatted == "Rocket Fire")
-                formatted = "Incendiary Rocket";
 
             return formatted;
         }
@@ -657,9 +764,9 @@ namespace Oxide.Plugins
             return ListToString(output, 0, " ");
         }
 
-        ////////////////////////////////////////
-        ///     Death Variables Methods
-        ////////////////////////////////////////
+        #endregion
+
+        #region Death Variables Methods
 
         List<string> GetAttachments(HitInfo info)
         {
@@ -676,10 +783,7 @@ namespace Oxide.Plugins
             return attachments;
         }
 
-        string GetBoneName(BaseCombatEntity entity, uint boneId)
-        {
-            return entity?.skeletonProperties?.FindBone(boneId)?.name?.english ?? "Body";
-        }
+        string GetBoneName(BaseCombatEntity entity, uint boneId) => entity?.skeletonProperties?.FindBone(boneId)?.name?.english ?? "Body";
 
         bool InRadius(BasePlayer player, BaseCombatEntity attacker)
         {
@@ -703,16 +807,42 @@ namespace Oxide.Plugins
 
         string GetDeathMessage(DeathData data, bool console)
         {
+            List<DeathReason> SleepingDeaths = new List<DeathReason>
+            {
+                DeathReason.Animal,
+                DeathReason.Blunt,
+                DeathReason.Bullet,
+                DeathReason.Explosion,
+                DeathReason.Generic,
+                DeathReason.Helicopter,
+                DeathReason.Slash,
+                DeathReason.Stab,
+                DeathReason.Unknown
+            };
+
             string message = string.Empty;
+            string reason = string.Empty;
             List<string> messages = new List<string>();
+
+            if (data.victim.type == VictimType.Player && data.victim.entity != null && data.victim.entity.ToPlayer() != null && data.victim.entity.ToPlayer().IsSleeping())
+            {
+                if(SleepingDeaths.Contains(data.reason))
+                {
+                    reason = data.reason.ToString() + " Sleeping";
+                }
+                else
+                    reason = data.reason.ToString();
+            }
+            else
+                reason = data.reason.ToString();
 
             try
             {
-                messages = GetConfig(new List<string>(), "Messages", data.reason.ToString());
+                messages = GetConfig(new List<string>(), "Messages", reason);
             }
             catch (InvalidCastException)
             {
-                messages = (from msg in GetConfig(new List<object>(), "Messages", data.reason.ToString()) select msg.ToString()).ToList();
+                messages = (from msg in GetConfig(new List<object>(), "Messages", reason) select msg.ToString()).ToList();
             }
 
             if (messages.Count == 0)
@@ -800,18 +930,38 @@ namespace Oxide.Plugins
             return data;
         }
 
-        ////////////////////////////////////////
-        ///     Converting
-        ////////////////////////////////////////
-
-        string ListToString(List<string> list, int first, string seperator)
+        bool CanSee(BasePlayer player)
         {
-            return String.Join(seperator, list.Skip(first).ToArray());
+            if (!GetConfig(false, "Settings", "Needs Permission"))
+            {
+                if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
+                    return true;
+                else
+                    return canRead.ContainsKey(player.userID) ? canRead[player.userID] : true;
+            }
+            else
+            {
+                if(HasPerm(player.userID, "see"))
+                {
+                    if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
+                        return true;
+                    else
+                        return canRead.ContainsKey(player.userID) ? canRead[player.userID] : true;
+                }
+            }
+
+            return false;
         }
 
-        ////////////////////////////////////////
-        ///     Config & Message Related
-        ////////////////////////////////////////
+        #endregion
+
+        #region Converting
+
+        string ListToString(List<string> list, int first, string seperator) => string.Join(seperator, list.Skip(first).ToArray());
+
+        #endregion
+
+        #region Config and Message Handling
 
         void SetConfig(params object[] args)
         {
@@ -838,9 +988,9 @@ namespace Oxide.Plugins
             return lang.GetMessage(key, this, userID.ToString());
         }
 
-        ////////////////////////////////////////
-        ///     Permission Related
-        ////////////////////////////////////////
+        #endregion
+
+        #region Permission Handling
 
         void RegisterPerm(params string[] permArray)
         {
@@ -865,14 +1015,16 @@ namespace Oxide.Plugins
             }
         }
 
-        ////////////////////////////////////////
-        ///     Chat Handling
-        ////////////////////////////////////////
+        #endregion
+
+        #region Messages
 
         void BroadcastChat(string prefix, string msg = null) => rust.BroadcastChat(msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg);
 
         void SendChatMessage(BasePlayer player, string prefix, string msg = null, object uid = null) => rust.SendChatMessage(player, msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg, null, uid?.ToString() ?? "0");
 
-        void PopupMessage(string message) => PopupMessages?.Call("CreatePopupNotification", message);
+        void PopupMessage(string message) => PopupNotifications?.Call("CreatePopupNotification", message);
+
+        #endregion
     }
 }
