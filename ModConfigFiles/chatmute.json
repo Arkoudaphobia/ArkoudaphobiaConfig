@@ -1,0 +1,51 @@
+{
+  "Messages": {
+    "Admin": {
+      "AlreadyMuted": "{name} is already muted",
+      "InvalidTimeFormat": "Invalid time format",
+      "MultiplePlayerFound": "Found more than one player, be more specific:",
+      "MutelistCleared": "Cleared {count} entries from mutelist",
+      "NoPermission": "You dont have permission to use this command",
+      "PlayerMuted": "{name} has been muted",
+      "PlayerMutedTimed": "{name} has been muted for {time}",
+      "PlayerNotFound": "Player not found",
+      "PlayerNotMuted": "{name} is not muted",
+      "PlayerUnmuted": "{name} has been unmuted"
+    },
+    "Player": {
+      "BroadcastMutes": "{name} has been muted",
+      "BroadcastMutesTimed": "{name} has been muted for {time}",
+      "BroadcastUnmutes": "{name} has been unmuted",
+      "GlobalMuted": "Chat is globally muted by an admin",
+      "GlobalMuteDisabled": "Global chat mute disabled",
+      "GlobalMuteEnabled": "Chat is now globally muted",
+      "IsMuted": "You are muted",
+      "IsTimeMuted": "You are muted for {timeMuted}",
+      "Muted": "You have been muted",
+      "MutedTimed": "You have been muted for {time}",
+      "Unmuted": "You have been unmuted"
+    }
+  },
+  "Settings": {
+    "ChatCommands": {
+      "GlobalMute": [
+        "globalmute"
+      ],
+      "Mute": [
+        "mute"
+      ],
+      "Unmute": [
+        "unmute"
+      ]
+    },
+    "General": {
+      "BroadcastMutes": "true",
+      "LogToConsole": "true"
+    },
+    "Permissions": {
+      "AntiGlobalMute": "chat.notglobalmuted",
+      "GlobalMute": "chat.globalmute",
+      "Mute": "chat.mute"
+    }
+  }
+}

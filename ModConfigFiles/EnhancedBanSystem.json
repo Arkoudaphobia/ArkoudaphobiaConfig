@@ -1,0 +1,16 @@
+{
+  "Ban - Broadcast Chat": true,
+  "Ban - Default Ban Reason": "Hacking",
+  "Ban - Message - Broadcast": "An admin banned {0} from the server for {1}",
+  "Ban - Message - Deny Connection - Permanent": "You are banned on this server",
+  "Ban - Message - Deny Connection - Temp": "You are temp-banned on this server",
+  "Ban - Message - Player": "An admin banned you for {0}",
+  "Ban - permission": "enhancedbansystem.ban",
+  "Kick - Broadcast Chat": true,
+  "Kick - Message - Broadcast": "{0} was kicked from the server for {1}",
+  "Kick - Message - Player": "An admin kicked you for {0}",
+  "Kick - permission": "enhancedbansystem.kick",
+  "Setting - Chat Name": "<color=orange>SERVER</color>",
+  "Setting - Message - No Player Found": "No player found",
+  "Unban - Broadcast Chat": true
+}

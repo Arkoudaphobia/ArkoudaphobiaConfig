@@ -1,0 +1,191 @@
+{
+  "ADVERTS": [
+    "Want to know the available commands? Type <orange>/help<end>.",
+    "Respect the server <orange>/rules<end>.",
+    "<red>Cheating is strictly prohibited.<end>",
+    "Type <orange>/map<end> for the server map link.",
+    "You are playing on: <lime>{server.hostname}<end>",
+    "The game time is <lime>{gamedate} {gametime}<end>"
+  ],
+  "COLORS": {
+    "ADVERTS": "silver",
+    "BOARDS TITLE": "silver",
+    "JOIN MESSAGE": "silver",
+    "LEAVE MESSAGE": "silver",
+    "MOTD": "silver",
+    "PREFIX": "#00EEEE",
+    "SCHEDULED MESSAGES": "silver",
+    "SYSTEM": "white",
+    "WELCOME MESSAGE": "silver"
+  },
+  "COMMANDS": {
+    "ADMINS LIST": "admins",
+    "ADVERTS COMMAND": "adverts",
+    "MAP LINK": "map",
+    "MOTD": "motd",
+    "PLAYERS LIST": "players",
+    "PLAYERS ONLINE": "online",
+    "PLUGINS LIST": "plugins",
+    "RULES": [
+      "rules",
+      "regras",
+      "regles"
+    ]
+  },
+  "MESSAGES": {
+    "ADMINS JOIN MESSAGE": "<#ADFF64>{username}<end> joined the server.",
+    "ADMINS LEAVE MESSAGE": "<#ADFF64>{username}<end> left the server. (Reason: <white>{reason}<end>)",
+    "ADMINS LIST DESC": "<orange>/admins<end> <grey>-<end> List of online <cyan>Admins<end> in the server.",
+    "ADMINS LIST TITLE": "ADMINS ONLINE",
+    "ADMINS ONLINE": "There are <cyan>{admins} Admins<end> online.",
+    "ADVERTS DESC": "<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the adverts interval ( i.g: /adverts 5 )",
+    "ADVERTS INTERVAL CHANGED": "Adverts interval changed to <lime>{minutes}<end> minutes",
+    "AIRDROP CALLED": "An <yellow>Airdrop<end> is coming, will drop at <lime>{location}<end> coordinates.",
+    "CHECK CONSOLE": "Check the console (press F1) for more info.",
+    "HELI CALLED": "A <yellow>Patrol Helicopter<end> is coming!",
+    "JOIN MESSAGE": "<lime>{username}<end> joined the server.",
+    "LEAVE MESSAGE": "<lime>{username}<end> left the server. (Reason: <white>{reason}<end>)",
+    "MAP LINK": "See where you are on the server map at: <lime>http://utmo.link/rustmap<end>",
+    "MAP LINK DESC": "<orange>/map<end> <grey>-<end> Server map url.",
+    "NO ADMINS": "There are no <cyan>Admins<end> online.",
+    "NO LANG": "Error, <lime>{args}<end> language not supported or does not exist.",
+    "NO RULES": "Error, no rules found, contact the <cyan>Admins<end>.",
+    "PLAYERS LIST DESC": "<orange>/players<end> <grey>-<end> List of all players in the server.",
+    "PLAYERS LIST TITLE": "PLAYERS LIST",
+    "PLAYERS ONLINE": "There are <lime>{active}<end>/<lime>{maxplayers}<end> players online.",
+    "PLAYERS ONLINE DESC": "<orange>/online<end> <grey>-<end> Shows the number of players and <cyan>Admins<end> online, plus a few server stats.",
+    "PLAYERS ONLINE TITLE": "PLAYERS ONLINE",
+    "PLAYERS STATS": "Sleepers: <lime>{sleepers}<end> Alltime Players: <lime>{alltime}<end>",
+    "PLUGINS LIST DESC": "<orange>/plugins<end> <grey>-<end> List of plugins installed in the server.",
+    "PLUGINS LIST TITLE": "SERVER PLUGINS",
+    "RULES DESC": "<orange>/rules<end> <grey>-<end> List of server rules.",
+    "RULES TITLE": "SERVER RULES",
+    "SYNTAX ERROR": "Syntax Error: {syntax}"
+  },
+  "MOTD": "This server now has the new <yellow>Message Of The Day<end> feature provided by <cyan>Notifier<end>. Use <orange>/motd<end> to know server's daily news!",
+  "RULES": {
+    "DE": [
+      "Cheaten ist verboten!",
+      "Respektiere alle Spieler",
+      "Spam im Chat zu vermeiden.",
+      "Spiel fair und missbrauche keine Bugs oder Exploits."
+    ],
+    "DK": [
+      "Snyd er strengt forbudt.",
+      "Respekter alle spillere.",
+      "Undgå spam i chatten.",
+      "Spil fair og misbrug ikke bugs / exploits."
+    ],
+    "EN": [
+      "Cheating is strictly prohibited.",
+      "Hate language of any kind is prohibited",
+      "Respect all players",
+      "Avoid spam in chat.",
+      "Play fair and don't abuse of bugs/exploits."
+    ],
+    "ES": [
+      "Los trucos están terminantemente prohibidos.",
+      "Respeta a todos los jugadores.",
+      "Evita el Spam en el chat.",
+      "Juega limpio y no abuses de bugs/exploits."
+    ],
+    "FR": [
+      "Tricher est strictement interdit.",
+      "Respectez tous les joueurs.",
+      "Évitez le spam dans le chat.",
+      "Jouer juste et ne pas abuser des bugs / exploits."
+    ],
+    "HU": [
+      "Csalás szigorúan tilos.",
+      "Tiszteld minden játékostársad.",
+      "Kerüld a spammolást a chaten.",
+      "Játssz tisztességesen és nem élj vissza a hibákkal."
+    ],
+    "IT": [
+      "Cheating è severamente proibito.",
+      "Rispettare tutti i giocatori.",
+      "Evitare lo spam in chat.",
+      "Fair Play e non abusare di bug / exploit."
+    ],
+    "NL": [
+      "Vals spelen is ten strengste verboden.",
+      "Respecteer alle spelers",
+      "Vermijd spam in de chat.",
+      "Speel eerlijk en maak geen misbruik van bugs / exploits."
+    ],
+    "PT": [
+      "Usar cheats e totalmente proibido.",
+      "Respeita todos os jogadores.",
+      "Evita spam no chat.",
+      "Nao abuses de bugs ou exploits."
+    ],
+    "RO": [
+      "Cheaturile sunt strict interzise!",
+      "Respectați toți jucătorii!",
+      "Evitați spamul în chat!",
+      "Jucați corect și nu abuzați de bug-uri/exploituri!"
+    ],
+    "RU": [
+      "Запрещено использовать читы.",
+      "Запрещено спамить и материться.",
+      "Уважайте других игроков.",
+      "Играйте честно и не используйте баги и лазейки."
+    ],
+    "TR": [
+      "Hile kesinlikle yasaktır.",
+      "Tüm oyuncular Saygı.",
+      "Sohbet Spam kaçının.",
+      "Adil oynayın ve böcek / açıkları kötüye yok."
+    ],
+    "UA": [
+      "Обман суворо заборонено.",
+      "Поважайте всіх гравців",
+      "Щоб уникнути спаму в чаті.",
+      "Грати чесно і не зловживати помилки / подвиги."
+    ]
+  },
+  "SCHEDULED MESSAGES": {
+    "00:00": [
+      "It is now <lime>{localtime}<end> of <lime>{localdate}<end>"
+    ],
+    "12:00": [
+      "It is now <lime>{localtime}<end> of <lime>{localdate}<end>"
+    ]
+  },
+  "SETTINGS": {
+    "ADVERTS INTERVAL": 12,
+    "ANNOUNCE AIRDROPS": false,
+    "ANNOUNCE PATROL HELICOPTERS": true,
+    "BROADCAST TO CONSOLE": true,
+    "DIFFER ADMINS JOIN/LEAVE MESSAGE": false,
+    "ENABLE ADMINS LIST": false,
+    "ENABLE ADVERTS": true,
+    "ENABLE ADVERTS COMMAND": true,
+    "ENABLE JOIN MESSAGE": true,
+    "ENABLE LEAVE MESSAGE": true,
+    "ENABLE MAP LINK": true,
+    "ENABLE MOTD": false,
+    "ENABLE PLAYERS DEFAULT COLORS": false,
+    "ENABLE PLAYERS LIST": true,
+    "ENABLE PLAYERS ONLINE": true,
+    "ENABLE PLUGIN ICON": false,
+    "ENABLE PLUGINS LIST": true,
+    "ENABLE RULES": true,
+    "ENABLE SCHEDULED MESSAGES": false,
+    "ENABLE WELCOME MESSAGE": true,
+    "HIDE ADMINS": false,
+    "ICON PROFILE": "76561198235146288",
+    "MOTD INTERVAL": 120,
+    "MOTD PREFIX": "[ <yellow>MOTD<end> ]",
+    "PLAYERS LIST ON CHAT": true,
+    "PLAYERS LIST ON CONSOLE": false,
+    "PREFIX": "<white>[<end> <cyan>NOTIFIER<end> <white>]<end>",
+    "RULES LANGUAGE": "AUTO"
+  },
+  "WELCOME MESSAGE": [
+    "<size=17>Welcome <lime>{username}<end></size>",
+    "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
+    "<orange><size=20>•</size><end> You are responsible for knowing our <orange>/rules<end>.",
+    "<orange><size=20>•</size><end> See where you are on the server map at: <lime>https://utmo.link/rustmap<end>"
+  ]
+}
