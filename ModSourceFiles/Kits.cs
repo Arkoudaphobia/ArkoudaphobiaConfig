@@ -945,6 +945,7 @@ namespace Oxide.Plugins
 
         bool hasAccess(BasePlayer player)
         {
+            //The value >= 1 needs to persist between updates so moderators can work with kits as well
             if (player.net.connection.authLevel >= 1)
                 return true;
             return false;
