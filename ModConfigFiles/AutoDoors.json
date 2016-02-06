@@ -1,5 +1,5 @@
 {
-  "DefaultDelay": 5,
+  "DefaultDelay": 10,
   "MaximumDelay": 30,
   "MinimumDelay": 5
 }
