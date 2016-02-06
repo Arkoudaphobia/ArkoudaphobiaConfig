@@ -15,7 +15,7 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.1", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.2", ResourceId = 1255)]
     [Description("Tracks ownership of placed constructions and deployables")]
     class EntityOwner : RustPlugin
     {
@@ -683,7 +683,17 @@ namespace Oxide.Plugins
 
             if (profile is OwnerProfile)
             {
-                AddEntityToProfile(profile, entity);
+                if (entity is BuildingPrivlidge)
+                {
+                    timer.In(0.15f, delegate()
+                    {
+                        AddEntityToProfile(profile, entity);
+                    });
+                }
+                else
+                {
+                    AddEntityToProfile(profile, entity);
+                }
             }
         }
 
@@ -694,6 +704,7 @@ namespace Oxide.Plugins
             {
                 return;
             }
+
             string eid = GetEntityID(entity);
             if (OwnerData.ContainsKey(eid))
             {
@@ -1199,33 +1210,33 @@ namespace Oxide.Plugins
             }
         }
 
-        //[ChatCommand("authclean")]
-        //void cmdAuthClean(BasePlayer player, string command, string[] args)
-        //{
-        //    if (!this.canChangeOwners(player))
-        //    {
-        //        return;
-        //    }
+        [ChatCommand("authclean")]
+        void cmdAuthClean(BasePlayer player, string command, string[] args)
+        {
+            if (!this.canChangeOwners(player))
+            {
+                return;
+            }
 
-        //    BasePlayer target = null;
-        //    if (args.Length == 1)
-        //    {
-        //        target = FindPlayerByPartialName(args[0]);
-        //        if (target == null)
-        //        {
-        //            SendReply(player, messages["Target player not found"]);
-        //            return;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        target = player;
-        //    }
+            BasePlayer target = null;
+            if (args.Length == 1)
+            {
+                target = FindPlayerByPartialName(args[0]);
+                if (target == null)
+                {
+                    SendReply(player, messages["Target player not found"]);
+                    return;
+                }
+            }
+            else
+            {
+                target = player;
+            }
 
-        //    this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
-        //    target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
-        //    target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
-        //}
+            this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
+            target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
+            target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
+        }
 
         [ChatCommand("prod2")]
         void cmdProd2(BasePlayer player, string command, string[] args)
@@ -2211,7 +2222,6 @@ namespace Oxide.Plugins
             {
                 if (!this.LoadProfile(player.userID))
                 {
-                    Debug.Log("CREATING DEFAULT");
                     profile = this.CreateDefaultProfile(player.userID);
                 }
             }
