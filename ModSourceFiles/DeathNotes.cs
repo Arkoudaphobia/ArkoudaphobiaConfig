@@ -1,18 +1,19 @@
 ﻿using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
+using Oxide.Core.Plugins;
 using Newtonsoft.Json;
 using System.Linq;
 using Oxide.Core;
 using System;
-using Oxide.Core.Plugins;
-using Newtonsoft.Json.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.1.0", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.1.2", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
+        #region Global Declaration
         bool debug = false;
         bool killReproducing = false;
 
@@ -21,9 +22,115 @@ namespace Oxide.Plugins
 
         Dictionary<string, string> reproduceableKills = new Dictionary<string, string>();
 
+        Dictionary<BasePlayer, Timer> timers = new Dictionary<BasePlayer, Timer>();
+
         Plugin PopupNotifications;
+        #endregion
 
         #region Classes
+
+        class UIColor
+        {
+            double red;
+            double green;
+            double blue;
+            double alpha;
+
+            public UIColor(double red, double green, double blue, double alpha)
+            {
+                this.red = red;
+                this.green = green;
+                this.blue = blue;
+                this.alpha = alpha;
+            }
+
+            public override string ToString()
+            {
+                return $"{red.ToString()} {green.ToString()} {blue.ToString()} {alpha.ToString()}";
+            }
+        }
+
+        class UIObject
+        {
+            List<object> ui = new List<object>();
+            List<string> objectList = new List<string>();
+
+            public UIObject()
+            {
+            }
+
+            string RandomString()
+            {
+                string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+                List<char> charList = chars.ToList();
+
+                string random = "";
+
+                for (int i = 0; i <= UnityEngine.Random.Range(5, 10); i++)
+                    random = random + charList[UnityEngine.Random.Range(0, charList.Count - 1)];
+
+                return random;
+            }
+
+            public void Draw(BasePlayer player)
+            {
+                CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo() { connection = player.net.connection }, null, "AddUI", new Facepunch.ObjectList(JsonConvert.SerializeObject(ui).Replace("{NEWLINE}", Environment.NewLine)));
+            }
+
+            public void Destroy(BasePlayer player)
+            {
+                ((DeathNotes)Interface.Oxide.RootPluginManager.GetPlugin("DeathNotes")).PrintWarning($"---> Destroy({player})");
+
+                foreach (string uiName in objectList)
+                    CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo() { connection = player.net.connection }, null, "DestroyUI", new Facepunch.ObjectList(uiName));
+            }
+
+            public string AddText(string name, double left, double top, double width, double height, UIColor color, string text, int textsize = 15, string parent = "HUD/Overlay", int alignmode = 0, float fadeIn = 0f, float fadeOut = 0f)
+            {
+                //name = name + RandomString();
+                text = text.Replace("\n", "{NEWLINE}");
+                string align = "";
+
+                switch (alignmode)
+                {
+                    case 0: { align = "LowerCenter"; break; };
+                    case 1: { align = "LowerLeft"; break; };
+                    case 2: { align = "LowerRight"; break; };
+                    case 3: { align = "MiddleCenter"; break; };
+                    case 4: { align = "MiddleLeft"; break; };
+                    case 5: { align = "MiddleRight"; break; };
+                    case 6: { align = "UpperCenter"; break; };
+                    case 7: { align = "UpperLeft"; break; };
+                    case 8: { align = "UpperRight"; break; };
+                }
+
+                ui.Add(new Dictionary<string, object> {
+                    {"name", name},
+                    {"parent", parent},
+                    {"fadeOut", fadeOut.ToString()},
+                    {"components",
+                        new List<object> {
+                            new Dictionary<string, string> {
+                                {"type", "UnityEngine.UI.Text"},
+                                {"text", text},
+                                {"fontSize", textsize.ToString()},
+                                {"color", color.ToString()},
+                                {"align", align},
+                                {"fadeIn", fadeIn.ToString()}
+                            },
+                            new Dictionary<string, string> {
+                                {"type", "RectTransform"},
+                                {"anchormin", $"{left.ToString()} {((1 - top) - height).ToString()}"},
+                                {"anchormax", $"{(left + width).ToString()} {(1 - top).ToString()}"}
+                            }
+                        }
+                    }
+                });
+
+                objectList.Add(name);
+                return name;
+            }
+        }
 
         class Attacker
         {
@@ -268,7 +375,7 @@ namespace Oxide.Plugins
         }
 
         #endregion
-
+        
         #region Enums / Types
 
         enum VictimType
@@ -349,7 +456,6 @@ namespace Oxide.Plugins
 
             if (PopupNotifications == null && GetConfig(false, "Settings", "Use Popup Notifications"))
                 PrintWarning("You have set 'Use Popup Notifications' to true, but the Popup Notifications plugin is not installed. Popups will not work without it. Get it here: http://oxidemod.org/plugins/1252/");
-
         }
 
         protected override void LoadDefaultConfig()
@@ -369,7 +475,10 @@ namespace Oxide.Plugins
         void OnPluginLoaded(Plugin plugin)
         {
             if (plugin.Title == "Popup Notifications")
-                PopupNotifications = (Plugin) plugin;
+            {
+                PopupNotifications = (Plugin)plugin;
+                PrintError("Popup Notifications loaded");
+            }
         }
 
         #endregion
@@ -401,7 +510,12 @@ namespace Oxide.Plugins
 
             SetConfig("Settings", "Log to File", false);
             SetConfig("Settings", "Write to Console", true);
+            SetConfig("Settings", "Write to Chat", true);
             SetConfig("Settings", "Use Popup Notifications", false);
+            SetConfig("Settings", "Use Simple UI", false);
+            SetConfig("Settings", "Strip Colors from Simple UI", false);
+
+            SetConfig("Settings", "Simple UI Hide Timer", 5f);
 
             SetConfig("Settings", "Enable Showdeaths Command", true);
 
@@ -422,7 +536,7 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Distance Color", "#C4FF00");
             SetConfig("Settings", "Bodypart Color", "#C4FF00");
             SetConfig("Settings", "Message Color", "#696969");
-            
+
             SetConfig("Names", new Dictionary<string, object> { });
             SetConfig("Bodyparts", new Dictionary<string, object> { });
             SetConfig("Weapons", new Dictionary<string, object> { });
@@ -671,7 +785,13 @@ namespace Oxide.Plugins
             foreach (BasePlayer player in BasePlayer.activePlayerList)
             {
                 if (InRadius(player, data.attacker.entity) && CanSee(player))
-                    SendChatMessage(player, GetDeathMessage(newData, false), null, GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)"));
+                {
+                    if (GetConfig(true, "Settings", "Write to Chat"))
+                        SendChatMessage(player, GetDeathMessage(newData, false), null, GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)"));
+
+                    if (GetConfig(false, "Settings", "Use Simple UI"))
+                        UIMessage(player, GetConfig(false, "Settings", "Strip Colors from Simple UI") ? StripTags(GetDeathMessage(newData, true)) : GetDeathMessage(newData, true));
+                }
             }
 
             if (GetConfig(true, "Settings", "Write to Console"))
@@ -691,7 +811,7 @@ namespace Oxide.Plugins
 
             if (killReproducing && !reproduced)
             {
-                reproduceableKills.Add(DateTime.Now.ToString(), data.JSON.Replace(Environment.NewLine, ""));
+                reproduceableKills[DateTime.Now.ToString()] = data.JSON.Replace(Environment.NewLine, "");
                 SaveData();
             }
         }
@@ -1024,6 +1144,43 @@ namespace Oxide.Plugins
         void SendChatMessage(BasePlayer player, string prefix, string msg = null, object uid = null) => rust.SendChatMessage(player, msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg, null, uid?.ToString() ?? "0");
 
         void PopupMessage(string message) => PopupNotifications?.Call("CreatePopupNotification", message);
+
+        void UIMessage(BasePlayer player, string message)
+        {
+            bool replaced = false;
+            float fadeIn = 0.2f;
+
+            if (timers.ContainsKey(player) && timers[player] != null && !timers[player].Destroyed)
+            {
+                timers[player].Destroy();
+                fadeIn = 0.1f;
+
+                replaced = true;
+            }
+
+            UIObject ui = new UIObject();
+
+            ui.AddText("DeathNotice_DropShadow", 0.101, 0.101, 0.8, 0.05, new UIColor(0.1, 0.1, 0.1, 0.8), $"{StripTags(message)}", 20, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice", 0.1, 0.1, 0.8, 0.05, new UIColor(0.85, 0.85, 0.85, 1), $"{message}", 20, "HUD/Overlay", 3, fadeIn, 0.2f);
+
+            ui.Destroy(player);
+
+            if(replaced)
+            {
+                timer.Once(0.1f, () =>
+                {
+                    ui.Draw(player);
+
+                    timers[player] = timer.Once(GetConfig(5f, "Settings", "Simple UI Hide Timer"), () => ui.Destroy(player));
+                });
+            }
+            else
+            {
+                ui.Draw(player);
+
+                timers[player] = timer.Once(GetConfig(5f, "Settings", "Simple UI Hide Timer"), () => ui.Destroy(player));
+            }
+        }
 
         #endregion
     }

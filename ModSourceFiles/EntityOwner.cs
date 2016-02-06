@@ -15,7 +15,7 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.0", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.1", ResourceId = 1255)]
     [Description("Tracks ownership of placed constructions and deployables")]
     class EntityOwner : RustPlugin
     {
@@ -131,10 +131,10 @@ namespace Oxide.Plugins
                     return null;
                 }
 
-                if (entity.LookupPrefabName().Contains("cupboard.tool.deployed"))
-                {
-                    return null;
-                }
+                //if (entity.LookupPrefabName().Contains("cupboard.tool.deployed"))
+                //{
+                //    return null;
+                //}
 
                 string eid = GetEntityID(entity);
 
@@ -622,7 +622,7 @@ namespace Oxide.Plugins
                 sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/unown [all/block]</color> - Remove ownership from entire structure").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/auth PlayerName</color> - Authorize specified player on all nearby cupboards").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/authclean PlayerName</color> - Remove all building privileges on a player").Append("\n");
+                //sb.Append("  ").Append("<color=\"#ffd479\">/authclean PlayerName</color> - Remove all building privileges on a player").Append("\n");
             }
 
             if (this.canWipeOwners(player))
@@ -673,7 +673,6 @@ namespace Oxide.Plugins
                 return;
             }
 
-            Debug.Log(((BaseEntity)entity).prefabID);
             BasePlayer player = planner.ownerPlayer;
             if (player == null)
             {
@@ -1200,33 +1199,33 @@ namespace Oxide.Plugins
             }
         }
 
-        [ChatCommand("authclean")]
-        void cmdAuthClean(BasePlayer player, string command, string[] args)
-        {
-            if (!this.canChangeOwners(player))
-            {
-                return;
-            }
+        //[ChatCommand("authclean")]
+        //void cmdAuthClean(BasePlayer player, string command, string[] args)
+        //{
+        //    if (!this.canChangeOwners(player))
+        //    {
+        //        return;
+        //    }
 
-            BasePlayer target = null;
-            if (args.Length == 1)
-            {
-                target = FindPlayerByPartialName(args[0]);
-                if (target == null)
-                {
-                    SendReply(player, messages["Target player not found"]);
-                    return;
-                }
-            }
-            else
-            {
-                target = player;
-            }
+        //    BasePlayer target = null;
+        //    if (args.Length == 1)
+        //    {
+        //        target = FindPlayerByPartialName(args[0]);
+        //        if (target == null)
+        //        {
+        //            SendReply(player, messages["Target player not found"]);
+        //            return;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        target = player;
+        //    }
 
-            this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
-        }
+        //    this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
+        //    target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
+        //    target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
+        //}
 
         [ChatCommand("prod2")]
         void cmdProd2(BasePlayer player, string command, string[] args)
