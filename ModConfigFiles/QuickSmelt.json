@@ -1,7 +1,7 @@
 {
-  "ChancePerConsumption": 0.5,
+  "ChancePerConsumption": 1.0,
   "CharcoalChanceModifier": 1.5,
   "CharcoalProductionModifier": 1.0,
   "DontOvercookMeat": true,
-  "ProductionModifier": 1.0
+  "ProductionModifier": 2.0
 }
