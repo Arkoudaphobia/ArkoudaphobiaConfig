@@ -13,7 +13,8 @@ Foreach($File in $ModConfigFiles)
 Foreach($File in $ModSourceFiles)
 {
     Push-Location .\ModSourceFiles
-    Copy-Item $File -Destination $BaseServerPath\oxide\plugins -Force
+	Get-ChildItem | Remove-Item -Confirm:$False -Force
+    Copy-Item $File -Destination $BaseServerPath\oxide\plugins
     Pop-Location
 }
 
