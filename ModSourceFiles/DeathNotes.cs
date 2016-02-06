@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.1.2", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.1.3", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -79,8 +79,6 @@ namespace Oxide.Plugins
 
             public void Destroy(BasePlayer player)
             {
-                ((DeathNotes)Interface.Oxide.RootPluginManager.GetPlugin("DeathNotes")).PrintWarning($"---> Destroy({player})");
-
                 foreach (string uiName in objectList)
                     CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo() { connection = player.net.connection }, null, "DestroyUI", new Facepunch.ObjectList(uiName));
             }
@@ -514,6 +512,11 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Use Popup Notifications", false);
             SetConfig("Settings", "Use Simple UI", false);
             SetConfig("Settings", "Strip Colors from Simple UI", false);
+            SetConfig("Settings", "Simple UI - Font Size", 20);
+            SetConfig("Settings", "Simple UI - Top", 0.1f);
+            SetConfig("Settings", "Simple UI - Left", 0.1f);
+            SetConfig("Settings", "Simple UI - Max Width", 0.8f);
+            SetConfig("Settings", "Simple UI - Max Height", 0.05f);
 
             SetConfig("Settings", "Simple UI Hide Timer", 5f);
 
@@ -1150,6 +1153,13 @@ namespace Oxide.Plugins
             bool replaced = false;
             float fadeIn = 0.2f;
 
+            int fontSize = GetConfig(20, "Settings", "Simple UI - Font Size");
+
+            float left = GetConfig(0.1f, "Settings", "Simple UI - Left");
+            float top = GetConfig(0.1f, "Settings", "Simple UI - Top");
+            float width = GetConfig(0.8f, "Settings", "Simple UI - Max Width");
+            float height = GetConfig(0.05f, "Settings", "Simple UI - Max Height");
+
             if (timers.ContainsKey(player) && timers[player] != null && !timers[player].Destroyed)
             {
                 timers[player].Destroy();
@@ -1160,8 +1170,8 @@ namespace Oxide.Plugins
 
             UIObject ui = new UIObject();
 
-            ui.AddText("DeathNotice_DropShadow", 0.101, 0.101, 0.8, 0.05, new UIColor(0.1, 0.1, 0.1, 0.8), $"{StripTags(message)}", 20, "HUD/Overlay", 3, fadeIn, 0.2f);
-            ui.AddText("DeathNotice", 0.1, 0.1, 0.8, 0.05, new UIColor(0.85, 0.85, 0.85, 1), $"{message}", 20, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice_DropShadow", left + 0.001, top + 0.001, width, height, new UIColor(0.1, 0.1, 0.1, 0.8), $"{StripTags(message)}", fontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice", left, top, width, height, new UIColor(0.85, 0.85, 0.85, 1), $"{message}", fontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
 
             ui.Destroy(player);
 
