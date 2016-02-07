@@ -15,7 +15,7 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.2", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.3", ResourceId = 1255)]
     [Description("Tracks ownership of placed constructions and deployables")]
     class EntityOwner : RustPlugin
     {
@@ -923,9 +923,10 @@ namespace Oxide.Plugins
             }
             if (args == null || (args != null && args.Length == 0))
             {
-                var input = serverinput.GetValue(player) as InputState;
-                var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
-                var target = RaycastAll<BaseEntity>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                //var input = serverinput.GetValue(player) as InputState;
+                //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
+                //var target = RaycastAll<BaseEntity>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                var target = RaycastAll<BaseEntity>(player.eyes.HeadRay());
                 if (target is bool)
                 {
                     SendReply(player, messages["No target found"]);
@@ -1174,9 +1175,10 @@ namespace Oxide.Plugins
 
             if (checkCupboard)
             {
-                var input = serverinput.GetValue(player) as InputState;
-                var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
-                var priv = RaycastAll<BuildingPrivlidge>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                //var input = serverinput.GetValue(player) as InputState;
+                //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
+                //var priv = RaycastAll<BuildingPrivlidge>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                var priv = RaycastAll<BuildingPrivlidge>(player.eyes.HeadRay());
                 if (priv is bool)
                 {
                     SendReply(player, messages["No target found"]);
@@ -1195,9 +1197,10 @@ namespace Oxide.Plugins
 
             if (checkTurret)
             {
-                var input = serverinput.GetValue(player) as InputState;
-                var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
-                var turret = RaycastAll<AutoTurret>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                //var input = serverinput.GetValue(player) as InputState;
+                //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
+                //var turret = RaycastAll<AutoTurret>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
+                var turret = RaycastAll<AutoTurret>(player.eyes.HeadRay());
                 if (turret is bool)
                 {
                     SendReply(player, messages["No target found"]);
@@ -1448,7 +1451,6 @@ namespace Oxide.Plugins
             object entityObject = false;
 
             entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
-
             if (entityObject is bool)
             {
                 SendReply(player, messages["No entities found."]);
@@ -1456,10 +1458,11 @@ namespace Oxide.Plugins
             else
             {
                 Dictionary<ulong, int> prodOwners = new Dictionary<ulong, int>();
-                T entity = entityObject as T;
+                BaseEntity entity = entityObject as BaseEntity;
                 if (entity.transform == null)
                 {
                     SendReply(player, messages["No entities found."]);
+                    return;
                 }
 
                 SendReply(player, messages["Prodding structure.."]);
@@ -1467,13 +1470,16 @@ namespace Oxide.Plugins
                 List<T> entityList = new List<T>();
                 List<Vector3> checkFrom = new List<Vector3>();
 
-                entityList.Add((T)entity);
+                if (entity is T)
+                {
+                    entityList.Add((T)entity);
+                }
                 checkFrom.Add(entity.transform.position);
 
                 string eid = GetEntityID(entity);
 
                 int total = 0;
-                if (OwnerData.ContainsKey(eid))
+                if (OwnerData.ContainsKey(eid) && entity is T)
                 {
                     prodOwners.Add(OwnerData[eid], 1);
                     total++;
@@ -1498,7 +1504,12 @@ namespace Oxide.Plugins
                         break;
                     }
 
-                    List<T> hits = this.FindEntities<T>(checkFrom[current - 1], this.DistanceThreshold);
+                    float distanceThreshold = this.DistanceThreshold;
+                    if(typeof(T) == typeof(StorageContainer)) {
+                        distanceThreshold += 30;
+                    }
+
+                    List<T> hits = this.FindEntities<T>(checkFrom[current - 1], distanceThreshold);
 
                     foreach (T fentity in hits)
                     {
@@ -1554,7 +1565,6 @@ namespace Oxide.Plugins
                 {
                     SendReply(player, string.Format(messages["Unknown: {0}%"], unknown));
                 }
-
             }
         }
 
@@ -2288,6 +2298,24 @@ namespace Oxide.Plugins
         private object RaycastAll<T>(Vector3 Pos, Vector3 Aim) where T : BaseEntity
         {
             var hits = UnityEngine.Physics.RaycastAll(Pos, Aim);
+            float distance = 100f;
+            object target = false;
+            foreach (var hit in hits)
+            {
+                BaseEntity ent = hit.GetEntity();
+                if (ent != null && ent is T && hit.distance < distance)
+                {
+                    target = ent;
+                    break;
+                }
+            }
+
+            return target;
+        }
+
+        private object RaycastAll<T>(Ray ray) where T : BaseEntity
+        {
+            var hits = UnityEngine.Physics.RaycastAll(ray);
             float distance = 100f;
             object target = false;
             foreach (var hit in hits)
