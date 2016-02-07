@@ -6,7 +6,7 @@
     "Type <orange>/map<end> for the server map link.",
     "You are playing on: <lime>{server.hostname}<end>",
     "The game time is <lime>{gamedate} {gametime}<end>",
-	"Take advantage of our convenant transit system.  With six points on the map including the central hub by the refinery it's easy to fast travel with out spending all that time."
+	"Take advantage of our convenient transit system.  With six points on the map including the central hub by the refinery it's easy to fast travel without spending all that time."
   ],
   "COLORS": {
     "ADVERTS": "silver",
