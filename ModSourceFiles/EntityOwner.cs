@@ -15,7 +15,7 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.3", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.31", ResourceId = 1255)]
     [Description("Tracks ownership of placed constructions and deployables")]
     class EntityOwner : RustPlugin
     {
@@ -25,8 +25,6 @@ namespace Oxide.Plugins
         public Dictionary<ulong, OwnerProfile> Players = new Dictionary<ulong, OwnerProfile>();
         protected Dictionary<string, ulong> OwnerData = new Dictionary<string, ulong>();
         private int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
-
-        private FieldInfo serverinput = typeof(BasePlayer).GetField("serverInput", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
 
         private int EntityLimit = 8000;
         private float DistanceThreshold = 3f;
@@ -687,7 +685,10 @@ namespace Oxide.Plugins
                 {
                     timer.In(0.15f, delegate()
                     {
-                        AddEntityToProfile(profile, entity);
+                        if (!entity.isDestroyed && entity.transform != null)
+                        {
+                            AddEntityToProfile(profile, entity);
+                        }
                     });
                 }
                 else
@@ -1505,7 +1506,7 @@ namespace Oxide.Plugins
                     }
 
                     float distanceThreshold = this.DistanceThreshold;
-                    if(typeof(T) == typeof(StorageContainer)) {
+                    if(typeof(T) != typeof(BuildingBlock) && typeof(T) != typeof(BaseEntity)) {
                         distanceThreshold += 30;
                     }
 
