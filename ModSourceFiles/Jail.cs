@@ -9,7 +9,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("Jail", "Reneb", "2.0.8")]
+    [Info("Jail", "Reneb", "2.0.9")]
     class Jail : RustPlugin
     {
         [PluginReference] Plugin ZoneManager;
@@ -133,7 +133,7 @@ namespace Oxide.Plugins
         void Loaded()
         {
             LoadData();
-            permission.RegisterPermission("canjail", this);
+            permission.RegisterPermission("jail.admin", this);
             lastPositionValue = typeof(BasePlayer).GetField("lastPositionValue", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
         }
 
@@ -173,7 +173,7 @@ namespace Oxide.Plugins
         /////////////////////////////////////////
         // Oxide Permission system
         /////////////////////////////////////////
-        bool hasPermission(BasePlayer player) { if (player.net != null && player.net.connection.authLevel > 1) return true; return permission.UserHasPermission(player.userID.ToString(), "canjail"); }
+        bool hasPermission(BasePlayer player) { if (player.net != null && player.net.connection.authLevel > 1) return true; return permission.UserHasPermission(player.userID.ToString(), "jail.admin"); }
 
         /////////////////////////////////////////
         // ZoneManager Hooks
@@ -197,8 +197,8 @@ namespace Oxide.Plugins
         {
             if (ZoneID == "Jail")
             {
-                if (hasPermission(player)) { SendReply(player, string.Format(WelcomeJail, player.displayName)); }
-                else if (jailinmates[player.userID.ToString()] == null) { SendReply(player, KeepOut); }
+                //if (hasPermission(player)) { SendReply(player, string.Format(WelcomeJail, player.displayName)); }
+                 if (jailinmates[player.userID.ToString()] == null) { SendReply(player, KeepOut); TeleportPlayerPosition(player, cachedJail.GetFreePosition()); }
             }
         }
 
@@ -210,7 +210,7 @@ namespace Oxide.Plugins
         {
             if (ZoneID == "Jail")
             {
-                if (jailinmates[player.userID.ToString()] != null) { SendReply(player, KeepIn); }
+                if (jailinmates[player.userID.ToString()] != null) { SendReply(player, KeepIn); TeleportPlayerPosition(player, jailinmates[player.userID.ToString()].GetJailPosition()); }
             }
         }
 
@@ -277,21 +277,16 @@ namespace Oxide.Plugins
 
         void TeleportPlayerPosition(BasePlayer player, Vector3 destination)
         {
-            PutToSleep(player);
-
-            player.transform.position = destination;
+            
             lastPositionValue.SetValue(player, player.transform.position);
-            player.ClientRPCPlayer(null, player, "ForcePositionTo", new object[] { destination });
-            player.TransformChanged();
 
+            player.MovePosition(destination);
+            player.ClientRPCPlayer(null, player, "ForcePositionTo", destination);
             player.SetPlayerFlag(BasePlayer.PlayerFlags.ReceivingSnapshot, true);
             player.UpdateNetworkGroup();
-
             player.SendNetworkUpdateImmediate(false);
-            player.ClientRPCPlayer(null, player, "StartLoading");
+            player.ClientRPCPlayer(null, player, "StartLoading", null, null, null, null, null);
             player.SendFullSnapshot();
-            player.SetPlayerFlag(BasePlayer.PlayerFlags.ReceivingSnapshot, false);
-            player.ClientRPCPlayer(null, player, "FinishLoading");
         }
 		
         int CurrentTime() { return System.Convert.ToInt32(System.DateTime.UtcNow.Subtract(epoch).TotalSeconds); }
@@ -369,7 +364,7 @@ namespace Oxide.Plugins
         void SendPlayerToJail(BasePlayer player)
         {
             if (jailinmates[player.userID.ToString()] == null) return;
-            ZoneManager.Call("AddPlayerToZoneKeepinlist", "Jail", player);
+            //ZoneManager.Call("AddPlayerToZoneKeepinlist", "Jail", player);
             TeleportPlayerPosition(player, jailinmates[player.userID.ToString()].GetJailPosition());
             SendReply(player, YouAreInJail);
         }
@@ -393,7 +388,7 @@ namespace Oxide.Plugins
         {
             if (jailinmates[player.userID.ToString()] == null) return;
             cachedJail = jailinmates[player.userID.ToString()];
-            ZoneManager.Call("RemovePlayerFromZoneKeepinlist", "Jail", player);
+            //ZoneManager.Call("RemovePlayerFromZoneKeepinlist", "Jail", player);
             TeleportPlayerPosition(player, cachedJail.GetFreePosition());
             SendReply(player, YouAreFree);
         }
