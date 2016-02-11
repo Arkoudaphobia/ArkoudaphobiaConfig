@@ -197,7 +197,7 @@ namespace Oxide.Plugins
         {
             if (ZoneID == "Jail")
             {
-                //if (hasPermission(player)) { SendReply(player, string.Format(WelcomeJail, player.displayName)); }
+                 if (hasPermission(player)) { SendReply(player, string.Format(WelcomeJail, player.displayName)); }
                  if (jailinmates[player.userID.ToString()] == null) { SendReply(player, KeepOut); TeleportPlayerPosition(player, cachedJail.GetFreePosition()); }
             }
         }
