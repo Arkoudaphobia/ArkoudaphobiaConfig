@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.0", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.0.1", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -143,7 +143,7 @@ namespace Oxide.Plugins
             internal PlayerSettings(DeathNotes deathnotes)
             {
                 ui = deathnotes.GetConfig(false, "Settings", "Use Simple UI");
-                ui = deathnotes.GetConfig(true, "Settings", "Write to Chat");
+                chat = deathnotes.GetConfig(true, "Settings", "Write to Chat");
             }
         }
 

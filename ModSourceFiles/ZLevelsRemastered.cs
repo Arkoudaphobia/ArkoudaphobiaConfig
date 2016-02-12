@@ -14,7 +14,7 @@ using Oxide.Ext.SQLite;
 
 namespace Oxide.Plugins
 {
-    [Info("Zeiser Levels REMASTERED", "Zeiser/Visagalis", "1.5.5", ResourceId = 1453)]
+    [Info("Zeiser Levels REMASTERED", "Zeiser/Visagalis", "1.5.6", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting.")]
     public class ZLevelsRemastered : RustPlugin
     {
@@ -218,11 +218,6 @@ namespace Oxide.Plugins
 
         void setPlayerData(ulong userID, string key, long value)
         {
-            if (userID == 76561198002115162 && key == "XPMultiplier" && value < 300)
-                value = 300; // 3x experience for developer! :)
-
-            //permission.UserHasPermission(userID.ToString(), pe);
-
             if (playerList[userID].ContainsKey(key))
                 playerList[userID][key] = value;
             else
