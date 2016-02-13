@@ -28,7 +28,7 @@
     "GatherResourceModifiers": {
       "*": 1.0
     },
-    "MiningQuarryResourceTickRate": 3.0,
+    "MiningQuarryResourceTickRate": 4.0,
     "PickupResourceModifiers": {
       "*": 1.0
     },
