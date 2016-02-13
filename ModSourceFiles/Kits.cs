@@ -10,11 +10,11 @@ using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("Kits", "Reneb", "3.1.3")]
+    [Info("Kits", "Reneb", "3.1.6")]
     class Kits : RustPlugin
     {
         readonly int playerLayer = LayerMask.GetMask("Player (Server)");
-
+        
         //////////////////////////////////////////////////////////////////////////////////////////
         ///// Plugin initialization
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -41,8 +41,8 @@ namespace Oxide.Plugins
         {
             foreach (var kit in storedData.Kits.Values)
             {
-                if (kit.permission != null)
-                    if (!permission.PermissionExists(kit.permission)) permission.RegisterPermission(kit.permission, this);
+                if (!string.IsNullOrEmpty(kit.permission) && !permission.PermissionExists(kit.permission))
+                    permission.RegisterPermission(kit.permission, this);
             }
         }
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +57,7 @@ namespace Oxide.Plugins
             public List<string> kits = new List<string>();
         }
 
-        void LoadDefaultConfig() { }
+        protected override void LoadDefaultConfig() { }
 
         void Init()
         {
@@ -116,33 +116,64 @@ namespace Oxide.Plugins
         ///// Kit Creator
         //////////////////////////////////////////////////////////////////////////////////////////
 
-        List<KitItem> GetPlayerItems(BasePlayer player)
+        static List<KitItem> GetPlayerItems(BasePlayer player)
         {
-            var kititems = player.inventory.containerWear.itemList.Select(item => new KitItem
+            List<KitItem> kititems = new List<KitItem>();
+            foreach (Item item in player.inventory.containerWear.itemList)
             {
-                itemid = item.info.itemid,
-                bp = item.IsBlueprint(),
-                container = "wear",
-                amount = item.amount,
-                skinid = item.skin
-            }).ToList();
-            kititems.AddRange(player.inventory.containerMain.itemList.Select(item => new KitItem
+                if (item != null)
+                {
+                    var iteminfo = ProcessItem(item, "wear");
+                    kititems.Add(iteminfo);
+                }
+            }
+            foreach (Item item in player.inventory.containerMain.itemList)
             {
-                itemid = item.info.itemid,
-                bp = item.IsBlueprint(),
-                container = "main",
-                amount = item.amount,
-                skinid = item.skin
-            }));
-            kititems.AddRange(player.inventory.containerBelt.itemList.Select(item => new KitItem
+                if (item != null)
+                {
+                    var iteminfo = ProcessItem(item, "main");
+                    kititems.Add(iteminfo);
+                }
+            }
+            foreach (Item item in player.inventory.containerBelt.itemList)
             {
-                itemid = item.info.itemid,
-                bp = item.IsBlueprint(),
-                container = "belt",
-                amount = item.amount,
-                skinid = item.skin
-            }));
+                if (item != null)
+                {
+                    var iteminfo = ProcessItem(item, "belt");
+                    kititems.Add(iteminfo);
+                }
+            }
             return kititems;
+        }
+        static private KitItem ProcessItem(Item item, string container)
+        {
+            KitItem iItem = new KitItem();
+            iItem.amount = item.amount;
+            iItem.mods = new List<int>();
+            iItem.container = container;
+            iItem.bp = item.IsBlueprint();
+            iItem.skinid = item.skin;
+            iItem.itemid = item.info.itemid;
+            iItem.weapon = false;
+
+            if (item.info.category.ToString() == "Weapon")
+            {
+                BaseProjectile weapon = item.GetHeldEntity() as BaseProjectile;
+                if (weapon != null)
+                {
+                    if (weapon.primaryMagazine != null)
+                    {
+                        iItem.weapon = true;
+                        if (item.contents != null)
+                            foreach (var mod in item.contents.itemList)
+                            {
+                                if (mod.info.itemid != 0)
+                                    iItem.mods.Add(mod.info.itemid);
+                            }
+                    }
+                }
+            }
+            return iItem;
         }
 
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -169,6 +200,8 @@ namespace Oxide.Plugins
         }
         void proccessKitGiven(BasePlayer player, string kitname)
         {
+            if (string.IsNullOrEmpty(kitname)) return;
+            kitname = kitname.ToLower();
             Kit kit;
             if (!storedData.Kits.TryGetValue(kitname, out kit)) return;
 
@@ -179,18 +212,55 @@ namespace Oxide.Plugins
             if (kit.cooldown > 0)
                 kitData.cooldown = CurrentTime() + kit.cooldown;
         }
+        void OnPlayerInit(BasePlayer player)
+        {
+            if (!kitsData.ContainsKey(player.userID))
+            {
+                foreach (var kit in storedData.Kits)
+                {
+                    var kitData = GetKitData(player.userID, kit.Key);
+                    if (kit.Value.cooldown > 0)
+                        kitData.cooldown = CurrentTime() + kit.Value.cooldown;
+                }
+            }
+        }
         object GiveKit(BasePlayer player, string kitname)
         {
+            if (string.IsNullOrEmpty(kitname)) return "Empty kit name";
+            kitname = kitname.ToLower();
             Kit kit;
             if (!storedData.Kits.TryGetValue(kitname, out kit)) return "This kit doesn't exist";
 
-            foreach (var kitem in kit.items)
+            foreach (KitItem kitem in kit.items)
             {
-                var item = ItemManager.CreateByItemID(kitem.itemid, kitem.amount, kitem.bp);
-                item.skin = kitem.skinid;
-                player.inventory.GiveItem(item, kitem.container == "belt" ? player.inventory.containerBelt : kitem.container == "wear" ? player.inventory.containerWear : player.inventory.containerMain);
+                if (kitem.weapon)
+                    player.inventory.GiveItem(BuildWeapon(kitem.itemid, kitem.bp, kitem.skinid, kitem.mods), kitem.container == "belt" ? player.inventory.containerBelt : kitem.container == "wear" ? player.inventory.containerWear : player.inventory.containerMain);
+                else player.inventory.GiveItem(BuildItem(kitem.itemid, kitem.amount, kitem.bp, kitem.skinid), kitem.container == "belt" ? player.inventory.containerBelt : kitem.container == "wear" ? player.inventory.containerWear : player.inventory.containerMain);
+
             }
             return true;
+        }
+        private Item BuildItem(int itemid, int amount, bool isBP, int skin)
+        {
+            if (amount < 1) amount = 1;
+            Item item = ItemManager.CreateByItemID(itemid, amount, isBP, skin);
+            return item;
+        }
+        private Item BuildWeapon(int id, bool isBP, int skin, List<int> mods)
+        {
+            Item item = ItemManager.CreateByItemID(id, 1, isBP, skin);
+            var weapon = item.GetHeldEntity() as BaseProjectile;
+            if (weapon != null)
+            {
+                (item.GetHeldEntity() as BaseProjectile).primaryMagazine.contents = (item.GetHeldEntity() as BaseProjectile).primaryMagazine.capacity;
+            }
+            if (mods != null)
+                foreach (var mod in mods)
+                {
+                    item.contents.AddItem(BuildItem(mod, 1, false, 0).info, 1);
+                }
+
+            return item;
         }
 
         //////////////////////////////////////////////////////////////////////////////////////////
@@ -199,7 +269,7 @@ namespace Oxide.Plugins
 
         bool isKit(string kitname)
         {
-            return storedData.Kits.ContainsKey(kitname);
+            return !string.IsNullOrEmpty(kitname) && storedData.Kits.ContainsKey(kitname.ToLower());
         }
 
         static readonly DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0);
@@ -208,6 +278,8 @@ namespace Oxide.Plugins
         bool CanSeeKit(BasePlayer player, string kitname, bool fromNPC, out string reason)
         {
             reason = string.Empty;
+            if (string.IsNullOrEmpty(kitname)) return false;
+            kitname = kitname.ToLower();
             Kit kit;
             if (!storedData.Kits.TryGetValue(kitname, out kit)) return false;
             if (kit.hide)
@@ -215,8 +287,8 @@ namespace Oxide.Plugins
             if (kit.authlevel > 0)
                 if (player.net.connection.authLevel < kit.authlevel)
                     return false;
-            if (kit.permission != null)
-                if (player.net.connection.authLevel < 2 && !permission.UserHasPermission(player.userID.ToString(), kit.permission))
+            if (!string.IsNullOrEmpty(kit.permission))
+                if (player.net.connection.authLevel < 2 && !permission.UserHasPermission(player.UserIDString, kit.permission))
                     return false;
             if (kit.npconly && !fromNPC)
                 return false;
@@ -246,6 +318,8 @@ namespace Oxide.Plugins
 
         object CanRedeemKit(BasePlayer player, string kitname)
         {
+            if (string.IsNullOrEmpty(kitname)) return "Empty kit name";
+            kitname = kitname.ToLower();
             Kit kit;
             if (!storedData.Kits.TryGetValue(kitname, out kit)) return "This kit doesn't exist";
 
@@ -260,8 +334,8 @@ namespace Oxide.Plugins
                 if (player.net.connection.authLevel < kit.authlevel)
                     return "You don't have the level to use this kit";
 
-            if (kit.permission != null)
-                if (player.net.connection.authLevel < 2 && !permission.UserHasPermission(player.userID.ToString(), kit.permission))
+            if (!string.IsNullOrEmpty(kit.permission))
+                if (player.net.connection.authLevel < 2 && !permission.UserHasPermission(player.UserIDString, kit.permission))
                     return "You don't have the permissions to use this kit";
 
             var kitData = GetKitData(player.userID, kitname);
@@ -285,10 +359,11 @@ namespace Oxide.Plugins
                     if (pair.Value.kits.Contains(kitname))
                         neededNpc.Add(pair.Key);
                 }
-                foreach (var col in Physics.OverlapSphere(player.transform.position, 3f, playerLayer))
+                foreach (var col in Physics.OverlapSphere(player.transform.position, 3f, playerLayer, QueryTriggerInteraction.Collide))
                 {
                     var targetplayer = col.GetComponentInParent<BasePlayer>();
                     if (targetplayer == null) continue;
+
                     if (neededNpc.Contains(targetplayer.userID))
                     {
                         foundNPC = true;
@@ -309,9 +384,11 @@ namespace Oxide.Plugins
         {
             public int itemid;
             public bool bp;
-            public int skinid;
             public string container;
             public int amount;
+            public int skinid;
+            public bool weapon;
+            public List<int> mods;
         }
 
         class Kit
@@ -334,6 +411,7 @@ namespace Oxide.Plugins
 
         private void SaveKitsData()
         {
+            if (kitsData == null) return;
             Interface.Oxide.DataFileSystem.WriteObject("Kits_Data", kitsData);
         }
 
@@ -381,6 +459,17 @@ namespace Oxide.Plugins
             {
                 kits.Settings.NullValueHandling = NullValueHandling.Ignore;
                 storedData = kits.ReadObject<StoredData>();
+                var update = new List<string>();
+                foreach (var kit in storedData.Kits)
+                {
+                    if (!kit.Key.Equals(kit.Key.ToLower()))
+                        update.Add(kit.Key);
+                }
+                foreach (var key in update)
+                {
+                    storedData.Kits[key.ToLower()] = storedData.Kits[key];
+                    storedData.Kits.Remove(key);
+                }
             }
             catch
             {
@@ -797,10 +886,9 @@ namespace Oxide.Plugins
             GUIKit kitpanel;
             if (!GUIKits.TryGetValue(guiId, out kitpanel)) return;
 
-            //Game.Rust.Cui.CuiHelper.AddUi(player, overlayjson.Replace("{msg}", kitpanel.description));
-            CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo { connection = player.net.connection }, null, "AddUI", new Facepunch.ObjectList(overlayjson.Replace("{msg}", kitpanel.description), null, null, null, null));
+            Game.Rust.Cui.CuiHelper.AddUi(player, overlayjson.Replace("{msg}", kitpanel.description));
 
-            RefreshKitPanel(player, guiId, 0);
+            RefreshKitPanel(player, guiId);
         }
         void RefreshKitPanel(BasePlayer player, ulong guiId, int minKit = 0)
         {
@@ -811,42 +899,37 @@ namespace Oxide.Plugins
             playerGUI.page = minKit;
 
             DestroyGUI(player, "KitListOverlay");
-            //Game.Rust.Cui.CuiHelper.AddUi(player, kitlistoverlay);
-            CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo { connection = player.net.connection }, null, "AddUI", new Facepunch.ObjectList(kitlistoverlay, null, null, null, null));
+            Game.Rust.Cui.CuiHelper.AddUi(player, kitlistoverlay);
             var kitpanel = GUIKits[guiId];
 
-            int current = 0;
-            foreach (var kitname in kitpanel.kits)
+            var max = minKit + 8;
+            if (max > kitpanel.kits.Count) max = kitpanel.kits.Count;
+            for (var i = minKit; i < max; i++)
             {
-                if (current >= minKit && current < minKit + 8)
-                {
-                    string reason = string.Empty;
-                    var cansee = CanSeeKit(player, kitname.ToLower(), true, out reason);
-                    if (!cansee && string.IsNullOrEmpty(reason)) continue;
+                var kitname = kitpanel.kits[i].ToLower();
+                string reason;
+                var cansee = CanSeeKit(player, kitname, true, out reason);
+                if (!cansee && string.IsNullOrEmpty(reason)) continue;
 
-                    Kit kit = storedData.Kits[kitname.ToLower()];
-                    var kitData = GetKitData(player.userID, kitname.ToLower());
+                Kit kit = storedData.Kits[kitname];
+                var kitData = GetKitData(player.userID, kitname);
 
-                    var ckit = buttonjson.Replace("{color}", "0.5 0.5 0.5 0.2");
-                    ckit = ckit.Replace("{guimsg}", $"'{kitname.ToLower()}'");
-                    ckit = ckit.Replace("{ymin}", (1 - ((current - minKit) + 1) * 0.0775).ToString());
-                    ckit = ckit.Replace("{ymax}", (1 - (current - minKit) * 0.0775).ToString());
-                    ckit = ckit.Replace("{kitfullname}", kit.name);
-                    ckit = ckit.Replace("{kitdescription}", kit.description ?? string.Empty);
-                    ckit = ckit.Replace("{imageurl}", kit.image ?? "http://i.imgur.com/xxQnE1R.png");
-                    ckit = ckit.Replace("{left}", kit.max <= 0 ? string.Empty : (kit.max - kitData.max).ToString());
-                    ckit = ckit.Replace("{cooldown}", kit.cooldown <= 0 ? string.Empty : CurrentTime() > kitData.cooldown ? "0" : Math.Abs(Math.Ceiling(CurrentTime() - kitData.cooldown)).ToString());
-                    //Game.Rust.Cui.CuiHelper.AddUi(player, ckit);
-                    CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo { connection = player.net.connection }, null, "AddUI", new Facepunch.ObjectList(ckit, null, null, null, null));
-                }
-                current++;
+                var ckit = buttonjson.Replace("{color}", "0.5 0.5 0.5 0.2");
+                ckit = ckit.Replace("{guimsg}", $"'{kitname}'");
+                ckit = ckit.Replace("{ymin}", (1 - ((i - minKit) + 1) * 0.0775).ToString());
+                ckit = ckit.Replace("{ymax}", (1 - (i - minKit) * 0.0775).ToString());
+                ckit = ckit.Replace("{kitfullname}", kit.name);
+                ckit = ckit.Replace("{kitdescription}", kit.description ?? string.Empty);
+                ckit = ckit.Replace("{imageurl}", kit.image ?? "http://i.imgur.com/xxQnE1R.png");
+                ckit = ckit.Replace("{left}", kit.max <= 0 ? string.Empty : (kit.max - kitData.max).ToString());
+                ckit = ckit.Replace("{cooldown}", kit.cooldown <= 0 ? string.Empty : CurrentTime() > kitData.cooldown ? "0" : Math.Abs(Math.Ceiling(CurrentTime() - kitData.cooldown)).ToString());
+                Game.Rust.Cui.CuiHelper.AddUi(player, ckit);
             }
 
-            int pageminus = minKit - 8 < 0 ? 0 : minKit - 8;
-            int pageplus = minKit + 8 > current ? minKit : minKit + 8;
+            var pageminus = minKit - 8 < 0 ? 0 : minKit - 8;
+            var pageplus = minKit + 8 > kitpanel.kits.Count ? minKit : minKit + 8;
             var kpage = kitchangepage.Replace("{pageminus}", pageminus.ToString()).Replace("{pageplus}", pageplus.ToString());
-            //Game.Rust.Cui.CuiHelper.AddUi(player, kpage);
-            CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo { connection = player.net.connection }, null, "AddUI", new Facepunch.ObjectList(kpage,null,null,null,null));
+            Game.Rust.Cui.CuiHelper.AddUi(player, kpage);
         }
 
         void DestroyAllGUI(BasePlayer player) { Game.Rust.Cui.CuiHelper.DestroyUi(player, "KitOverlay"); }
@@ -864,7 +947,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("kit.gui")]
         void cmdConsoleKitGui(ConsoleSystem.Arg arg)
         {
-            if (arg.Player() == null)
+            if (arg.connection == null)
             {
                 SendReply(arg, "You can't use this command from the server console");
                 return;
@@ -883,7 +966,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("kit.close")]
         void cmdConsoleKitClose(ConsoleSystem.Arg arg)
         {
-            if (arg.Player() == null)
+            if (arg.connection == null)
             {
                 SendReply(arg, "You can't use this command from the server console");
                 return;
@@ -894,7 +977,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("kit.show")]
         void cmdConsoleKitShow(ConsoleSystem.Arg arg)
         {
-            if (arg.Player() == null)
+            if (arg.connection == null)
             {
                 SendReply(arg, "You can't use this command from the server console");
                 return;
@@ -945,8 +1028,7 @@ namespace Oxide.Plugins
 
         bool hasAccess(BasePlayer player)
         {
-            //The value >= 1 needs to persist between updates so moderators can work with kits as well
-            if (player.net.connection.authLevel >= 1)
+            if (player?.net?.connection?.authLevel > 1)
                 return true;
             return false;
         }
@@ -1148,6 +1230,8 @@ namespace Oxide.Plugins
                                 break;
                             case "permission":
                                 editvalue = kit.permission = args[++i];
+                                if (!kit.permission.StartsWith("kits."))
+                                    editvalue = kit.permission = $"kits.{kit.permission}";
                                 InitializePermissions();
                                 break;
                             case "image":
@@ -1162,6 +1246,6 @@ namespace Oxide.Plugins
                     break;
             }
             SaveKits();
-        }
+        } 
     }
 }

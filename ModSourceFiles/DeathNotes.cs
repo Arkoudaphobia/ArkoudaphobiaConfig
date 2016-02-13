@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.0.1", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.0.2", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -760,7 +760,7 @@ namespace Oxide.Plugins
                 string version_published = "0.0.0";
                 string version_installed = this.Version.ToString();
 
-                Match version = new Regex(@"<h3>Version (\d{1,2}\.\d{1,2}(\.\d{1,2})?)<\/h3>").Match(response);
+                Match version = new Regex(@"<h3>Version (\d{1,2}(\.\d{1,2})+?)<\/h3>").Match(response);
                 if(version.Success)
                 {
                     version_published = version.Groups[1].ToString();
