@@ -6,7 +6,7 @@
     "Type <orange>/map<end> for the server map link.",
     "You are playing on: <lime>{server.hostname}<end>",
     "The game time is <lime>{gamedate} {gametime}<end>",
-	"Take advantage of our convenient transit system.  With seven points on the map including the central hub by the refinery it's easy to fast travel without spending all that time."
+    "Take advantage of our convenient transit system.  With seven points on the map including the central hub by the refinery it's easy to fast travel without spending all that time."
   ],
   "COLORS": {
     "ADVERTS": "silver",
@@ -82,7 +82,8 @@
       "Hate language of any kind is prohibited",
       "Respect all players",
       "Avoid spam in chat.",
-      "Play fair and don't abuse of bugs/exploits."
+      "Play fair and don't abuse bugs/exploits.",
+      "Visit https://playrust.utmonline.net/rules for more details"
     ],
     "ES": [
       "Los trucos están terminantemente prohibidos.",

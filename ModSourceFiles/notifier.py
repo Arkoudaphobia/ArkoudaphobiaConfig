@@ -15,7 +15,7 @@ class notifier:
     def __init__(self):
 
         self.Title = 'Notifier'
-        self.Version = V(2, 18, 0)
+        self.Version = V(2, 18, 1)
         self.Author = 'SkinN'
         self.Description = 'Server administration tool with chat based notifications'
         self.ResourceId = 797
@@ -47,8 +47,8 @@ class notifier:
                 'ENABLE PLUGINS LIST': False,
                 'ENABLE RULES': True,
                 'ENABLE MAP LINK': True,
-                'ENABLE ADVERTS COMMAND': True,
-                'ENABLE MOTD': True
+                'ENABLE ADVERTS COMMAND': False,
+                'ENABLE MOTD': False
             },
             'MESSAGES': {
                 'JOIN MESSAGE': '<lime>{username}<end> joined the server, from <orange>{country}<end>.',
@@ -78,7 +78,19 @@ class notifier:
                 'ADVERTS DESC': '<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the adverts interval ( i.g: /adverts 5 )',
                 'PLAYERS ONLINE DESC': '<orange>/online<end> <grey>-<end> Shows the number of players and <cyan>Admins<end> online, plus a few server stats.',
                 'AIRDROP CALLED': 'An <yellow>Airdrop<end> is coming, will drop at <lime>{location}<end> coordinates.',
-                'HELI CALLED': 'A <yellow>Patrol Helicopter<end> is coming!'
+                'HELI CALLED': 'A <yellow>Patrol Helicopter<end> is coming!',
+                'ADVERTS COMMAND DESC': '<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the Adverts interval in-game.',
+                'MOTD DESC': '<orange>/motd<end> <grey>-<end> Allows <cyan>Admins<end> to change the MOTD in-game.'
+            },
+            'COMMANDS': {
+                'PLAYERS LIST': 'players',
+                'RULES': ('rules', 'regras', 'regles'),
+                'PLUGINS LIST': 'plugins',
+                'ADMINS LIST': 'admins',
+                'PLAYERS ONLINE': 'online',
+                'MAP LINK': 'map',
+                'ADVERTS COMMAND': 'adverts',
+                'MOTD': 'motd'
             },
             'WELCOME MESSAGE': (
                 '<size=17>Welcome <lime>{username}<end></size>',
@@ -112,16 +124,6 @@ class notifier:
                 'BOARDS TITLE': 'silver',
                 'SCHEDULED MESSAGES': 'silver',
                 'MOTD': 'silver'
-            },
-            'COMMANDS': {
-                'PLAYERS LIST': 'players',
-                'RULES': ('rules', 'regras', 'regles'),
-                'PLUGINS LIST': 'plugins',
-                'ADMINS LIST': 'admins',
-                'PLAYERS ONLINE': 'online',
-                'MAP LINK': 'map',
-                'ADVERTS COMMAND': 'adverts',
-                'MOTD': 'motd'
             },
             'RULES': {
                 'EN': (
@@ -448,31 +450,42 @@ class notifier:
     def OnPlayerDisconnected(self, player, reason):
         ''' Hook called when a player disconnects from the server '''
 
-        uid = self.playerid(player)
+        try:
 
-        if uid in self.players:
+            uid = self.playerid(player)
 
-            ply = self.players[uid]
+            if uid in self.players:
 
-            if uid in self.connected:
+                ply = self.players[uid]
 
-                self.connected.remove(uid)
+                if uid in self.connected:
 
-                if PLUGIN['ENABLE LEAVE MESSAGE'] and not (PLUGIN['HIDE ADMINS'] and player.IsAdmin()):
+                    self.connected.remove(uid)
 
-                    reason = reason[8:] if reason.startswith('Kicked:') else reason
+                    if PLUGIN['ENABLE LEAVE MESSAGE'] and not (PLUGIN['HIDE ADMINS'] and player.IsAdmin()):
 
-                    if PLUGIN['DIFFER ADMINS JOIN/LEAVE MESSAGE'] and player.IsAdmin():
+                        reason = reason[8:] if reason.startswith('Kicked:') else reason
 
-                        self.say(MSG['ADMINS LEAVE MESSAGE'].format(reason=reason, **ply.__dict__), COLORS['LEAVE MESSAGE'], uid)
+                        if PLUGIN['DIFFER ADMINS JOIN/LEAVE MESSAGE'] and player.IsAdmin():
 
-                    else:
+                            self.say(MSG['ADMINS LEAVE MESSAGE'].format(reason=reason, **ply.__dict__), COLORS['LEAVE MESSAGE'], uid)
 
-                        self.say(MSG['LEAVE MESSAGE'].format(reason=reason, **ply.__dict__), COLORS['LEAVE MESSAGE'], uid)
+                        else:
 
-                self.log('connections', '{username} disconnected from {country} [UID: {steamid}][IP: {ip}]'.format(**ply.__dict__))
+                            self.say(MSG['LEAVE MESSAGE'].format(reason=reason, **ply.__dict__), COLORS['LEAVE MESSAGE'], uid)
 
-            del self.players[uid]
+                    try:
+
+                        self.log('connections', '{username} disconnected from {country} [UID: {steamid}][IP: {ip}]'.format(**ply.__dict__))
+
+                    except: pass
+
+                del self.players[uid]
+
+        except:
+
+            print('[NOTIFIER] Players cache error!')
+            print('[NOTIFIER] Reload Notifier with \'oxide.reload notifier\' in the server console to fix the error')
 
     # -------------------------------------------------------------------------
     # - ENTITY HOOKS
@@ -606,7 +619,7 @@ class notifier:
     def admins_list_CMD(self, player, cmd, args):
         ''' Admins List command function '''
 
-        names = [self.players[self.playerid(i)].username for i in self.activelist() if i.IsAdmin()]
+        names = [self.players[self.playerid(i)].username for i in self.activelist() if self.playerid(i) in self.players and i.IsAdmin()]
         names = [names[i:i+3] for i in xrange(0, len(names), 3)]
 
         if names and not PLUGIN['HIDE ADMINS'] or player.IsAdmin():
@@ -697,11 +710,9 @@ class notifier:
 
             for cmd in CMDS:
 
-                i = '%s DESC' % cmd
+                if PLUGIN['ENABLE %s' % cmd]:
 
-                if i in MSG:
-
-                    self.tell(player, MSG[i], f=False)
+                    self.tell(player, MSG['%s DESC' % cmd], f=False)
 
         else:
 
@@ -784,42 +795,53 @@ class notifier:
 
         # Player UID and data
         uid = self.playerid(player)
-        ply = self.players[uid]
 
-        # Join Message
-        if PLUGIN['ENABLE JOIN MESSAGE'] and not (PLUGIN['HIDE ADMINS'] and player.IsAdmin()):
+        if uid in self.players:
 
-            if PLUGIN['DIFFER ADMINS JOIN/LEAVE MESSAGE'] and player.IsAdmin():
+            ply = self.players[uid]
 
-                self.say(MSG['ADMINS JOIN MESSAGE'].format(**ply.__dict__), COLORS['JOIN MESSAGE'], uid)
+            # Join Message
+            if PLUGIN['ENABLE JOIN MESSAGE'] and not (PLUGIN['HIDE ADMINS'] and player.IsAdmin()):
 
-            else:
+                if PLUGIN['DIFFER ADMINS JOIN/LEAVE MESSAGE'] and player.IsAdmin():
 
-                self.say(MSG['JOIN MESSAGE'].format(**ply.__dict__), COLORS['JOIN MESSAGE'], uid)
+                    self.say(MSG['ADMINS JOIN MESSAGE'].format(**ply.__dict__), COLORS['JOIN MESSAGE'], uid)
 
-        # Log connection to file
-        self.log('connections', '{username} connected from {country} [UID: {steamid}][IP: {ip}]'.format(**ply.__dict__))
+                else:
 
-        # Welcome Message
-        if PLUGIN['ENABLE WELCOME MESSAGE']:
+                    self.say(MSG['JOIN MESSAGE'].format(**ply.__dict__), COLORS['JOIN MESSAGE'], uid)
 
-            lines = self.Config['WELCOME MESSAGE']
+            # Log connection to file
+            try:
 
-            if lines:
+                self.log('connections', '{username} connected from {country} [UID: {steamid}][IP: {ip}]'.format(**ply.__dict__))
 
-                self.tell(player, '\n'*50, f=False)
+            except: pass
 
-                for line in lines:
+            # Welcome Message
+            if PLUGIN['ENABLE WELCOME MESSAGE']:
 
-                    line = line.format(server=sv, **ply.__dict__)
+                try:
 
-                    self.tell(player, line, COLORS['WELCOME MESSAGE'], f=False)
+                    lines = self.Config['WELCOME MESSAGE']
 
-            else:
+                    if lines:
 
-                PLUGIN['ENABLE WELCOME MESSAGE'] = False
+                        self.tell(player, '\n'*50, f=False)
 
-                self.con('No lines found on Welcome Message, turning it off')
+                        for line in lines:
+
+                            line = line.format(server=sv, **ply.__dict__)
+
+                            self.tell(player, line, COLORS['WELCOME MESSAGE'], f=False)
+
+                    else:
+
+                        PLUGIN['ENABLE WELCOME MESSAGE'] = False
+
+                        self.con('No lines found on Welcome Message, turning it off')
+
+                except: return
 
     # -------------------------------------------------------------------------
     def name_formats(self, msg):
@@ -948,61 +970,72 @@ class notifier:
     def cache_player(self, con):
         ''' Caches player information '''
 
-        if con:
+        try:
 
-            db = self.db
-            uid = rust.UserIDFromConnection(con)
-            name = self.playername(con)
+            if con:
 
-            class user:
+                db = self.db
+                uid = rust.UserIDFromConnection(con)
+                name = self.playername(con)
 
-                def __init__(self):
+                class user:
 
-                    self.username = name
-                    self.steamid = uid
-                    self.ip = con.ipaddress
+                    def __init__(self):
 
-                    if uid in db:
+                        self.username = name
+                        self.steamid = uid
+                        self.ip = con.ipaddress
 
-                        self.country = db[uid]['country']
-                        self.code = db[uid]['code']
+                        if uid in db:
 
-                    else:
+                            self.country = db[uid]['country']
+                            self.code = db[uid]['code']
 
-                        self.country = 'Unknown'
-                        self.code = 'Unknown'
+                        else:
 
-            self.players[uid] = user()
+                            self.country = 'Unknown'
+                            self.code = 'Unknown'
+
+                self.players[uid] = user()
+
+        except:
+
+            print('[NOTIFIER] Database error!')
+            print('[NOTIFIER] Reload Notifier with \'oxide.reload notifier\' in the server console to fix the error')
 
     # -------------------------------------------------------------------------
     def webrequest(self, player, send=True):
         ''' Web-request filter to get the players country info '''
 
-        uid = self.playerid(player)
-        
-        if uid in self.players:
+        try:
 
-            ply = self.players[uid]
+            uid = self.playerid(player)
+            
+            if uid in self.players:
 
-            # Function to handle the web-request response
-            def response_handler(code, resp):
+                ply = self.players[uid]
 
-                try:
+                # Function to handle the web-request response
+                def response_handler(code, resp):
 
-                    # Check for any web errors
-                    if resp != None or code == 200:
+                    try:
 
-                        # Check if user is not in countries database
-                        if uid not in self.db:
+                        # Check for any web errors
+                        if resp != None or code == 200:
 
-                            ply.country, ply.code = re.findall(r':\"(.+?)\"', resp)
+                            # Check if user is not in countries database
+                            if uid not in self.db:
 
-                            self.players[uid] = ply
-                            self.db[uid] = {'country': ply.country, 'code': ply.code}
+                                ply.country, ply.code = re.findall(r':\"(.+?)\"', resp)
 
-                except: pass
+                                self.players[uid] = ply
+                                self.db[uid] = {'country': ply.country, 'code': ply.code}
 
-                if send: self.joining_messages(player)
+                    except: pass
 
-            # Call for web-request
-            webrequests.EnqueueGet('http://ip-api.com/json/%s?fields=3' % ply.ip.split(':')[0], Action[Int32,String](response_handler), self.Plugin)
+                    if send: self.joining_messages(player)
+
+                # Call for web-request
+                webrequests.EnqueueGet('http://ip-api.com/json/%s?fields=3' % ply.ip.split(':')[0], Action[Int32,String](response_handler), self.Plugin)
+
+        except: return

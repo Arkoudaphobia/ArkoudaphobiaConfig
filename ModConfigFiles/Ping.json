@@ -1,5 +1,5 @@
 {
   "BroadcastKick": true,
   "HighPingKick": true,
-  "PingLimit": 200
+  "PingLimit": 220
 }

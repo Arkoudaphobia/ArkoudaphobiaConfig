@@ -26,11 +26,11 @@
   "Options": {
     "GatherDispenserModifiers": {},
     "GatherResourceModifiers": {
-      "*": 3.0
+      "*": 1.0
     },
-    "MiningQuarryResourceTickRate": 5.0,
+    "MiningQuarryResourceTickRate": 4.0,
     "PickupResourceModifiers": {
-      "*": 3.0
+      "*": 1.0
     },
     "QuarryResourceModifiers": {},
     "SurveyResourceModifiers": {}

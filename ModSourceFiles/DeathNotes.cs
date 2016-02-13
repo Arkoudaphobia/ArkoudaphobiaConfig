@@ -9,20 +9,21 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.1.3", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.0.1", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
         #region Global Declaration
         bool debug = false;
         bool killReproducing = false;
-
-        Dictionary<ulong, bool> canRead = new Dictionary<ulong, bool>();
+        
         Dictionary<ulong, HitInfo> LastWounded = new Dictionary<ulong, HitInfo>();
 
         Dictionary<string, string> reproduceableKills = new Dictionary<string, string>();
 
         Dictionary<BasePlayer, Timer> timers = new Dictionary<BasePlayer, Timer>();
+
+        Dictionary<ulong, PlayerSettings> playerSettings = new Dictionary<ulong, PlayerSettings>();
 
         Plugin PopupNotifications;
         #endregion
@@ -127,6 +128,22 @@ namespace Oxide.Plugins
 
                 objectList.Add(name);
                 return name;
+            }
+        }
+
+        class PlayerSettings
+        {
+            public bool ui = false;
+            public bool chat = true;
+
+            public PlayerSettings()
+            {
+            }
+
+            internal PlayerSettings(DeathNotes deathnotes)
+            {
+                ui = deathnotes.GetConfig(false, "Settings", "Use Simple UI");
+                chat = deathnotes.GetConfig(true, "Settings", "Write to Chat");
             }
         }
 
@@ -426,6 +443,29 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region Player Settings
+
+        List<string> playerSettingFields
+        {
+            get
+            {
+                return (from field in typeof(PlayerSettings).GetFields() select field.Name).ToList();
+            }
+        }
+
+        List<string> GetSettingValues(BasePlayer player) => (from field in typeof(PlayerSettings).GetFields() select $"{field.Name} : {field.GetValue(playerSettings[player.userID]).ToString().ToLower()}").ToList();
+
+        void SetSettingField<T>(BasePlayer player, string field, T value)
+        {
+            foreach(var curr in typeof(PlayerSettings).GetFields())
+            {
+                if (curr.Name == field)
+                    curr.SetValue(playerSettings[player.userID], value);
+            }
+        }
+
+        #endregion
+
         #region General Plugin Hooks
 
         void Loaded()
@@ -436,6 +476,7 @@ namespace Oxide.Plugins
             if (killReproducing)
                 RegisterPerm("reproduce");
 
+            RegisterPerm("customize");
             RegisterPerm("see");
 
             LoadConfig();
@@ -443,9 +484,9 @@ namespace Oxide.Plugins
             LoadMessages();
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
-                if (!canRead.ContainsKey(player.userID))
+                if (!playerSettings.ContainsKey(player.userID))
                 {
-                    canRead.Add(player.userID, true);
+                    playerSettings.Add(player.userID, new PlayerSettings(this));
 
                     SaveData();
                 }
@@ -463,20 +504,17 @@ namespace Oxide.Plugins
 
         void OnPlayerInit(BasePlayer player)
         {
-            if (!canRead.ContainsKey(player.userID))
+            if (!playerSettings.ContainsKey(player.userID))
             {
-                canRead.Add(player.userID, true);
+                playerSettings.Add(player.userID, new PlayerSettings(this));
                 SaveData();
             }
         }
 
-        void OnPluginLoaded(Plugin plugin)
+        void OnPluginLoaded(object plugin)
         {
-            if (plugin.Title == "Popup Notifications")
-            {
+            if (plugin is Plugin && ((Plugin)plugin)?.Title == "Popup Notifications")
                 PopupNotifications = (Plugin)plugin;
-                PrintError("Popup Notifications loaded");
-            }
         }
 
         #endregion
@@ -485,15 +523,19 @@ namespace Oxide.Plugins
 
         void LoadData()
         {
-            canRead = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, bool>>("DeathNotes");
+            //canRead = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, bool>>("DeathNotes");
+
+            playerSettings = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<ulong, PlayerSettings>>("DeathNotes/PlayerSettings");
 
             if (killReproducing)
-                reproduceableKills = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, string>>("DeathNotes_KillReproducing");
+                reproduceableKills = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, string>>("DeathNotes/KillReproducing");
         }
 
         void SaveData()
         {
-            Interface.Oxide.DataFileSystem.WriteObject("DeathNotes", canRead);
+            //Interface.Oxide.DataFileSystem.WriteObject("DeathNotes", canRead);
+
+            Interface.Oxide.DataFileSystem.WriteObject("DeathNotes/PlayerSettings", playerSettings);
 
             if (killReproducing)
                 Interface.Oxide.DataFileSystem.WriteObject("DeathNotes_KillReproducing", reproduceableKills);
@@ -589,7 +631,10 @@ namespace Oxide.Plugins
             {
                 {"No Permission", "You don't have permission to use this command."},
                 {"Hidden", "You do no longer see death messages."},
-                {"Unhidden", "You will now see death messages."}
+                {"Unhidden", "You will now see death messages."},
+                {"Field Not Found", "The field could not be found!"},
+                {"True Or False", "{arg} must be 'true' or 'false'!"},
+                {"Field Set", "Field '{field}' set to '{value}'"}
             }, this);
         }
 
@@ -597,42 +642,67 @@ namespace Oxide.Plugins
 
         #region Commands
 
-        [ChatCommand("showdeaths")]
-        void cmdShowDeaths(BasePlayer player, string cmd, string[] args)
+        [ChatCommand("deaths")]
+        void cmdDeaths(BasePlayer player, string cmd, string[] args)
         {
-            if(!HasPerm(player.userID, "see"))
+            if(!HasPerm(player.userID, "customize"))
             {
                 SendChatMessage(player, GetMsg("No Permission", player.userID));
                 return;
             }
 
-            if (canRead.ContainsKey(player.userID))
+            if (args.Length == 0)
             {
-                if (canRead[player.userID])
-                {
-                    canRead[player.userID] = false;
-                    SendChatMessage(player, GetMsg("Hidden", player.userID));
-                }
-                else
-                {
-                    canRead[player.userID] = true;
-                    SendChatMessage(player, GetMsg("Unhidden", player.userID));
-                }
-            }
-            else
-            {
-                canRead.Add(player.userID, true);
-                SendChatMessage(player, GetMsg("Unhidden", player.userID));
+                SendChatMessage(player, "/deaths set <field> <value> - set a value");
+                SendChatMessage(player, "Fields", Environment.NewLine + ListToString(GetSettingValues(player), 0, Environment.NewLine));
+
+                return;
             }
 
-            SaveData();
+            switch(args[0].ToLower())
+            {
+                case "set":
+                    if(args.Length != 3)
+                    {
+                        SendChatMessage(player, "Syntax: /deaths set <field> <value>");
+                        return;
+                    }
+
+                    if(!playerSettingFields.Contains(args[1].ToLower()))
+                    {
+                        SendChatMessage(player, GetMsg("Field Not Found", player.userID));
+                        return;
+                    }
+                    
+                    bool value = false;
+
+                    try
+                    {
+                        value = Convert.ToBoolean(args[2]);
+                    }
+                    catch(FormatException)
+                    {
+                        SendChatMessage(player, GetMsg("True Or False", player.userID).Replace("{arg}", "<value>"));
+                        return;
+                    }
+
+                    SetSettingField(player, args[1].ToLower(), value);
+
+                    SendChatMessage(player, GetMsg("Field Set", player.userID).Replace("{value}", value.ToString().ToLower()).Replace("{field}", args[1].ToLower()));
+
+                    SaveData();
+
+                    break;
+
+                default:
+                    SendChatMessage(player, "/deaths set <field> <value> - set a value");
+                    SendChatMessage(player, "Fields", Environment.NewLine + ListToString(GetSettingValues(player), 0, Environment.NewLine));
+                    break;
+            }
         }
 
         [ChatCommand("deathnotes")]
-        void cmdGetInfo(BasePlayer player)
-        {
-            GetInfo(player);
-        }
+        void cmdGetInfo(BasePlayer player) => GetInfo(player);
 
         [ConsoleCommand("reproducekill")]
         void ccmdReproduceKill(ConsoleSystem.Arg arg)
@@ -787,12 +857,12 @@ namespace Oxide.Plugins
 
             foreach (BasePlayer player in BasePlayer.activePlayerList)
             {
-                if (InRadius(player, data.attacker.entity) && CanSee(player))
+                if (InRadius(player, data.attacker.entity))
                 {
-                    if (GetConfig(true, "Settings", "Write to Chat"))
+                    if (CanSee(player, "chat"))
                         SendChatMessage(player, GetDeathMessage(newData, false), null, GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)"));
 
-                    if (GetConfig(false, "Settings", "Use Simple UI"))
+                    if (CanSee(player, "ui"))
                         UIMessage(player, GetConfig(false, "Settings", "Strip Colors from Simple UI") ? StripTags(GetDeathMessage(newData, true)) : GetDeathMessage(newData, true));
                 }
             }
@@ -1053,14 +1123,19 @@ namespace Oxide.Plugins
             return data;
         }
 
-        bool CanSee(BasePlayer player)
+        bool CanSee(BasePlayer player, string type)
         {
             if (!GetConfig(false, "Settings", "Needs Permission"))
             {
                 if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
                     return true;
                 else
-                    return canRead.ContainsKey(player.userID) ? canRead[player.userID] : true;
+                {
+                    if(type == "ui")
+                        return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
+                    
+                    return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
+                }
             }
             else
             {
@@ -1069,7 +1144,12 @@ namespace Oxide.Plugins
                     if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
                         return true;
                     else
-                        return canRead.ContainsKey(player.userID) ? canRead[player.userID] : true;
+                    {
+                        if (type == "ui")
+                            return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
+
+                        return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
+                    }
                 }
             }
 

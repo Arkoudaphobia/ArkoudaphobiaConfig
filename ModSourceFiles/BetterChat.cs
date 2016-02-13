@@ -8,7 +8,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "3.5.3", ResourceId = 1520)]
+    [Info("Better Chat", "LaserHydra", "3.5.4", ResourceId = 1520)]
     [Description("Customize chat colors, formatting, prefix and more.")]
     class BetterChat : RustPlugin
     {
@@ -74,9 +74,10 @@ namespace Oxide.Plugins
         void LoadConfig()
         {
             SetConfig("WordFilter", "Enabled", false);
-            SetConfig("WordFilter", "FilterList", new List<string> { "fuck", "bitch", "faggot" });
-            SetConfig("WordFilter", "UseCustomReplacement", false);
-            SetConfig("WordFilter", "CustomReplacement", "Unicorn");
+            SetConfig("WordFilter", "Banned Words", new List<string> { "fuck", "bitch", "faggot" });
+            SetConfig("WordFilter", "Replacement", "*");
+            SetConfig("WordFilter", "Use Custom Replacement", false);
+            SetConfig("WordFilter", "Custom Replacement", "Unicorn");
 
             SetConfig("AntiSpam", "Enabled", false);
             SetConfig("AntiSpam", "MaxCharacters", 85);
@@ -308,7 +309,7 @@ namespace Oxide.Plugins
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }
@@ -320,38 +321,80 @@ namespace Oxide.Plugins
         ///  Chat Related
         ////////////////////////////////////////
 
-        string GetFilteredMesssage(string msg)
+        string FilterText(string original)
         {
-            foreach (var word in Config["WordFilter", "FilterList"] as List<object>)
+            string filtered = original;
+
+            foreach (string word in original.Split(' '))
+                foreach (string bannedword in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "Banned Words"))
+                    if (TranslateLeet(word).ToLower().Contains(bannedword.ToLower()))
+                        filtered = filtered.Replace(word, Replace(word));
+
+            /*
+            foreach (string word in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "Banned Words"))
+                filtered = new Regex(@"((?:[\S]?)+" + word + @"(?:[\S]?)+)", RegexOptions.IgnoreCase).Replace(filtered, (a) => Replace(a));*/
+
+            return filtered;
+        }
+
+        string Replace(string original)
+        {
+            string filtered = string.Empty;
+
+            if (!GetConfig(false, "WordFilter", "Use Custom Replacement"))
+                for (; filtered.Count() < original.Count();)
+                    filtered += GetConfig("*", "WordFilter", "Replacement");
+            else
+                filtered = GetConfig("Unicorn", "WordFilter", "Custom Replacement");
+
+            return filtered;
+        }
+
+        string TranslateLeet(string original)
+        {
+            string translated = original;
+
+            Dictionary<string, string> leetTable = new Dictionary<string, string>
             {
-                MatchCollection matches = new Regex($@"((?:\S+)?{word}(?:\S+)?)").Matches(msg);
+                { "}{", "h" },
+                { "|-|", "h" },
+                { "]-[", "h" },
+                { "/-/", "h" },
+                { "|{", "k" },
+                { "/\\/\\", "m" },
+                { "|\\|", "n" },
+                { "/\\/", "n" },
+                { "()", "o" },
+                { "[]", "o" },
+                { "vv", "w" },
+                { "\\/\\/", "w" },
+                { "><", "x" },
+                { "2", "z" },
+                { "4", "a" },
+                { "@", "a" },
+                { "8", "b" },
+                { "ß", "b" },
+                { "(", "c" },
+                { "<", "c" },
+                { "{", "c" },
+                { "3", "e" },
+                { "€", "e" },
+                { "6", "g" },
+                { "9", "g" },
+                { "&", "g" },
+                { "#", "h" },
+                { "$", "s" },
+                { "7", "t" },
+                { "|", "l" },
+                { "1", "i" },
+                { "!", "i" },
+                { "0", "o" },
+            };
 
-                foreach (Match match in matches)
-                {
-                    if (match.Success)
-                    {
-                        string found = match.Groups[1].ToString();
-                        string replaced = "";
+            foreach (var leet in leetTable)
+                translated = translated.Replace(leet.Key, leet.Value);
 
-                        if (GetConfig(false, "WordFilter", "UseCustomReplacement"))
-                        {
-                            msg = msg.Replace(found, GetConfig("Unicorn", "WordFilter", "CustomReplacement"));
-                        }
-                        else
-                        {
-                            for (int i = 0; i < found.Length; i++) replaced = replaced + "*";
-
-                            msg = msg.Replace(found, replaced);
-                        }
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return msg;
+            return translated;
         }
 
         string RemoveTags(string phrase)
@@ -491,7 +534,7 @@ namespace Oxide.Plugins
             }
 
             if (GetConfig(false, "WordFilter", "Enabled"))
-                message = GetFilteredMesssage(message);
+                message = FilterText(message);
 
             string uid = player.UserIDString;
 
