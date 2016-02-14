@@ -33,6 +33,7 @@
       "*": 1.0
     },
     "QuarryResourceModifiers": {
+      "stones": 15.0,
       "*": 20.0
     },
     "SurveyResourceModifiers": {}
