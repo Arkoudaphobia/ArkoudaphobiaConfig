@@ -8,7 +8,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "3.5.4", ResourceId = 1520)]
+    [Info("Better Chat", "LaserHydra", "3.5.5", ResourceId = 979)]
     [Description("Customize chat colors, formatting, prefix and more.")]
     class BetterChat : RustPlugin
     {
