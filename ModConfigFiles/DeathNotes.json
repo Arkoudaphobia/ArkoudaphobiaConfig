@@ -112,10 +112,10 @@
     "Message Radius Enabled": false,
     "Title": "Death Notes",
     "Title Color": "#80D000",
-    "Use Popup Notifications": false,
+    "Use Popup Notifications": true,
     "Victim Color": "#C4FF00",
     "Weapon Color": "#C4FF00",
-    "Write to Console": true
+    "Write to Console": false
   },
   "Weapons": {
     "Assault Rifle": "Assault Rifle",
