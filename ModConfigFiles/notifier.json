@@ -146,14 +146,7 @@
       "Грати чесно і не зловживати помилки / подвиги."
     ]
   },
-  "SCHEDULED MESSAGES": {
-    "00:00": [
-      "It is now <lime>{localtime}<end> of <lime>{localdate}<end>"
-    ],
-    "12:00": [
-      "It is now <lime>{localtime}<end> of <lime>{localdate}<end>"
-    ]
-  },
+  "SCHEDULED MESSAGES": { },
   "SETTINGS": {
     "ADVERTS INTERVAL": 12,
     "ANNOUNCE AIRDROPS": false,
