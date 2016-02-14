@@ -15,9 +15,9 @@
   },
   "LevelCaps": {
     "C": 20,
-    "M": 0,
-    "S": 0,
-    "WC": 0
+    "M": 50,
+    "S": 50,
+    "WC": 50
   },
   "Messages": {
     "CSkill": "Crafting",
