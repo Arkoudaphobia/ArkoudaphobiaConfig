@@ -47,13 +47,12 @@
     "TitleColor": "#C4FF00"
   },
   "WordFilter": {
-    "CustomReplacement": "Unicorn",
-    "Enabled": false,
+    "CustomReplacement": "I'm Naughty",
+    "Enabled": true,
     "FilterList": [
-      "fuck",
-      "bitch",
+      "nigger",
       "faggot"
     ],
-    "UseCustomReplacement": false
+    "UseCustomReplacement": true
   }
 }
