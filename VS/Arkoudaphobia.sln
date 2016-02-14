@@ -11,7 +11,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ModConfiFiles", "ModConfiFi
 		..\ModConfigFiles\chatmute.json = ..\ModConfigFiles\chatmute.json
 		..\ModConfigFiles\DeathNotes.json = ..\ModConfigFiles\DeathNotes.json
 		..\ModConfigFiles\EnhancedBanSystem.json = ..\ModConfigFiles\EnhancedBanSystem.json
-		..\ModConfigFiles\eventmanager.json = ..\ModConfigFiles\eventmanager.json
+		..\ModConfigFiles\EventManager.json = ..\ModConfigFiles\EventManager.json
 		..\ModConfigFiles\GatherManager.json = ..\ModConfigFiles\GatherManager.json
 		..\ModConfigFiles\helptext.json = ..\ModConfigFiles\helptext.json
 		..\ModConfigFiles\InfoPanel.json = ..\ModConfigFiles\InfoPanel.json
@@ -32,6 +32,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ServerConfigFiles", "Server
 	ProjectSection(SolutionItems) = preProject
 		..\ServerConfigFiles\server.cfg = ..\ServerConfigFiles\server.cfg
 		..\ServerConfigFiles\users.cfg = ..\ServerConfigFiles\users.cfg
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E50BBA7B-A854-4413-B8ED-D6640E75B3C5}"
+	ProjectSection(SolutionItems) = preProject
+		..\DeploymentScript.ps1 = ..\DeploymentScript.ps1
+		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
 Global

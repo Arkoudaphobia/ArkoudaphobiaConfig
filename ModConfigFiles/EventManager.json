@@ -1,13 +1,13 @@
 {
-"AutoEvents - Activated": true,
-"AutoEvents - Announce Open Interval": 20,
-"AutoEvents - Config": {
+  "AutoEvents - Activated": true,
+  "AutoEvents - Announce Open Interval": 20,
+  "AutoEvents - Config": {
     "0": {
       "closeonstart": "false",
       "gametype": "Last Man Standing",
       "maxplayers": "15",
       "minplayers": "2",
-      "spawnfile": "lmsspawn",
+      "spawnfile": "lmsspawns",
       "timelimit": "1200",
       "timetojoin": "60"
     }
