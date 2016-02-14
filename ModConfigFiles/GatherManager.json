@@ -25,10 +25,16 @@
   },
   "Options": {
     "GatherDispenserModifiers": {},
-    "GatherResourceModifiers": {},
-    "MiningQuarryResourceTickRate": 4.0,
-    "PickupResourceModifiers": {},
-    "QuarryResourceModifiers": {},
+    "GatherResourceModifiers": {
+      "*": 1.0
+    },
+    "MiningQuarryResourceTickRate": 10.0,
+    "PickupResourceModifiers": {
+      "*": 1.0
+    },
+    "QuarryResourceModifiers": {
+      "*": 20.0
+    },
     "SurveyResourceModifiers": {}
   },
   "Settings": {
