@@ -1,6 +1,6 @@
 {
   "AutoEvents - Activate": true,
-  "AutoEvents - Announce Open Interval": 20,
+  "AutoEvents - Announce Open Interval": 30,
   "AutoEvents - Config": {
     "0": {
       "closeonstart": "false",
@@ -12,8 +12,8 @@
       "timetojoin": "60"
     }
   },
-  "AutoEvents - Event cancel timer": 600,
-  "AutoEvents - Interval between 2 events": 600,
+  "AutoEvents - Event cancel timer": 300,
+  "AutoEvents - Interval between 2 events": 1800,
   "Broadcast - Broadcast join message during a round": false,
   "Broadcast - Join message interval": 10,
   "Default - Game": "Last Man Standing",
