@@ -1,5 +1,5 @@
 {
-  "AutoEvents - Activated": true,
+  "AutoEvents - Activate": true,
   "AutoEvents - Announce Open Interval": 20,
   "AutoEvents - Config": {
     "0": {
@@ -16,8 +16,8 @@
   "AutoEvents - Interval between 2 events": 600,
   "Broadcast - Broadcast join message during a round": false,
   "Broadcast - Join message interval": 10,
-  "Default - Game": "Deathmatch",
-  "Default - Spawnfile": "deathmatchspawns",
+  "Default - Game": "Last Man Standing",
+  "Default - Spawnfile": "lmsspawns",
   "Messages - Error - Multiple players found": "Multiple players found",
   "Messages - Error - No players found": "No players found",
   "Messages - Event - Begin": "Event: {0} is about to begin!",

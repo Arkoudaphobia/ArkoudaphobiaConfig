@@ -1,0 +1,18 @@
+{
+  "Added to queue": "Your picture was added to load queue!",
+  "Command cooldown after storage": 180.0,
+  "Command cooldown after url": 180.0,
+  "Command cooldown msg": "You have recently used this command! You need to wait: {time}",
+  "Error": "Image loading fail! Error: {error}",
+  "Loaded": "Image was loaded to Sign!",
+  "Log format": "Player[{steam} {name}] loaded {id} image from {url}!",
+  "Log url console": true,
+  "Max active uploads": 3,
+  "Max file size(KB)": 2048,
+  "Max sign detection distance": 2.0,
+  "No sign": "You need to look/get closer to a sign!",
+  "NoPermission": "You don't have permission to use this command!",
+  "Not Exists": "File with this name not exists in storage folder!",
+  "Not your sign": "You can't change this sign! (protected by tool cupboard)",
+  "Syntax": "Syntax: /sil <URL> | /sil s <number>"
+}
