@@ -53,7 +53,7 @@
       "test"
     ],
     "CustomReplacement": "Naughty",
-    "Enabled": true,
+    "Enabled": false,
     "Replacement": "*",
     "Use Custom Replacement": true
   }
