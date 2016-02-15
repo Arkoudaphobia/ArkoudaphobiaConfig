@@ -47,12 +47,13 @@
     "TitleColor": "#C4FF00"
   },
   "WordFilter": {
-    "CustomReplacement": "I'm Naughty",
-    "Enabled": true,
-    "FilterList": [
+    "Banned Words": [
       "nigger",
       "faggot"
     ],
-    "UseCustomReplacement": true
+    "CustomReplacement": "I'm Naughty",
+    "Enabled": true,
+    "Replacement": "*",
+    "Use Custom Replacement": true
   }
 }
