@@ -1,0 +1,71 @@
+{
+  "External Commands": [
+    {
+      "commands": [
+        {
+          "cmd": "player.mute {steamid}",
+          "color": "1 0 0 0.4",
+          "text": "mute"
+        },
+        {
+          "cmd": "player.unmute {steamid}",
+          "color": "0 1 0 0.4",
+          "text": "unmute"
+        }
+      ],
+      "name": "Mute",
+      "permission": "canmute"
+    },
+    {
+      "commands": [
+        {
+          "cmd": "player.jail {steamid}",
+          "color": "1 0 0 0.4",
+          "text": "Jail"
+        },
+        {
+          "cmd": "player.free {steamid}",
+          "color": "0 1 0 0.4",
+          "text": "Free"
+        }
+      ],
+      "name": "Jail",
+      "permission": "canjail"
+    }
+  ],
+  "Options": {
+    "ban": [
+      "Wallhack",
+      "Speedhacker",
+      "Hacker",
+      "Aimbot",
+      "Spawnhack",
+      "Glitch",
+      "Disrespectfull",
+      "Other"
+    ],
+    "kick": [
+      "Disrespectfull",
+      "Watch you language",
+      "Change Name",
+      "Other"
+    ],
+    "timelimit": [
+      "0",
+      "1",
+      "60",
+      "300",
+      "600",
+      "3600",
+      "86400",
+      "172800",
+      "259200",
+      "604800"
+    ]
+  },
+  "Permission - GUI": "playermanager.gui",
+  "Permission - GUI - Ban": "playermanager.ban",
+  "Permission - GUI - IPs": "playermanager.ips",
+  "Permission - GUI - Kick": "playermanager.kick",
+  "Permission - GUI - TP": "playermanager.tp"
+}
