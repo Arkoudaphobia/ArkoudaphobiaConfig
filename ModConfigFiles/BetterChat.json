@@ -49,9 +49,10 @@
   "WordFilter": {
     "Banned Words": [
       "nigger",
-      "faggot"
+      "faggot",
+      "test"
     ],
-    "CustomReplacement": "I'm Naughty",
+    "CustomReplacement": "Naughty",
     "Enabled": true,
     "Replacement": "*",
     "Use Custom Replacement": true
