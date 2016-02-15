@@ -1,0 +1,9 @@
+{
+  "AutoLights": {
+    "Lights Off Time": "8.0",
+    "Lights On Time": "18.0"
+  },
+  "Chat": {
+    "Prefix": "<color=#FA58AC>ZoneManager:</color> "
+  }
+}
