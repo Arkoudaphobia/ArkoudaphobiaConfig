@@ -34,6 +34,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ServerConfigFiles", "Server
 		..\ServerConfigFiles\users.cfg = ..\ServerConfigFiles\users.cfg
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{807773EB-7D14-43B2-A79D-38984272FB8A}"
+	ProjectSection(SolutionItems) = preProject
+		..\DeploymentScript.ps1 = ..\DeploymentScript.ps1
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
