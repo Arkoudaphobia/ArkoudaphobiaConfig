@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Jail", "Reneb / k1lly0u", "3.0.1", ResourceId = 1649)]
+    [Info("Jail", "Reneb / k1lly0u", "3.0.2", ResourceId = 1649)]
     class Jail : RustPlugin
     {
         [PluginReference]
@@ -113,6 +113,7 @@ namespace Oxide.Plugins
                                 }
                         }
                         else if (!jailData.Prisoners.ContainsKey(victim.userID) && jailData.Prisoners.ContainsKey(attacker.userID)) hitinfo.damageTypes.ScaleAll(0);
+                        else if (jailData.Prisoners.ContainsKey(victim.userID) && !jailData.Prisoners.ContainsKey(attacker.userID)) hitinfo.damageTypes.ScaleAll(0);
                     }
                 }
                 catch (Exception ex)
@@ -472,7 +473,6 @@ namespace Oxide.Plugins
             if (!hasPermission(player)) return;
             if (args == null || args.Length == 0)
             {
-                SendMsg(player, lang.GetMessage("title", this, player.UserIDString));
                 SendMsg(player, lang.GetMessage("synSend", this, player.UserIDString));
                 SendMsg(player, lang.GetMessage("synFree", this, player.UserIDString));
                 SendMsg(player, lang.GetMessage("synAdd", this, player.UserIDString));
@@ -540,10 +540,11 @@ namespace Oxide.Plugins
                     int radius = 30;
                     if (args.Length >= 2)
                         int.TryParse(args[1], out radius);
-                    string zoneID = "Jail_" + jailData.prisons.Count.ToString();
+                    string zoneID = "Jail" + jailData.prisons.Count + 1;
                     string[] zoneargs = new string[] { "name", zoneID, "eject", "true", "radius", radius.ToString(), "sleepgod", "true", "undestr", "true", "nobuild", "true", "notp", "true", "nokits", "true", "nodeploy", "true", "nosuicide", "true" };
                     ZoneManager.Call("CreateOrUpdateZone", zoneID, zoneargs, player.transform.position);
                     SendMsg(player, lang.GetMessage("createJail", this, player.UserIDString));
+                    SendMsg(player, string.Format(lang.GetMessage("jailID", this, player.UserIDString), zoneID));
                     return;
                 case "list":
                     foreach (var entry in jailData.prisons)
@@ -877,7 +878,8 @@ namespace Oxide.Plugins
             {"noCells", "The are no free cells available at {0}" },
             {"relFrom", "{0} has been released from prison" },
             {"ff", "You can not hurt other inmates" },
-            {"createJail", "You have successfully created a new prison zone, you can edit this zone with /zone_edit" }
+            {"createJail", "You have successfully created a new prison zone, you can edit this zone with /zone_edit" },
+            {"jailID", "Zone ID: {0}" }
         };
         #endregion
     }
