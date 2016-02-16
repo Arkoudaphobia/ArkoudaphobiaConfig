@@ -15,7 +15,7 @@
   "AutoEvents - Event cancel timer": 300,
   "AutoEvents - Interval between 2 events": 1800,
   "Broadcast - Broadcast join message during a round": false,
-  "Broadcast - Join message interval": 10,
+  "Broadcast - Join message interval": 60,
   "Default - Game": "Last Man Standing",
   "Default - Spawnfile": "lmsspawns",
   "Messages - Error - Multiple players found": "Multiple players found",
