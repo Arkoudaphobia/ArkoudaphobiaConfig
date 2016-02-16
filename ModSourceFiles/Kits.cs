@@ -10,7 +10,7 @@ using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("Kits", "Reneb", "3.1.6")]
+    [Info("Kits", "Reneb", "3.1.7")]
     class Kits : RustPlugin
     {
         readonly int playerLayer = LayerMask.GetMask("Player (Server)");
@@ -211,19 +211,7 @@ namespace Oxide.Plugins
 
             if (kit.cooldown > 0)
                 kitData.cooldown = CurrentTime() + kit.cooldown;
-        }
-        void OnPlayerInit(BasePlayer player)
-        {
-            if (!kitsData.ContainsKey(player.userID))
-            {
-                foreach (var kit in storedData.Kits)
-                {
-                    var kitData = GetKitData(player.userID, kit.Key);
-                    if (kit.Value.cooldown > 0)
-                        kitData.cooldown = CurrentTime() + kit.Value.cooldown;
-                }
-            }
-        }
+        }        
         object GiveKit(BasePlayer player, string kitname)
         {
             if (string.IsNullOrEmpty(kitname)) return "Empty kit name";
