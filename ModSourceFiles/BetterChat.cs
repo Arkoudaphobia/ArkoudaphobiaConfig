@@ -8,7 +8,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "3.5.5", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "3.5.6", ResourceId = 979)]
     [Description("Customize chat colors, formatting, prefix and more.")]
     class BetterChat : RustPlugin
     {
@@ -326,7 +326,7 @@ namespace Oxide.Plugins
             string filtered = original;
 
             foreach (string word in original.Split(' '))
-                foreach (string bannedword in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "Banned Words"))
+                foreach (string bannedword in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "WordFilter", "Banned Words"))
                     if (TranslateLeet(word).ToLower().Contains(bannedword.ToLower()))
                         filtered = filtered.Replace(word, Replace(word));
 
