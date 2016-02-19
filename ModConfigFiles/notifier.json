@@ -9,7 +9,7 @@
     "Take advantage of our convenient transit system.  With seven points on the map including the central hub by the refinery it's easy to fast travel without spending all that time.",
     "Due to breaking changes in the last update for Rust some of our mods are no longer functioning.  We will be updating them as quickly as possible to restore full functionality of the server.",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig",
-    "<size=25>We appoligize for the unexpected wipe on 2/18/16.  A glitch in either rust or oxide corrupted our save file and the server could no longer start."
+    "We appoligize for the unexpected wipe on 2/18/16.  A glitch in either rust or oxide corrupted our save file and the server could no longer start."
   ],
   "COLORS": {
     "ADVERTS": "silver",
@@ -182,7 +182,7 @@
   },
   "WELCOME MESSAGE": [
     "<size=17>Welcome <lime>{username}<end></size>",
-    "<size=25>We appoligize for the unexpected wipe on 2/18/16.  A glitch in either rust or oxide corrupted our save file and the server could no longer start.",
+    "We appoligize for the unexpected wipe on 2/18/16.  A glitch in either rust or oxide corrupted our save file and the server could no longer start.",
     "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
     "<orange><size=20>•</size><end> You are responsible for knowing our <orange>/rules<end>.",
     "<orange><size=20>•</size><end> See where you are on the server map at: <lime>https://utmo.link/rustmap<end>"
