@@ -38,6 +38,6 @@
   },
   "SaveVersion2": 114,
   "subDirectory": "owners",
-  "useSubdirectory": false,
+  "useSubdirectory": true,
   "VERSION": "2.0.31"
 }
