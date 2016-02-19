@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Visagalis", "0.4.7", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Visagalis", "0.4.8", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         public class PlayerDetails
@@ -61,6 +61,7 @@ namespace Oxide.Plugins
                 float currentHealth = block.health;
                 var currentGradeType = block.currentGrade.gradeBase.type;
                 block.SetGrade(playersInfo[player.userID].upgradeInfo);
+				block.UpdateSkin(false);
                 var cost = block.currentGrade.gradeBase.baseCost;
                 int hasEnough = 0;
                 foreach (var itemCost in cost)
@@ -87,6 +88,7 @@ namespace Oxide.Plugins
                 else
                 {
                     block.SetGrade(currentGradeType);
+					block.UpdateSkin(false);
                     block.health = currentHealth;
                     SendReply(player, pluginPrefix + "Can't afford to upgrade!");
                 }
@@ -172,7 +174,8 @@ namespace Oxide.Plugins
         {
             if(playersTimers.ContainsKey(player.userID))
                 playersTimers.Remove(player.userID);
-            playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
+			if(playersInfo.ContainsKey(player.userID))
+				playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
             RemoveUI(player);
             if (!PlayerHasFlag(player.userID, PlayerFlags.MESSAGES_DISABLED))
                 SendReply(player, pluginPrefix + "You are now in REPAIR mode.");
