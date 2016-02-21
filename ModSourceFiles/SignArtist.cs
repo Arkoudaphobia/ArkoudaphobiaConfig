@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Oxide.Plugins
 {
 
-    [Info("Sign Artist", "Bombardir", "0.3.0", ResourceId = 992)]
+    [Info("Sign Artist", "Bombardir", "0.3.1", ResourceId = 992)]
     class SignArtist : RustPlugin
     {
         GameObject WebObject;
@@ -88,11 +88,19 @@ namespace Oxide.Plugins
                     if (www.error != null)
                     {
                         player.ChatMessage(string.Format(SignArtist.Error, www.error));
-                        SignArtist.CoolDowns.Remove(player);
+                        //SignArtist.CoolDowns.Remove(player);
                     }
                     else
                     {
-                        //player.ChatMessage("Bytes: " + www.bytes.Length);
+                        if (www.size > SignArtist.MaxSize)
+                        {
+                            player.ChatMessage(SignArtist.SizeError);
+                            //SignArtist.CoolDowns.Remove(player);
+                            ActiveLoads--;
+                            Next();
+                            yield break;
+                        }
+
                         var img = info.raw ? www.bytes : GetImageBytes(www);
                         if (img.Length <= SignArtist.MaxSize)
                         {
@@ -105,17 +113,17 @@ namespace Oxide.Plugins
 
                             if (SignArtist.ConsoleLog)
                                 ServerConsole.PrintColoured(System.ConsoleColor.DarkYellow, string.Format(SignArtist.ConsoleLogMsg, player.userID, player.displayName, sign.textureID, info.url));
+                            Resources.UnloadUnusedAssets();
                         }
                         else
                         {
                             player.ChatMessage(SignArtist.SizeError);
-                            SignArtist.CoolDowns.Remove(player);
+                            //SignArtist.CoolDowns.Remove(player);
                         }
                     }
                     ActiveLoads--;
                     Next();
                 }
-                Resources.UnloadUnusedAssets();
             }
         }
 
@@ -186,7 +194,6 @@ namespace Oxide.Plugins
         #region Config | Init | Unload
 
         float MaxDist = 2f;
-        float StorageCooldown = 180f;
         float UrlCooldown = 180f;
         uint MaxSize = 2048U;
         byte JPGCompression = 85;
@@ -222,7 +229,6 @@ namespace Oxide.Plugins
             CheckCfg("Max active uploads", ref MaxActiveLoads);
             CheckCfg("Max sign detection distance", ref MaxDist);
             CheckCfg("Max file size(KB)", ref MaxSize);
-            CheckCfg("Command cooldown after storage", ref StorageCooldown);
             CheckCfg("Command cooldown after url", ref UrlCooldown);
             CheckCfg("Command cooldown msg", ref CooldownMsg);
             CheckCfg("NoPermission", ref NoPerm);
