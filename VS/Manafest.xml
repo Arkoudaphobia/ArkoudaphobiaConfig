@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ArkoudaphobiaConfig xmlns="http://xmlschema.utmonline.net/2016/RustModuleManafest">
   <ModFiles>
-    <Mod Name="AFK.CS" Enabled="true" />
+    <Mod Name="AFK.CS" Enabled="true">
+      <RequestReload DateTime="2/20/2016 6:17 PM"/>
+    </Mod>
     <Mod Name="AntiAdminAbuse.cs" Enabled="true" />
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true" />
