@@ -7,7 +7,6 @@
     "You are playing on: <lime>{server.hostname}<end>",
     "The game time is <lime>{gamedate} {gametime}<end>",
     "Take advantage of our convenient transit system.  With seven points on the map including the central hub by the refinery it's easy to fast travel without spending all that time.",
-    "Due to breaking changes in the last update for Rust some of our mods are no longer functioning.  We will be updating them as quickly as possible to restore full functionality of the server.",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
   ],
   "COLORS": {
@@ -151,7 +150,7 @@
   "SCHEDULED MESSAGES": { },
   "SETTINGS": {
     "ADVERTS INTERVAL": 12,
-    "ANNOUNCE AIRDROPS": true,
+    "ANNOUNCE AIRDROPS": false,
     "ANNOUNCE PATROL HELICOPTERS": true,
     "BROADCAST TO CONSOLE": true,
     "DIFFER ADMINS JOIN/LEAVE MESSAGE": false,
