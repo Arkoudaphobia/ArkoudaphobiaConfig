@@ -15,7 +15,7 @@ class notifier:
     def __init__(self):
 
         self.Title = 'Notifier'
-        self.Version = V(2, 18, 1)
+        self.Version = V(2, 18, 2)
         self.Author = 'SkinN'
         self.Description = 'Server administration tool with chat based notifications'
         self.ResourceId = 797
@@ -412,10 +412,14 @@ class notifier:
     def Unload(self):
         ''' Hook called on plugin unload '''
 
-        # Destroy timers
-        for i in self.timers:
+        try:
 
-            self.timers[i].Destroy()
+            # Destroy timers
+            for i in self.timers:
+
+                self.timers[i].Destroy()
+
+        except: pass        
 
         # Save countries database
         self.save_data()
@@ -899,7 +903,7 @@ class notifier:
     def playerlang(self, player, f=None):
         ''' Rules language filter '''
 
-        default = PLUGIN['RULES LANGUAGE']
+        default = PLUGIN['RULES LANGUAGE'].upper()
 
         if f:
 

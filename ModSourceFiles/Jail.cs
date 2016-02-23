@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Jail", "Reneb / k1lly0u", "3.0.2", ResourceId = 1649)]
+    [Info("Jail", "Reneb / k1lly0u", "3.0.3", ResourceId = 1649)]
     class Jail : RustPlugin
     {
         [PluginReference]
@@ -248,14 +248,14 @@ namespace Oxide.Plugins
             }
             else SendMsg(player, lang.GetMessage("noJail", this, player.UserIDString));
         }
-        private bool SendToJail(BasePlayer player, string prisonName, int time)
+        private object SendToJail(BasePlayer player, string prisonName, int time)
         {
             object cellNum = FindEmptyCell(prisonName);
             if (cellNum != null)
             {
                 string zoneID = jailData.prisons[prisonName].zoneID;
                 object cellPos = FindSpawnPoint(prisonName, (int)cellNum);
-                if (cellPos == null) return false;
+                if (cellPos == null) return "noPos";
                 jailData.prisons[prisonName].freeCells[(int)cellNum] = true;
 
                 long jailTime = -99999;
@@ -279,7 +279,7 @@ namespace Oxide.Plugins
                 SaveData();
                 return true;
             }
-            return false;
+            return "noCell";
         }       
         private void FreeFromJail(BasePlayer player)
         {
@@ -366,15 +366,17 @@ namespace Oxide.Plugins
         }
         private object FindEmptyCell(string prisonName)
         {
-            List<int> emptyCells = new List<int>();
+            int emptyCell = -1;
             foreach (var cell in jailData.prisons[prisonName].freeCells)
             {
                 if (cell.Value == false)
-                    emptyCells.Add(cell.Key);
-                break;
+                {
+                    emptyCell = cell.Key;
+                    break;
+                }                               
             }
-            if (emptyCells.Count == 0) return null;
-            return emptyCells[0];
+            if (emptyCell == -1) return null;
+            return emptyCell;
         }
         /*private void StartKillTimer(BasePlayer player)
         {
@@ -447,7 +449,7 @@ namespace Oxide.Plugins
         private void cmdJail(BasePlayer player, string command, string[] args)
         {
             if (Started)
-            if (jailData.Prisoners.ContainsKey(player.userID))
+            if (jailData.Prisoners.ContainsKey(player.userID) && !hasPermission(player))
             {
                 long currentTime = CurrentTime();
                 long expTime = jailData.Prisoners[player.userID].expireTime;
@@ -468,7 +470,6 @@ namespace Oxide.Plugins
                     return;
                 }
                 FreeFromJail(player);
-                return;
             }
             if (!hasPermission(player)) return;
             if (args == null || args.Length == 0)
@@ -503,9 +504,15 @@ namespace Oxide.Plugins
                         if (args.Length >= 3)
                             int.TryParse(args[2], out time);
 
-                        bool success = SendToJail(target, prison, time);
-                        if (success) SendMsg(player, string.Format(lang.GetMessage("sentTo", this, player.UserIDString), target.displayName, prison));
-                        else SendMsg(player, string.Format(lang.GetMessage("noCells", this, player.UserIDString), prison));
+                        object success = SendToJail(target, prison, time);
+                        if (success is bool)
+                            if ((bool)success) SendMsg(player, string.Format(lang.GetMessage("sentTo", this, player.UserIDString), target.displayName, prison));
+                            else if (success is string)
+                            {
+                                if ((string)success == "noPos") SendMsg(player, string.Format(lang.GetMessage("noPos", this), prison));
+                                else if ((string)success == "noCell") SendMsg(player, string.Format(lang.GetMessage("noCell", this), prison));
+                                return;
+                            }
                     }
                     else SendMsg(player, lang.GetMessage("synSend", this, player.UserIDString));
                     return;
@@ -540,8 +547,8 @@ namespace Oxide.Plugins
                     int radius = 30;
                     if (args.Length >= 2)
                         int.TryParse(args[1], out radius);
-                    string zoneID = "Jail" + jailData.prisons.Count + 1;
-                    string[] zoneargs = new string[] { "name", zoneID, "eject", "true", "radius", radius.ToString(), "sleepgod", "true", "undestr", "true", "nobuild", "true", "notp", "true", "nokits", "true", "nodeploy", "true", "nosuicide", "true" };
+                    string zoneID = "Jail" + (jailData.prisons.Count + 1);
+                    string[] zoneargs = new string[] { "eject", "true", "radius", radius.ToString(), "sleepgod", "true", "undestr", "true", "nobuild", "true", "notp", "true", "nokits", "true", "nodeploy", "true", "nosuicide", "true" };
                     ZoneManager.Call("CreateOrUpdateZone", zoneID, zoneargs, player.transform.position);
                     SendMsg(player, lang.GetMessage("createJail", this, player.UserIDString));
                     SendMsg(player, string.Format(lang.GetMessage("jailID", this, player.UserIDString), zoneID));
@@ -594,9 +601,15 @@ namespace Oxide.Plugins
                 if (arg.Args.Length >= 2)
                     int.TryParse(arg.Args[1], out time);
 
-                bool success = SendToJail(target, prison, time);
-                if (success) SendReply(arg, lang.GetMessage("sentTo", this), target.displayName, prison);
-                else SendReply(arg, lang.GetMessage("noCells", this), prison);
+                object success = SendToJail(target, prison, time);
+                if (success is bool)
+                    if ((bool)success) SendReply(arg, lang.GetMessage("sentTo", this), target.displayName, prison);
+                    else if (success is string)
+                    {
+                        if ((string) success == "noPos") SendReply(arg, string.Format(lang.GetMessage("noPos", this), prison));
+                        else if ((string) success == "noCell") SendReply(arg, string.Format(lang.GetMessage("noCell", this), prison));
+                        return;
+                    }
             }
             else SendReply(arg, lang.GetMessage("synSend", this));
             return;
@@ -876,6 +889,7 @@ namespace Oxide.Plugins
             {"noPrisons", "The are no prisons available!" },
             {"sentTo", "{0} has been sent to {1}" },
             {"noCells", "The are no free cells available at {0}" },
+            {"noPos", "Unable to find a valid spawn point at {0}" },
             {"relFrom", "{0} has been released from prison" },
             {"ff", "You can not hurt other inmates" },
             {"createJail", "You have successfully created a new prison zone, you can edit this zone with /zone_edit" },
