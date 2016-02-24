@@ -56,6 +56,6 @@ Foreach($File in $ServerConfigFiles)
 {
 	Push-Location .\ServerConfigFiles
 	Copy-Item $File -Destination $BaseServerPath\cfg -Force -Confirm:$false
-	Write-Host "$($Files.Name) has been writen to the server."
+	Write-Host "$($File.Name) has been writen to the server."
 	Pop-Location
 }
