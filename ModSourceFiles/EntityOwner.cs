@@ -15,170 +15,20 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "2.0.31", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "3.0.0", ResourceId = 1255)]
     [Description("Tracks ownership of placed constructions and deployables")]
     class EntityOwner : RustPlugin
     {
         #region Data & Config
         private Dictionary<string, string> messages = new Dictionary<string, string>();
-        public List<ulong> KnownPlayers = new List<ulong>();
-        public Dictionary<ulong, OwnerProfile> Players = new Dictionary<ulong, OwnerProfile>();
-        protected Dictionary<string, ulong> OwnerData = new Dictionary<string, ulong>();
         private int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
 
         private int EntityLimit = 8000;
         private float DistanceThreshold = 3f;
         private float CupboardDistanceThreshold = 20f;
 
-        private bool useSubdirectory = false;
-        private string subDirectory = "owners";
         private bool debug = false;
-        private int SaveVersion2;
-        public bool AutomaticWipeOwners;
 
-        [PluginReference]
-        Plugin DeadPlayersList;
-
-        #endregion
-
-        #region Profile
-        public class OwnerProfile
-        {
-            public ulong playerID = 0;
-
-            public List<string> Constructions = new List<string>();
-            public List<string> Deployables = new List<string>();
-
-            [JsonIgnore]
-            public bool dirty = true;
-
-            [JsonIgnore]
-            public int Count
-            {
-                get
-                {
-                    return Constructions.Count + Deployables.Count;
-                }
-                private set { }
-            }
-
-            [JsonConstructor]
-            public OwnerProfile(ulong playerID = 0, List<string> Constructions = null, List<string> Deployables = null)
-            {
-                if (playerID != 0)
-                {
-                    this.playerID = playerID;
-                }
-
-                if (Constructions is List<string>)
-                {
-                    this.Constructions = Constructions;
-                }
-                if (Deployables is List<string>)
-                {
-                    this.Deployables = Deployables;
-                }
-            }
-
-            public OwnerProfile(BasePlayer player, List<string> Constructions = null, List<string> Deployables = null)
-            {
-                this.Player = player;
-
-                if (Constructions != null)
-                {
-                    this.Constructions = Constructions;
-                }
-
-                if (Deployables != null)
-                {
-                    this.Deployables = Deployables;
-                }
-
-                this.dirty = true;
-            }
-
-            [JsonIgnore]
-            public BasePlayer Player
-            {
-                get
-                {
-                    return FindPlayerByPartialName(this.playerID.ToString());
-                }
-                protected set
-                {
-                    this.playerID = value.userID;
-                }
-            }
-
-            [JsonIgnore]
-            public ulong PlayerID
-            {
-                get { return this.playerID; }
-                private set { }
-            }
-
-            public string Add(BaseEntity entity, ulong playerID = 0)
-            {
-                if (entity.transform == null)
-                {
-                    return null;
-                }
-
-                if (entity.name.ToString() == "player/player")
-                {
-                    return null;
-                }
-
-                //if (entity.LookupPrefabName().Contains("cupboard.tool.deployed"))
-                //{
-                //    return null;
-                //}
-
-                string eid = GetEntityID(entity);
-
-                if (entity is BuildingBlock)
-                {
-                    if (!Constructions.Contains(eid))
-                    {
-                        this.Constructions.Add(eid);
-                    }
-                }
-                else
-                {
-                    if (!Deployables.Contains(eid))
-                    {
-                        this.Deployables.Add(eid);
-                    }
-
-                }
-
-                this.dirty = true;
-
-                return eid;
-            }
-
-            public string Remove(BaseEntity entity)
-            {
-                if (entity.transform == null)
-                {
-                    return null;
-                }
-                string eid = GetEntityID(entity);
-
-                if (this.Constructions.Contains(eid))
-                {
-                    this.dirty = true;
-                    this.Constructions.Remove(eid);
-                }
-                else if (this.Deployables.Contains(eid))
-                {
-                    this.dirty = true;
-                    this.Deployables.Remove(eid);
-                }
-
-                return eid;
-            }
-        }
         #endregion
 
         #region Data Handling & Initialization
@@ -236,19 +86,11 @@ namespace Oxide.Plugins
             }
 
             Config["messages"] = messages;
-            Config["useSubdirectory"] = false;
-            Config["subDirectory"] = "owners";
             Config["VERSION"] = this.Version.ToString();
             Config["EntityLimit"] = 8000;
             Config["DistanceThreshold"] = 3.0f;
             Config["CupboardDistanceThreshold"] = 20f;
-            Config["SaveVersion2"] = Protocol.save;
-            Config["AutomaticWipeOwners"] = true;
-            Config["Debug"] = false;
 
-            this.PopulatePlayerList();
-
-            this.SavePlayerList();
             Config.Save();
         }
 
@@ -285,21 +127,6 @@ namespace Oxide.Plugins
             return (T)Convert.ChangeType(Config[name], typeof(T));
         }
 
-        void OnServerSave()
-        {
-            this.SaveData();
-        }
-
-        void OnServerShutdown()
-        {
-            this.SaveData();
-        }
-
-        //void Unload()
-        //{
-        //    this.SaveData();
-        //}
-
         void OnServerInitialized()
         {
             try
@@ -311,8 +138,6 @@ namespace Oxide.Plugins
                 this.EntityLimit = GetConfig<int>("EntityLimit", 8000);
                 this.DistanceThreshold = GetConfig<float>("DistanceThreshold", 3f);
                 this.CupboardDistanceThreshold = GetConfig<float>("CupboardDistanceThreshold", 20f);
-                this.SaveVersion2 = GetConfig<int>("SaveVersion2", Protocol.save);
-                this.AutomaticWipeOwners = GetConfig<bool>("AutomaticWipeOwners", true);
 
                 if (this.DistanceThreshold >= 5)
                 {
@@ -328,16 +153,10 @@ namespace Oxide.Plugins
                     }
                 }
 
-                this.useSubdirectory = GetConfig<bool>("useSubdirectory", false);
-                this.subDirectory = GetConfig<string>("subDirectory", "owners");
-
-                if (!permission.PermissionExists("entityowner.canwipeowners")) permission.RegisterPermission("entityowner.canwipeowners", this);
                 if (!permission.PermissionExists("entityowner.cancheckowners")) permission.RegisterPermission("entityowner.cancheckowners", this);
                 if (!permission.PermissionExists("entityowner.canchangeowners")) permission.RegisterPermission("entityowner.canchangeowners", this);
 
                 LoadData();
-
-                CheckVersion();
             }
             catch (Exception ex)
             {
@@ -348,24 +167,6 @@ namespace Oxide.Plugins
         private void BuildServerTags(IList<string> tags)
         {
             tags.Add("ownership");
-        }
-
-        void CheckVersion()
-        {
-            if (this.SaveVersion2 != (int)Protocol.save)
-            {
-                if (this.AutomaticWipeOwners)
-                {
-                    PrintWarning("Running automatic wipe of ownership ("+SaveVersion2+" to "+Protocol.save+")");
-                    Config["SaveVersion2"] = (int)Protocol.save;
-                    Config.Save();
-                    WipeOwners();
-                }
-                else
-                {
-                    PrintWarning("It is recommended to run 'owners.wipe' after a map wipe");
-                }
-            }
         }
 
         void LoadData()
@@ -380,234 +181,20 @@ namespace Oxide.Plugins
                 // ADDS NEW, IF ANY, CONFIGURATION OPTIONS
                 this.ReloadConfig();
             }
-
-            int t = 0;
-            try
-            {
-                KnownPlayers = Interface.Oxide.DataFileSystem.ReadObject<List<ulong>>("owners_list");
-            }
-            catch (Exception e)
-            {
-                if (debug)
-                {
-                    PrintError("KnownPlayer initialization failed: " + e.Message);
-                    throw e;
-                }
-                else
-                {
-                    KnownPlayers = new List<ulong>();
-                }
-            }
-            finally
-            {
-                this.PopulatePlayerList();
-            }
-
-            foreach (ulong playerID in KnownPlayers.ToList())
-            {
-                if (PlayerExists(playerID))
-                {
-                    this.LoadProfile(playerID);
-                    t++;
-                }
-            }
-
-            if (t > 0)
-            {
-                PrintToConsole("Loaded " + t.ToString() + " profiles");
-            }
-        }
-
-        int SaveData()
-        {
-            this.SavePlayerList();
-            int t = 0;
-
-            foreach (KeyValuePair<ulong, OwnerProfile> kvp in Players.ToList())
-            {
-                if (kvp.Value.dirty)
-                {
-                    this.SaveProfile(kvp.Key, kvp.Value);
-                    t++;
-                }
-            }
-
-            return t;
-        }
-
-        private void PopulatePlayerList()
-        {
-            foreach (BasePlayer activePlayer in BasePlayer.activePlayerList)
-            {
-                if (!KnownPlayers.Contains(activePlayer.userID))
-                {
-                    if (activePlayer.userID != 0)
-                    {
-                        KnownPlayers.Add(activePlayer.userID);
-                    }
-                }
-            }
-        }
-
-        private void SavePlayerList()
-        {
-            if (KnownPlayers.Count > 0)
-            {
-                Interface.Oxide.DataFileSystem.WriteObject<List<ulong>>("owners_list", KnownPlayers);
-            }
-        }
-
-        protected bool LoadProfile(ulong playerID)
-        {
-            if (playerID == 0)
-            {
-                return false;
-            }
-
-            if (Players.ContainsKey(playerID))
-            {
-                return true;
-            }
-
-            string path = "entityowner_" + playerID.ToString();
-            if (this.useSubdirectory)
-            {
-                path = this.subDirectory + "/" + path;
-            }
-
-            if (!Interface.Oxide.DataFileSystem.ExistsDatafile(path))
-            {
-                if (debug)
-                {
-                    PrintWarning("No data file: creating "+path);
-                }
-                return false;
-            }
-
-            OwnerProfile profile = null;
-            try
-            {
-                //profile = ReadOwnerProfile(path, playerID);
-                Players[playerID] = profile = Interface.Oxide.DataFileSystem.ReadObject<OwnerProfile>(path);
-                profile.playerID = playerID;
-            }
-            catch (Exception exception)
-            {
-                if (debug)
-                {
-                    PrintError("Profile loading failed: " + playerID + " " + exception.Message);
-                }
-
-                return false;
-            }
-
-            if (!(profile is OwnerProfile))
-            {
-                if (debug)
-                {
-                    PrintWarning("Something weird " + path);
-                }
-                return false;
-            }
-
-            if (profile.Count == 0)
-            {
-                return true;
-            }
-
-            foreach (string eid in profile.Deployables)
-            {
-                if (!OwnerData.ContainsKey(eid))
-                {
-                    OwnerData.Add(eid, playerID);
-                }
-                else
-                {
-                    OwnerData[eid] = playerID;
-                }
-            }
-
-            foreach (string eid in profile.Constructions)
-            {
-                if (!OwnerData.ContainsKey(eid))
-                {
-                    OwnerData.Add(eid, playerID);
-                }
-                else
-                {
-                    OwnerData[eid] = playerID;
-                }
-            }
-
-            return true;
-        }
-
-        OwnerProfile ReadOwnerProfile(string path, ulong playerID)
-        {
-            var data = Interface.Oxide.DataFileSystem.GetDatafile(path);
-
-            if (data["profile"] != null)
-            {
-                OwnerProfile profile = this.CreateDefaultProfile(playerID);
-                Dictionary<string, object> profileData = data["profile"] as Dictionary<string, object>;
-                List<string> constructions = new List<string>();
-                foreach (var construction in profileData["Constructions"] as List<object>)
-                {
-                    profile.Constructions.Add((string)construction);
-                }
-
-                foreach (var deployable in profileData["Deployables"] as List<object>)
-                {
-                    profile.Deployables.Add((string)deployable);
-                }
-
-                return profile;
-            }
-
-            return null;
-        }
-
-        void SaveProfile(ulong playerID, OwnerProfile profile)
-        {
-            string path = "entityowner_" + playerID.ToString();
-            if (this.useSubdirectory)
-            {
-                path = this.subDirectory + "/" + path;
-            }
-
-            //WriteOwnerProfile(path, profile);
-
-            Interface.Oxide.DataFileSystem.WriteObject<OwnerProfile>(path, profile, false);
-
-            profile.dirty = false;
-        }
-
-        void WriteOwnerProfile(string path, OwnerProfile profile)
-        {
-            DynamicConfigFile data = Interface.Oxide.DataFileSystem.GetDatafile(path);
-
-            Dictionary<string, object> profileData = new Dictionary<string, object>();
-
-            profileData.Add("Constructions", profile.Constructions);
-            profileData.Add("Deployables", profile.Deployables);
-
-            data["profile"] = profileData;
-
-            Interface.Oxide.DataFileSystem.SaveDatafile(path);
         }
 
         [HookMethod("SendHelpText")]
         private void SendHelpText(BasePlayer player)
         {
             var sb = new StringBuilder();
-            if (this.canCheckOwners(player) || this.canChangeOwners(player) || this.canWipeOwners(player))
+            if (this.canCheckOwners(player) || this.canChangeOwners(player))
             {
                 sb.Append("<size=18>EntityOwner</size> by <color=#ce422b>Calytic</color> at <color=#ce422b>http://cyclone.network</color>\n");
             }
 
             if (this.canCheckOwners(player))
             {
-                sb.Append("  ").Append("<color=\"#ffd479\">/owner</color> - Check ownership of entity you are looking at").Append("\n");
+                sb.Append("  ").Append("<color=\"#ffd479\">/prod</color> - Check ownership of entity you are looking at").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/prod2</color> - Check ownership of entire structure/all deployables").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/prod2 block</color> - Check ownership structure only").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/prod2 cupboard</color> - Check authorization on all nearby cupboards").Append("\n");
@@ -620,14 +207,7 @@ namespace Oxide.Plugins
                 sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/unown [all/block]</color> - Remove ownership from entire structure").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/auth PlayerName</color> - Authorize specified player on all nearby cupboards").Append("\n");
-                //sb.Append("  ").Append("<color=\"#ffd479\">/authclean PlayerName</color> - Remove all building privileges on a player").Append("\n");
-            }
-
-            if (this.canWipeOwners(player))
-            {
-                sb.Append("  ").Append("<color=\"#ffd479\">/wipeowners</color> - Wipes all ownership data").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/expireowners</color> - Expires all registered players without wiping ownership - helps performance").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/saveowners</color> - Saves all changes to all loaded profiles").Append("\n");
+                sb.Append("  ").Append("<color=\"#ffd479\">/authclean PlayerName</color> - Remove all building privileges on a player").Append("\n");
             }
 
             player.ChatMessage(sb.ToString());
@@ -635,287 +215,12 @@ namespace Oxide.Plugins
 
         #endregion
 
-        #region Game Hooks
 
-        [HookMethod("OnItemDeployed")]
-        private void OnItemDeployed(Deployer deployer, BaseEntity entity)
-        {
-            if (deployer == null)
-            {
-                return;
-            }
-            if (entity == null)
-            {
-                return;
-            }
-            BasePlayer player = deployer.ownerPlayer;
-            if (!(player is BasePlayer))
-            {
-                return;
-            }
-
-            OwnerProfile profile = this.GetOwnerProfile(player);
-
-            if (profile is OwnerProfile)
-            {
-                AddEntityToProfile(profile, entity);
-            }
-        }
-
-        [HookMethod("OnEntityBuilt")]
-        private void OnEntityBuilt(Planner planner, GameObject gameObject)
-        {
-            BaseEntity entity = gameObject.ToBaseEntity(); ;
-            if (!(entity is BaseEntity))
-            {
-                return;
-            }
-
-            BasePlayer player = planner.ownerPlayer;
-            if (player == null)
-            {
-                return;
-            }
-
-            OwnerProfile profile = this.GetOwnerProfile(player);
-
-            if (profile is OwnerProfile)
-            {
-                if (entity is BuildingPrivlidge)
-                {
-                    timer.In(0.15f, delegate()
-                    {
-                        if (!entity.isDestroyed && entity.transform != null)
-                        {
-                            AddEntityToProfile(profile, entity);
-                        }
-                    });
-                }
-                else
-                {
-                    AddEntityToProfile(profile, entity);
-                }
-            }
-        }
-
-        [HookMethod("OnEntityDeath")]
-        private void OnEntityDeath(BaseCombatEntity entity, HitInfo hitInfo)
-        {
-            if (entity.transform == null)
-            {
-                return;
-            }
-
-            string eid = GetEntityID(entity);
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong playerID = OwnerData[eid];
-                OwnerData.Remove(eid);
-
-                if (this.LoadProfile(playerID))
-                {
-                    OwnerProfile profile = this.GetOwnerProfileByID(playerID);
-                    RemoveEntityFromProfile(profile, entity);
-                }
-            }
-        }
-
-        [HookMethod("OnEntityGroundMissing")]
-        private void OnEntityGroundMissing(BaseEntity entity)
-        {
-            if (entity.transform == null)
-            {
-                return;
-            }
-            string eid = GetEntityID(entity);
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong playerID = OwnerData[eid];
-                OwnerData.Remove(eid);
-
-                if (this.LoadProfile(playerID))
-                {
-                    OwnerProfile profile = this.GetOwnerProfileByID(playerID);
-                    RemoveEntityFromProfile(profile, entity);
-                }
-            }
-        }
-
-        [HookMethod("OnPlayerInit")]
-        private void OnPlayerInit(BasePlayer player)
-        {
-            if (player.userID != 0)
-            {
-                this.GetOwnerProfile(player);
-            }
-        }
-
-        //[HookMethod("OnPlayerDisconnected")]
-        //void OnPlayerDisconnected(BasePlayer player)
-        //{
-        //    OwnerProfile profile = this.GetOwnerProfile(player);
-        //    if (profile.Count > 0)
-        //    {
-        //        this.SaveProfile(player.userID, profile, true);
-        //        this.SavePlayerList();
-        //    }
-        //}
-
-        #endregion
-
-        #region API
-
-        object FindEntityData(BaseEntity entity)
-        {
-            if (entity.transform == null)
-            {
-                return false;
-            }
-
-            string eid = GetEntityID(entity);
-
-            if (OwnerData.ContainsKey(eid))
-                return OwnerData[eid].ToString();
-
-            return false;
-        }
-
-        Dictionary<ulong, OwnerProfile> GetOwners()
-        {
-            return Players;
-        }
-
-        Dictionary<string, ulong> GetOwnersData()
-        {
-            return OwnerData;
-        }
-
-        void AddEntityOwner(BaseEntity entity, BasePlayer player)
-        {
-            OwnerProfile profile = this.GetOwnerProfile(player);
-            AddEntityToProfile(profile, entity);
-        }
-
-        void RemoveEntityOwner(BaseEntity entity, BasePlayer player)
-        {
-            OwnerProfile profile = this.GetOwnerProfile(player);
-            RemoveEntityFromProfile(profile, entity);
-        }
-
-        #endregion
 
         #region Chat Commands
 
-        [ChatCommand("saveowners")]
-        void cmdOwnerSave(BasePlayer player, string command, string[] args)
-        {
-            if (player.net.connection != null)
-            {
-                if (player.net.connection.authLevel < 1)
-                {
-                    SendReply(player, messages["You are not allowed to use this command"]);
-                    return;
-                }
-            }
-
-            int t = this.SaveData();
-
-            if (t > 0)
-            {
-                SendReply(player, "EntityOwner: Changes (" + t + ") saved.");
-            }
-            else
-            {
-                SendReply(player, "EntityOwner: No changes (" + t + ").");
-            }
-        }
-
-        [ChatCommand("wipeowners")]
-        void cmdOwnerWipe(BasePlayer player, string command, string[] args)
-        {
-            if (!this.canWipeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
-                return;
-            }
-
-            this.WipeOwners();
-            SendReply(player, messages["Ownership data wiped!"]);
-        }
-
-        [ChatCommand("expireowners")]
-        void cmdOwnerExpire(BasePlayer player, string command, string[] args)
-        {
-            if (!this.canWipeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
-                return;
-            }
-
-            ExpireOwners();
-
-            SendReply(player, messages["Ownership data expired!"]);
-        }
-
-        [ConsoleCommand("owners.save")]
-        void ccOwnerSave(ConsoleSystem.Arg arg)
-        {
-            if (arg.connection != null)
-            {
-                if (arg.connection.authLevel < 1)
-                {
-                    SendReply(arg, messages["You are not allowed to use this command"]);
-                    return;
-                }
-            }
-
-            int t = this.SaveData();
-
-            if (t > 0)
-            {
-                SendReply(arg, "Changes (" + t + ") saved.");
-            }
-            else
-            {
-                SendReply(arg, "No changes (" + t + ").");
-            }
-        }
-
-        [ConsoleCommand("owners.wipe")]
-        void ccOwnerWipe(ConsoleSystem.Arg arg)
-        {
-            if (arg.connection != null)
-            {
-                if (arg.connection.authLevel < 1)
-                {
-                    SendReply(arg, messages["You are not allowed to use this command"]);
-                    return;
-                }
-            }
-
-            WipeOwners();
-            SendReply(arg, messages["Ownership data wiped!"]);
-        }
-
-        [ConsoleCommand("owners.expire")]
-        void ccOwnerExpire(ConsoleSystem.Arg arg)
-        {
-            if (arg.connection != null)
-            {
-                if (arg.connection.authLevel < 1)
-                {
-                    SendReply(arg, messages["You are not allowed to use this command"]);
-                    return;
-                }
-            }
-
-            ExpireOwners();
-
-            SendReply(arg, messages["Ownership data expired!"]);
-        }
-
-        [ChatCommand("owner")]
-        void cmdOwner(BasePlayer player, string command, string[] args)
+        [ChatCommand("prod")]
+        void cmdProd(BasePlayer player, string command, string[] args)
         {
             if (!this.canCheckOwners(player))
             {
@@ -936,7 +241,7 @@ namespace Oxide.Plugins
                 if (target is BaseEntity)
                 {
                     BaseEntity targetEntity = target as BaseEntity;
-                    string owner = this.GetOwnerName((BaseEntity)target);
+                    string owner = GetOwnerName((BaseEntity)target);
                     if (owner == null || owner == String.Empty)
                     {
                         owner = "N/A";
@@ -963,6 +268,11 @@ namespace Oxide.Plugins
             bool massTrigger = false;
             string type = null;
             BasePlayer target = null;
+
+            if (args.Length == 0)
+            {
+                args = new string[1] { "all" };
+            }
 
             if (args.Length > 2)
             {
@@ -1051,6 +361,11 @@ namespace Oxide.Plugins
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
+            }
+
+            if (args.Length == 0)
+            {
+                args = new string[1] { "all" };
             }
 
             if (args.Length > 1)
@@ -1176,9 +491,6 @@ namespace Oxide.Plugins
 
             if (checkCupboard)
             {
-                //var input = serverinput.GetValue(player) as InputState;
-                //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
-                //var priv = RaycastAll<BuildingPrivlidge>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
                 var priv = RaycastAll<BuildingPrivlidge>(player.eyes.HeadRay());
                 if (priv is bool)
                 {
@@ -1198,9 +510,6 @@ namespace Oxide.Plugins
 
             if (checkTurret)
             {
-                //var input = serverinput.GetValue(player) as InputState;
-                //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
-                //var turret = RaycastAll<AutoTurret>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
                 var turret = RaycastAll<AutoTurret>(player.eyes.HeadRay());
                 if (turret is bool)
                 {
@@ -1212,6 +521,35 @@ namespace Oxide.Plugins
                     this.ProdTurret(player, (AutoTurret)turret);
                 }
             }
+        }
+
+        [ConsoleCommand("authclean")]
+        void ccAuthClean(ConsoleSystem.Arg arg)
+        {
+            if (arg.connection != null && arg.connection.authLevel < 1)
+            {
+                SendReply(arg, "No permission");
+                return;
+            }
+
+            BasePlayer target = null;
+            if (arg.Args.Length == 1)
+            {
+                target = FindPlayerByPartialName(arg.Args[0]);
+                if (target == null)
+                {
+                    SendReply(arg, messages["Target player not found"]);
+                    return;
+                }
+            }
+            else
+            {
+                SendReply(arg, "Invalid Syntax. authclean PlayerName");
+            }
+
+            this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
+            target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
+            target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
         }
 
         [ChatCommand("authclean")]
@@ -1300,13 +638,6 @@ namespace Oxide.Plugins
         #endregion
 
         #region Permission Checks
-
-        bool canWipeOwners(BasePlayer player)
-        {
-            if (player == null) return false;
-            if (player.net.connection.authLevel > 0) return true;
-            return permission.UserHasPermission(player.UserIDString, "entityowner.canwipeowners");
-        }
 
         bool canCheckOwners(BasePlayer player)
         {
@@ -1432,13 +763,6 @@ namespace Oxide.Plugins
                 {
                     SendReply(player, string.Format(messages["New owner of all around is: {0}"], target.displayName));
                     SendReply(target, messages["Owner: You were given ownership of this house and nearby deployables"]);
-
-                    OwnerProfile profile = this.GetOwnerProfile(target);
-                    if (profile is OwnerProfile)
-                    {
-                        this.SaveProfile(target.userID, profile);
-                        this.SavePlayerList();
-                    }
                 }
                 else
                 {
@@ -1477,12 +801,10 @@ namespace Oxide.Plugins
                 }
                 checkFrom.Add(entity.transform.position);
 
-                string eid = GetEntityID(entity);
-
                 int total = 0;
-                if (OwnerData.ContainsKey(eid) && entity is T)
+                if (entity is T)
                 {
-                    prodOwners.Add(OwnerData[eid], 1);
+                    prodOwners.Add(entity.OwnerID, 1);
                     total++;
                 }
 
@@ -1527,18 +849,14 @@ namespace Oxide.Plugins
                             total++;
                             entityList.Add(fentity);
                             checkFrom.Add(fentity.transform.position);
-                            eid = EntityOwner.GetEntityID(fentity);
-                            if (OwnerData.ContainsKey(eid))
+                            ulong pid = fentity.OwnerID;
+                            if (prodOwners.ContainsKey(pid))
                             {
-                                ulong pid = OwnerData[eid];
-                                if (prodOwners.ContainsKey(pid))
-                                {
-                                    prodOwners[pid]++;
-                                }
-                                else
-                                {
-                                    prodOwners.Add(pid, 1);
-                                }
+                                prodOwners[pid]++;
+                            }
+                            else
+                            {
+                                prodOwners.Add(pid, 1);
                             }
                         }
                     }
@@ -2004,301 +1322,47 @@ namespace Oxide.Plugins
 
         ulong GetOwnerID(BaseEntity entity)
         {
-            if (entity.transform == null)
-            {
-                return 0;
-            }
-
-            string eid = GetEntityID(entity);
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                return OwnerData[eid];
-            }
-
-            return 0;
+            return entity.OwnerID;
         }
 
         string GetOwnerName(BaseEntity entity)
         {
-            if (entity.transform == null)
-            {
-                return null;
-            }
-
-            string eid = GetEntityID(entity);
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong playerID = OwnerData[eid];
-                return this.FindPlayerName(playerID);
-            }
-
-            return null;
+            return FindPlayerName(entity.OwnerID);
         }
 
         BasePlayer GetOwnerPlayer(BaseEntity entity)
         {
-            if (entity.transform == null)
-            {
-                return null;
-            }
-
-            string eid = GetEntityID(entity);
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong playerID = OwnerData[eid];
-                OwnerProfile profile = this.GetOwnerProfileByID(playerID);
-                if (profile is OwnerProfile)
-                {
-                    return profile.Player;
-                }
-            }
-
-            return null;
+            return BasePlayer.FindByID(entity.OwnerID);
         }
 
-        void RemoveOwner(BaseEntity entity, BasePlayer player = null)
+        void RemoveOwner(BaseEntity entity)
         {
-            if (player == null)
-            {
-                this.ClearOwner(entity);
-            }
-            else
-            {
-                OwnerProfile profile = this.GetOwnerProfile(player);
-                if (profile is OwnerProfile)
-                {
-                    RemoveEntityFromProfile(profile, entity);
-                }
-            }
-        }
-
-        void ClearOwner(BaseEntity entity)
-        {
-            if (entity.transform == null)
-            {
-                return;
-            }
-            string eid = GetEntityID(entity);
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong oldOwner = OwnerData[eid];
-                OwnerProfile oldProfile = this.GetOwnerProfileByID(oldOwner);
-                if (oldProfile is OwnerProfile)
-                {
-                    RemoveEntityFromProfile(oldProfile, entity);
-                }
-            }
+            entity.OwnerID = 0;
         }
 
         void ChangeOwner(BaseEntity entity, BasePlayer player)
         {
-            if (entity.transform == null)
-            {
-                return;
-            }
-            string eid = GetEntityID(entity);
-
-            OwnerProfile profile = this.GetOwnerProfile(player);
-
-            if (!(profile is OwnerProfile))
-            {
-                return;
-            }
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                ulong oldOwner = OwnerData[eid];
-                if (oldOwner != player.userID)
-                {
-                    OwnerProfile oldProfile = this.GetOwnerProfileByID(oldOwner);
-                    if (oldProfile is OwnerProfile)
-                    {
-                        RemoveEntityFromProfile(oldProfile, entity);
-                    }
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            AddEntityToProfile(profile, entity);
+            entity.OwnerID = player.userID;
         }
 
-        void AddEntityToProfile(OwnerProfile profile, BaseEntity entity)
+        object FindEntityData(BaseEntity entity)
         {
-            string eid = profile.Add(entity);
-
-            if (eid != null)
+            if (entity.OwnerID == 0)
             {
-                if (OwnerData.ContainsKey(eid))
-                {
-                    OwnerData[eid] = profile.PlayerID;
-                }
-                else
-                {
-                    OwnerData.Add(eid, profile.PlayerID);
-                }
-            }
-        }
-
-        void RemoveEntityFromProfile(OwnerProfile profile, BaseEntity entity)
-        {
-            string eid = profile.Remove(entity);
-
-            if (OwnerData.ContainsKey(eid))
-            {
-                OwnerData.Remove(eid);
-            }
-        }
-
-        List<string> GetProfileConstructions(BasePlayer player)
-        {
-            OwnerProfile profile = GetOwnerProfile(player);
-
-            if (profile is OwnerProfile)
-            {
-                return profile.Constructions;
+                return false;
             }
 
-            return null;
-        }
-
-        List<string> GetProfileDeployables(BasePlayer player)
-        {
-            OwnerProfile profile = GetOwnerProfile(player);
-
-            if (profile is OwnerProfile)
-            {
-                return profile.Deployables;
-            }
-
-            return null;
-        }
-
-        void ClearProfile(BasePlayer player)
-        {
-            OwnerProfile profile = GetOwnerProfile(player);
-
-            if (profile is OwnerProfile)
-            {
-                profile.Constructions.Clear();
-                profile.Deployables.Clear();
-            }
-        }
-
-        string FindID(BaseEntity entity)
-        {
-            if (entity.transform == null)
-            {
-                return "0";
-            }
-            return EntityOwner.GetEntityID(entity);
-        }
-
-        private OwnerProfile CreateDefaultProfile(ulong playerID)
-        {
-            OwnerProfile profile = new OwnerProfile(playerID); ;
-
-            if (!KnownPlayers.Contains(playerID))
-            {
-                KnownPlayers.Add(playerID);
-            }
-
-
-            if (Players.ContainsKey(playerID))
-            {
-                Players[playerID] = profile;
-            }
-            else
-            {
-                Players.Add(playerID, profile);
-            }
-
-            return profile;
-        }
-
-        public OwnerProfile GetOwnerProfile(BasePlayer player)
-        {
-            if (player.userID == 0)
-            {
-                return null;
-            }
-            OwnerProfile profile = null;
-            if (!Players.ContainsKey(player.userID))
-            {
-                if (!this.LoadProfile(player.userID))
-                {
-                    profile = this.CreateDefaultProfile(player.userID);
-                }
-            }
-            else
-            {
-                profile = Players[player.userID];
-            }
-
-            return profile;
-        }
-
-        public OwnerProfile GetOwnerProfileByID(ulong playerID)
-        {
-            OwnerProfile profile = null;
-            if (!Players.ContainsKey(playerID))
-            {
-                if (KnownPlayers.Contains(playerID))
-                {
-                    this.LoadProfile(playerID);
-                }
-            }
-
-            if (Players.ContainsKey(playerID))
-            {
-                profile = Players[playerID];
-            }
-
-            return profile;
-        }
-
-        void WipeOwners()
-        {
-            Players = new Dictionary<ulong, OwnerProfile>();
-            OwnerData = new Dictionary<string, ulong>();
-            KnownPlayers.Clear();
-
-            PrintToConsole("Ownership wipe completed");
-            SaveData();
-        }
-
-        void ExpireOwners()
-        {
-            KnownPlayers.Clear();
-
-            this.PopulatePlayerList();
-
-            SaveData();
+            return entity.OwnerID.ToString();
         }
 
         #endregion
 
         #region Utility Methods
 
-        public static string GetEntityID(BaseEntity entity)
-        {
-            Vector3 position = entity.transform.position;
-            if (entity is BuildingBlock && entity.prefabID == 2051113843)
-            {
-                position.y += 0.01f;
-            }
-            return "x" + position.x + "y" + position.y + "z" + position.z;
-        }
-
         private object RaycastAll<T>(Vector3 Pos, Vector3 Aim) where T : BaseEntity
         {
             var hits = UnityEngine.Physics.RaycastAll(Pos, Aim);
+            GamePhysics.Sort(hits);
             float distance = 100f;
             object target = false;
             foreach (var hit in hits)
@@ -2317,6 +1381,7 @@ namespace Oxide.Plugins
         private object RaycastAll<T>(Ray ray) where T : BaseEntity
         {
             var hits = UnityEngine.Physics.RaycastAll(ray);
+            GamePhysics.Sort(hits);
             float distance = 100f;
             object target = false;
             foreach (var hit in hits)
@@ -2358,7 +1423,7 @@ namespace Oxide.Plugins
 
         T FindEntity<T>(Vector3 position, float distance = 3f) where T : BaseEntity
         {
-            List<T> list = Pool.GetList<T>();
+            List<T> list = new List<T>();
             Vis.Entities<T>(position, distance, list, layerMasks);
 
             if (list.Count > 0)
@@ -2371,9 +1436,50 @@ namespace Oxide.Plugins
 
         List<T> FindEntities<T>(Vector3 position, float distance = 3f) where T : BaseEntity
         {
-            List<T> list = Pool.GetList<T>();
+            List<T> list = new List<T>();
             Vis.Entities<T>(position, distance, list, layerMasks);
             return list;
+        }
+
+        List<BuildingBlock> GetProfileConstructions(BasePlayer player)
+        {
+            List<BuildingBlock> result = new List<BuildingBlock>();
+            BuildingBlock[] blocks = UnityEngine.Object.FindObjectsOfType<BuildingBlock>();
+            foreach (BuildingBlock block in blocks) {
+                if (block.OwnerID == player.userID)
+                {
+                    result.Add(block);
+                }
+            }
+
+            return result;
+        }
+
+        List<BaseEntity> GetProfileDeployables(BasePlayer player)
+        {
+            List<BaseEntity> result = new List<BaseEntity>();
+            BaseEntity[] entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
+            foreach (BaseEntity entity in entities)
+            {
+                if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
+                {
+                    result.Add(entity);
+                }
+            }
+
+            return result;
+        }
+
+        void ClearProfile(BasePlayer player)
+        {
+            BaseEntity[] entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
+            foreach (BaseEntity entity in entities)
+            {
+                if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
+                {
+                    RemoveOwner(entity);
+                }
+            }
         }
 
         private void SendChatMessage(BasePlayer player, string message)
@@ -2386,59 +1492,20 @@ namespace Oxide.Plugins
             BasePlayer player = FindPlayerByPartialName(playerID.ToString());
             if (player) 
             {
-                return player.displayName + " [<color=lime>Online</color>]";
-            }
-                
-
-            player = FindPlayerByPartialName(playerID.ToString());
-            if (player)
-            {
-                return player.displayName + " [<color=lightblue>Sleeping</color>]";
+                if(player.IsSleeping()) {
+                    return player.displayName + " [<color=lightblue>Sleeping</color>]";
+                } else {
+                    return player.displayName + " [<color=lime>Online</color>]";
+                }
             }
 
             var p = covalence.Players.GetPlayer(playerID.ToString());
             if (p != null)
             {
-                return p.Nickname;
-            }
-
-            string name = DeadPlayersList?.Call("GetPlayerName", playerID) as string;
-            if (name != null)
-            {
-                return name + " [<color=red>Dead</color>]";
+                return p.Nickname + " [<color=red>Offline</color>]";
             }
 
             return "Unknown : "+playerID.ToString();
-        }
-
-        private bool PlayerExists(ulong playerID)
-        {
-            BasePlayer player = FindPlayerByPartialName(playerID.ToString());
-            if (player) 
-            {
-                return true;
-            }
-                
-
-            player = FindPlayerByPartialName(playerID.ToString());
-            if (player)
-            {
-                return true;
-            }
-
-            var p = covalence.Players.GetPlayer(playerID.ToString());
-            if (p != null)
-            {
-                return true;
-            }
-
-            string name = DeadPlayersList?.Call("GetPlayerName", playerID) as string;
-            if (name != null)
-            {
-                return true;
-            }
-
-            return false;
         }
 
         void SetValue(object inputObject, string propertyName, object propertyVal)
