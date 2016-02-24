@@ -1,5 +1,5 @@
 ﻿$ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
-[XML]$RustManafest = Get-Content .\VS\Manafest.xml
+[XML]$RustManafest = Get-Content .\VS\Manifest.xml
 $BaseServerPath = "C:\RustServerOxide\server\ArkoudaphobiaModded"
 
 Foreach($Config in $RustManafest.ArkoudaphobiaConfig.ModConfigFiles.Config)
