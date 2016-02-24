@@ -14,6 +14,7 @@
     <Mod Name="EnhancedBanSystem.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
+    <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
