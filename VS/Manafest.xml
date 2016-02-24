@@ -25,7 +25,7 @@
     <Mod Name="notifier.py" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
-    <Mod Name="PlayerInformation.cs" Enabled="true"/>
+    <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
     <Mod Name="Polling.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
