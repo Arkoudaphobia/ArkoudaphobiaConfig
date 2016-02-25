@@ -15,8 +15,8 @@ using Facepunch;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "3.0.0", ResourceId = 1255)]
-    [Description("Tracks ownership of placed constructions and deployables")]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "3.0.1", ResourceId = 1255)]
+    [Description("Modify entity ownership and cupboard/turret authorization")]
     class EntityOwner : RustPlugin
     {
         #region Data & Config
@@ -63,7 +63,11 @@ namespace Oxide.Plugins
             "Ownership data expired!",
             "Authorized {0} on {1} turrets",
             "Authorizing turrets..",
-            "Prodding turrets.."
+            "Prodding turrets..",
+            "Deauthorized {0} on {1} turrets",
+            "Deauthorizing turrets..",
+            "Deauthorizing cupboards..",
+            "Deauthorized {0} on {1} cupboards"
         };
 
         // Loads the default configuration
@@ -113,7 +117,7 @@ namespace Oxide.Plugins
             // END NEW CONFIGURATION OPTIONS
 
             PrintToConsole("Upgrading Configuration File");
-            this.SaveConfig();
+            SaveConfig();
         }
 
         // Gets a config value of a specific type
@@ -162,11 +166,6 @@ namespace Oxide.Plugins
             {
                 PrintError("OnServerInitialized failed: " + ex.Message);
             }
-        }
-
-        private void BuildServerTags(IList<string> tags)
-        {
-            tags.Add("ownership");
         }
 
         void LoadData()
@@ -520,6 +519,91 @@ namespace Oxide.Plugins
                 {
                     this.ProdTurret(player, (AutoTurret)turret);
                 }
+            }
+        }
+
+        [ChatCommand("deauth")]
+        void cmdDeauth(BasePlayer player, string command, string[] args)
+        {
+            if (!this.canChangeOwners(player))
+            {
+                SendReply(player, messages["You are not allowed to use this command"]);
+                return;
+            }
+
+            bool massCupboard = false;
+            bool massTurret = false;
+            bool error = false;
+            BasePlayer target = null;
+
+            if (args.Length > 2)
+            {
+                error = true;
+            }
+            else if (args.Length == 1)
+            {
+                if (args[0] == "cupboard")
+                {
+                    SendReply(player, "Invalid Syntax. /deauth cupboard PlayerName");
+                    return;
+                }
+                else if (args[0] == "turret")
+                {
+                    SendReply(player, "Invalid Syntax. /deauth turret PlayerName");
+                    return;
+                }
+                else
+                {
+                    massCupboard = true;
+                    target = FindPlayerByPartialName(args[0]);
+                }
+            }
+            else if (args.Length == 0)
+            {
+                SendReply(player, "Invalid Syntax. /deauth PlayerName\n/deauth turret/cupboard PlayerName");
+                return;
+            }
+            else if (args.Length == 2)
+            {
+                if (args[0] == "cupboard")
+                {
+                    massCupboard = true;
+                    target = FindPlayerByPartialName(args[1]);
+                }
+                else if (args[0] == "turret")
+                {
+                    massTurret = true;
+                    target = FindPlayerByPartialName(args[1]);
+                }
+                else
+                {
+                    error = true;
+                }
+            }
+
+            if (massTurret || massCupboard)
+            {
+                if (target == null || target.net == null || target.net.connection == null)
+                {
+                    SendReply(player, messages["Target player not found"]);
+                    return;
+                }
+            }
+
+            if (error)
+            {
+                SendReply(player, messages["Invalid Syntax. \n/auth turret player\n/auth cupboard player/auth player\n/auth"]);
+                return;
+            }
+
+            if (massCupboard && target != null)
+            {
+                this.massCupboardDeauthorize(player, target);
+            }
+
+            if (massTurret && target != null)
+            {
+                this.massTurretDeauthorize(player, target);
             }
         }
 
@@ -1177,7 +1261,7 @@ namespace Oxide.Plugins
                                     });
 
                                     priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                    player.SetInsideBuildingPrivilege(priv, true);
+                                    target.SetInsideBuildingPrivilege(priv, true);
 
                                     total++;
                                 }
@@ -1187,6 +1271,80 @@ namespace Oxide.Plugins
                 }
 
                 SendReply(player, string.Format(messages["Authorized {0} on {1} cupboards"], target.displayName, total.ToString()));
+            }
+        }
+
+        private void massCupboardDeauthorize(BasePlayer player, BasePlayer target)
+        {
+            object entityObject = false;
+
+            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+
+            if (entityObject is bool)
+            {
+                SendReply(player, messages["No entities found."]);
+            }
+            else
+            {
+                int total = 0;
+                SendReply(player, messages["Deauthorizing cupboards.."]);
+                BaseEntity entity = entityObject as BaseEntity;
+                List<BaseEntity> entityList = new List<BaseEntity>();
+                List<Vector3> checkFrom = new List<Vector3>();
+
+                checkFrom.Add(entity.transform.position);
+
+                var current = 0;
+                while (true)
+                {
+                    current++;
+                    if (current > EntityLimit)
+                    {
+                        if (this.debug)
+                        {
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                        }
+                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        break;
+                    }
+                    if (current > checkFrom.Count)
+                    {
+                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        break;
+                    }
+
+                    List<BuildingPrivlidge> entities = this.FindEntities<BuildingPrivlidge>(checkFrom[current - 1], this.CupboardDistanceThreshold);
+
+                    foreach (BuildingPrivlidge e in entities)
+                    {
+                        if (!entityList.Contains(e))
+                        {
+                            entityList.Add(e);
+                            checkFrom.Add(e.transform.position);
+
+                            if (e is BuildingPrivlidge)
+                            {
+                                BuildingPrivlidge priv = (BuildingPrivlidge)e;
+                                if (this.HasCupboardAccess(priv, target))
+                                {
+                                    foreach (ProtoBuf.PlayerNameID p in priv.authorizedPlayers.ToList())
+                                    {
+                                        if (p.userid == target.userID)
+                                        {
+                                            priv.authorizedPlayers.Remove(p);
+                                            priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                                            target.SetInsideBuildingPrivilege(priv, false);
+                                        }
+                                    }
+
+                                    total++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                SendReply(player, string.Format(messages["Deauthorized {0} on {1} cupboards"], target.displayName, total.ToString()));
             }
         }
 
@@ -1262,6 +1420,79 @@ namespace Oxide.Plugins
             }
         }
 
+        private void massTurretDeauthorize(BasePlayer player, BasePlayer target)
+        {
+            object entityObject = false;
+
+            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+
+            if (entityObject is bool)
+            {
+                SendReply(player, messages["No entities found."]);
+            }
+            else
+            {
+                int total = 0;
+                SendReply(player, messages["Deauthorizing turrets.."]);
+                BaseEntity entity = entityObject as BaseEntity;
+                List<BaseEntity> entityList = new List<BaseEntity>();
+                List<Vector3> checkFrom = new List<Vector3>();
+
+                checkFrom.Add(entity.transform.position);
+
+                var current = 0;
+                while (true)
+                {
+                    current++;
+                    if (current > EntityLimit)
+                    {
+                        if (this.debug)
+                        {
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                        }
+                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        break;
+                    }
+                    if (current > checkFrom.Count)
+                    {
+                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        break;
+                    }
+
+                    List<BaseEntity> entities = this.FindEntities<BaseEntity>(checkFrom[current - 1], this.DistanceThreshold);
+
+                    foreach (BaseEntity e in entities)
+                    {
+                        if (!entityList.Contains(e))
+                        {
+                            entityList.Add(e);
+                            checkFrom.Add(e.transform.position);
+
+                            if (e is AutoTurret)
+                            {
+                                AutoTurret turret = (AutoTurret)e;
+                                if (this.HasTurretAccess(turret, target))
+                                {
+                                    foreach (ProtoBuf.PlayerNameID p in turret.authorizedPlayers.ToList())
+                                    {
+                                        if (p.userid == target.userID)
+                                        {
+                                            turret.authorizedPlayers.Remove(p);
+                                            turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                                            turret.SetTarget(null);
+                                            total++;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                SendReply(player, string.Format(messages["Deauthorized {0} on {1} turrets"], target.displayName, total.ToString()));
+            }
+        }
+
         private List<string> GetToolCupboardUserNames(BuildingPrivlidge cupboard)
         {
             List<string> names = new List<string>();
@@ -1296,28 +1527,12 @@ namespace Oxide.Plugins
 
         private bool HasCupboardAccess(BuildingPrivlidge cupboard, BasePlayer player)
         {
-            foreach (ProtoBuf.PlayerNameID pnid in cupboard.authorizedPlayers)
-            {
-                if (pnid.userid == player.userID)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return cupboard.IsAuthed(player);
         }
 
         private bool HasTurretAccess(AutoTurret turret, BasePlayer player)
         {
-            foreach (ProtoBuf.PlayerNameID pnid in turret.authorizedPlayers)
-            {
-                if (pnid.userid == player.userID)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return turret.IsAuthed(player);
         }
 
         ulong GetOwnerID(BaseEntity entity)
