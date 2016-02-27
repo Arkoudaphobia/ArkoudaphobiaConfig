@@ -2,26 +2,26 @@
 // Reference: Rust.Data
 using System;
 using System.Collections.Generic;
-using Oxide.Core;
-using UnityEngine;
-using System.Reflection;
 using System.Linq;
-using Oxide.Core.Configuration;
-using Oxide.Core.Plugins;
-using Rust;
+using System.Reflection;
 using System.Text;
-using Newtonsoft.Json;
+
 using Facepunch;
+
+using Oxide.Core.Plugins;
+using Oxide.Core.Libraries.Covalence;
+
+using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "Calytic @ cyclone.network", "3.0.1", ResourceId = 1255)]
+    [Info("Entity Owner", "Calytic @ cyclone.network", "3.0.2", ResourceId = 1255)]
     [Description("Modify entity ownership and cupboard/turret authorization")]
     class EntityOwner : RustPlugin
     {
         #region Data & Config
         private Dictionary<string, string> messages = new Dictionary<string, string>();
-        private int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
+        private readonly int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
 
         private int EntityLimit = 8000;
         private float DistanceThreshold = 3f;
@@ -75,13 +75,13 @@ namespace Oxide.Plugins
         {
             PrintToConsole("Creating new configuration file");
 
-            Dictionary<string, object> messages = new Dictionary<string, object>();
+            var messages = new Dictionary<string, object>();
 
-            foreach (string text in texts)
+            foreach (var text in texts)
             {
                 if (messages.ContainsKey(text))
                 {
-                    PrintWarning("Duplicate translation string: " + text);
+                    PrintWarning("Duplicate translation string: {0}", text);
                 }
                 else
                 {
@@ -90,7 +90,7 @@ namespace Oxide.Plugins
             }
 
             Config["messages"] = messages;
-            Config["VERSION"] = this.Version.ToString();
+            Config["VERSION"] = Version.ToString();
             Config["EntityLimit"] = 8000;
             Config["DistanceThreshold"] = 3.0f;
             Config["CupboardDistanceThreshold"] = 20f;
@@ -100,9 +100,9 @@ namespace Oxide.Plugins
 
         protected void ReloadConfig()
         {
-            Dictionary<string, object> messages = new Dictionary<string, object>();
+            var messages = new Dictionary<string, object>();
 
-            foreach (string text in texts)
+            foreach (var text in texts)
             {
                 if (!messages.ContainsKey(text))
                 {
@@ -111,7 +111,7 @@ namespace Oxide.Plugins
             }
 
             Config["messages"] = messages;
-            Config["VERSION"] = this.Version.ToString();
+            Config["VERSION"] = Version.ToString();
 
             // NEW CONFIGURATION OPTIONS HERE
             // END NEW CONFIGURATION OPTIONS
@@ -138,20 +138,20 @@ namespace Oxide.Plugins
                 LoadConfig();
 
 
-                this.debug = GetConfig<bool>("Debug", false);
-                this.EntityLimit = GetConfig<int>("EntityLimit", 8000);
-                this.DistanceThreshold = GetConfig<float>("DistanceThreshold", 3f);
-                this.CupboardDistanceThreshold = GetConfig<float>("CupboardDistanceThreshold", 20f);
+                debug = GetConfig("Debug", false);
+                EntityLimit = GetConfig("EntityLimit", 8000);
+                DistanceThreshold = GetConfig("DistanceThreshold", 3f);
+                CupboardDistanceThreshold = GetConfig("CupboardDistanceThreshold", 20f);
 
-                if (this.DistanceThreshold >= 5)
+                if (DistanceThreshold >= 5)
                 {
                     PrintWarning("ALERT: Distance threshold configuration option is ABOVE 5.  This may cause serious performance degradation (lag) when using EntityOwner commands");
                 }
 
-                Dictionary<string, object> customMessages = GetConfig<Dictionary<string, object>>("messages", null);
+                var customMessages = GetConfig<Dictionary<string, object>>("messages", null);
                 if (customMessages != null)
                 {
-                    foreach (KeyValuePair<string, object> kvp in customMessages.ToList())
+                    foreach (var kvp in customMessages.ToList())
                     {
                         messages[kvp.Key] = kvp.Value.ToString();
                     }
@@ -164,21 +164,21 @@ namespace Oxide.Plugins
             }
             catch (Exception ex)
             {
-                PrintError("OnServerInitialized failed: " + ex.Message);
+                PrintError("OnServerInitialized failed: {0}", ex.Message);
             }
         }
 
         void LoadData()
         {
-            if (this.Config["VERSION"] == null)
+            if (Config["VERSION"] == null)
             {
                 // FOR COMPATIBILITY WITH INITIAL VERSIONS WITHOUT VERSIONED CONFIG
-                this.ReloadConfig();
+                ReloadConfig();
             }
-            else if (this.GetConfig<string>("VERSION", this.Version.ToString()) != this.Version.ToString())
+            else if (GetConfig("VERSION", Version.ToString()) != Version.ToString())
             {
                 // ADDS NEW, IF ANY, CONFIGURATION OPTIONS
-                this.ReloadConfig();
+                ReloadConfig();
             }
         }
 
@@ -186,12 +186,12 @@ namespace Oxide.Plugins
         private void SendHelpText(BasePlayer player)
         {
             var sb = new StringBuilder();
-            if (this.canCheckOwners(player) || this.canChangeOwners(player))
+            if (canCheckOwners(player) || canChangeOwners(player))
             {
                 sb.Append("<size=18>EntityOwner</size> by <color=#ce422b>Calytic</color> at <color=#ce422b>http://cyclone.network</color>\n");
             }
 
-            if (this.canCheckOwners(player))
+            if (canCheckOwners(player))
             {
                 sb.Append("  ").Append("<color=\"#ffd479\">/prod</color> - Check ownership of entity you are looking at").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/prod2</color> - Check ownership of entire structure/all deployables").Append("\n");
@@ -200,7 +200,7 @@ namespace Oxide.Plugins
                 sb.Append("  ").Append("<color=\"#ffd479\">/auth</color> - Check authorization list of tool cupboard you are looking at").Append("\n");
             }
 
-            if (this.canChangeOwners(player))
+            if (canChangeOwners(player))
             {
                 sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block]</color> - Take ownership of entire structure").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append("\n");
@@ -221,12 +221,12 @@ namespace Oxide.Plugins
         [ChatCommand("prod")]
         void cmdProd(BasePlayer player, string command, string[] args)
         {
-            if (!this.canCheckOwners(player))
+            if (!canCheckOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
             }
-            if (args == null || (args != null && args.Length == 0))
+            if (args == null || args.Length == 0)
             {
                 //var input = serverinput.GetValue(player) as InputState;
                 //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
@@ -239,14 +239,14 @@ namespace Oxide.Plugins
                 }
                 if (target is BaseEntity)
                 {
-                    BaseEntity targetEntity = target as BaseEntity;
-                    string owner = GetOwnerName((BaseEntity)target);
-                    if (owner == null || owner == String.Empty)
+                    var targetEntity = target as BaseEntity;
+                    var owner = GetOwnerName((BaseEntity)target);
+                    if (string.IsNullOrEmpty(owner))
                     {
                         owner = "N/A";
                     }
 
-                    SendReply(player, string.Format(messages["Owner: {0}"], owner) + "\n<color=lightgrey>"+targetEntity.LookupShortPrefabName()+"</color>");
+                    SendReply(player, string.Format(messages["Owner: {0}"], owner) + "\n<color=lightgrey>" + targetEntity.LookupShortPrefabName() + "</color>");
                 }
             }
             else
@@ -258,15 +258,15 @@ namespace Oxide.Plugins
         [ChatCommand("own")]
         void cmdOwn(BasePlayer player, string command, string[] args)
         {
-            if (!this.canChangeOwners(player))
+            if (!canChangeOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
             }
 
-            bool massTrigger = false;
+            var massTrigger = false;
             string type = null;
-            BasePlayer target = null;
+            ulong target = 0;;
 
             if (args.Length == 0)
             {
@@ -280,17 +280,17 @@ namespace Oxide.Plugins
             }
             else if (args.Length == 1)
             {
-                type = args[0].ToString();
+                type = args[0];
                 if (type == "all" || type == "storage" || type == "block" || type == "cupboard" || type == "sign" || type == "sleepingbag" || type == "plant" || type == "oven" || type == "door" || type == "turret")
                 {
                     massTrigger = true;
-                    target = player;
+                    target = player.userID;
                 }
                 else
                 {
-                    target = FindPlayerByPartialName(type);
+                    target = FindUserIDByPartialName(type);
                     type = "all";
-                    if (target == null)
+                    if (target == 0)
                     {
                         SendReply(player, messages["Target player not found"]);
                     }
@@ -303,9 +303,9 @@ namespace Oxide.Plugins
             }
             else if (args.Length == 2)
             {
-                type = args[0].ToString();
-                target = FindPlayerByPartialName(args[1].ToString());
-                if (target == null)
+                type = args[0];
+                target = FindUserIDByPartialName(args[1]);
+                if (target == 0)
                 {
                     SendReply(player, messages["Target player not found"]);
                 }
@@ -315,48 +315,46 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (massTrigger && type != null && target is BasePlayer)
-            {
+            if (!massTrigger || type == null || target == null) return;
                 switch (type)
                 {
                     case "all":
-                        this.massChangeOwner<BaseEntity>(player, target);
+                        massChangeOwner<BaseEntity>(player, target);
                         break;
                     case "block":
-                        this.massChangeOwner<BuildingBlock>(player, target);
+                        massChangeOwner<BuildingBlock>(player, target);
                         break;
                     case "storage":
-                        this.massChangeOwner<StorageContainer>(player, target);
+                        massChangeOwner<StorageContainer>(player, target);
                         break;
                     case "sign":
-                        this.massChangeOwner<Signage>(player, target);
+                        massChangeOwner<Signage>(player, target);
                         break;
                     case "sleepingbag":
-                        this.massChangeOwner<SleepingBag>(player, target);
+                        massChangeOwner<SleepingBag>(player, target);
                         break;
                     case "plant":
-                        this.massChangeOwner<PlantEntity>(player, target);
+                        massChangeOwner<PlantEntity>(player, target);
                         break;
                     case "oven":
-                        this.massChangeOwner<BaseOven>(player, target);
+                        massChangeOwner<BaseOven>(player, target);
                         break;
                     case "turret":
-                        this.massChangeOwner<AutoTurret>(player, target);
+                        massChangeOwner<AutoTurret>(player, target);
                         break;
                     case "door":
-                        this.massChangeOwner<Door>(player, target);
+                        massChangeOwner<Door>(player, target);
                         break;
                     case "cupboard":
-                        this.massChangeOwner<BuildingPrivlidge>(player, target);
+                        massChangeOwner<BuildingPrivlidge>(player, target);
                         break;
                 }
             }
-        }
 
         [ChatCommand("unown")]
         void cmdUnown(BasePlayer player, string command, string[] args)
         {
-            if (!this.canChangeOwners(player))
+            if (!canChangeOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
@@ -364,7 +362,7 @@ namespace Oxide.Plugins
 
             if (args.Length == 0)
             {
-                args = new string[1] { "all" };
+                args = new[] { "all" };
             }
 
             if (args.Length > 1)
@@ -372,58 +370,56 @@ namespace Oxide.Plugins
                 SendReply(player, messages["Invalid Syntax. \n/unown type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/unown player"]);
                 return;
             }
-            else if (args.Length == 1)
-            {
+            if (args.Length != 1) return;
                 switch (args[0])
                 {
                     case "all":
-                        this.massChangeOwner<BaseEntity>(player);
+                        massChangeOwner<BaseEntity>(player);
                         break;
                     case "block":
-                        this.massChangeOwner<BuildingBlock>(player);
+                        massChangeOwner<BuildingBlock>(player);
                         break;
                     case "storage":
-                        this.massChangeOwner<StorageContainer>(player);
+                        massChangeOwner<StorageContainer>(player);
                         break;
                     case "sign":
-                        this.massChangeOwner<Signage>(player);
+                        massChangeOwner<Signage>(player);
                         break;
                     case "sleepingbag":
-                        this.massChangeOwner<SleepingBag>(player);
+                        massChangeOwner<SleepingBag>(player);
                         break;
                     case "plant":
-                        this.massChangeOwner<PlantEntity>(player);
+                        massChangeOwner<PlantEntity>(player);
                         break;
                     case "oven":
-                        this.massChangeOwner<BaseOven>(player);
+                        massChangeOwner<BaseOven>(player);
                         break;
                     case "turret":
-                        this.massChangeOwner<AutoTurret>(player);
+                        massChangeOwner<AutoTurret>(player);
                         break;
                     case "door":
-                        this.massChangeOwner<Door>(player);
+                        massChangeOwner<Door>(player);
                         break;
                     case "cupboard":
-                        this.massChangeOwner<BuildingPrivlidge>(player);
+                        massChangeOwner<BuildingPrivlidge>(player);
                         break;
                 }
             }
-        }
 
         [ChatCommand("auth")]
         void cmdAuth(BasePlayer player, string command, string[] args)
         {
-            if (!this.canCheckOwners(player))
+            if (!canCheckOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
             }
 
-            bool massCupboard = false;
-            bool massTurret = false;
-            bool checkCupboard = false;
-            bool checkTurret = false;
-            bool error = false;
+            var massCupboard = false;
+            var massTurret = false;
+            var checkCupboard = false;
+            var checkTurret = false;
+            var error = false;
             BasePlayer target = null;
 
             if (args.Length > 2)
@@ -468,13 +464,10 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (massTurret || massCupboard)
+            if ((massTurret || massCupboard) && target?.net?.connection == null)
             {
-                if (target == null || target.net == null || target.net.connection == null)
-                {
-                    SendReply(player, messages["Target player not found"]);
-                    return;
-                }
+                SendReply(player, messages["Target player not found"]);
+                return;
             }
 
             if (error)
@@ -483,9 +476,9 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (massCupboard && target != null)
+            if (massCupboard)
             {
-                this.massCupboardAuthorize(player, target);
+                massCupboardAuthorize(player, target);
             }
 
             if (checkCupboard)
@@ -498,13 +491,13 @@ namespace Oxide.Plugins
                 }
                 if (priv is BuildingPrivlidge)
                 {
-                    this.ProdCupboard(player, (BuildingPrivlidge)priv);
+                    ProdCupboard(player, (BuildingPrivlidge)priv);
                 }
             }
 
-            if (massTurret && target != null)
+            if (massTurret)
             {
-                this.massTurretAuthorize(player, target);
+                massTurretAuthorize(player, target);
             }
 
             if (checkTurret)
@@ -517,7 +510,7 @@ namespace Oxide.Plugins
                 }
                 if (turret is AutoTurret)
                 {
-                    this.ProdTurret(player, (AutoTurret)turret);
+                    ProdTurret(player, (AutoTurret)turret);
                 }
             }
         }
@@ -525,15 +518,15 @@ namespace Oxide.Plugins
         [ChatCommand("deauth")]
         void cmdDeauth(BasePlayer player, string command, string[] args)
         {
-            if (!this.canChangeOwners(player))
+            if (!canChangeOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
             }
 
-            bool massCupboard = false;
-            bool massTurret = false;
-            bool error = false;
+            var massCupboard = false;
+            var massTurret = false;
+            var error = false;
             BasePlayer target = null;
 
             if (args.Length > 2)
@@ -581,14 +574,11 @@ namespace Oxide.Plugins
                 }
             }
 
-            if (massTurret || massCupboard)
+            if ((massTurret || massCupboard) && target?.net?.connection == null)
             {
-                if (target == null || target.net == null || target.net.connection == null)
-                {
                     SendReply(player, messages["Target player not found"]);
                     return;
                 }
-            }
 
             if (error)
             {
@@ -596,14 +586,14 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (massCupboard && target != null)
+            if (massCupboard)
             {
-                this.massCupboardDeauthorize(player, target);
+                massCupboardDeauthorize(player, target);
             }
 
-            if (massTurret && target != null)
+            if (massTurret)
             {
-                this.massTurretDeauthorize(player, target);
+                massTurretDeauthorize(player, target);
             }
         }
 
@@ -631,7 +621,7 @@ namespace Oxide.Plugins
                 SendReply(arg, "Invalid Syntax. authclean PlayerName");
             }
 
-            this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
+            SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
             target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
             target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
         }
@@ -639,7 +629,7 @@ namespace Oxide.Plugins
         [ChatCommand("authclean")]
         void cmdAuthClean(BasePlayer player, string command, string[] args)
         {
-            if (!this.canChangeOwners(player))
+            if (!canChangeOwners(player))
             {
                 return;
             }
@@ -659,7 +649,7 @@ namespace Oxide.Plugins
                 target = player;
             }
 
-            this.SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
+            SetValue(target, "buildingPrivlidges", new List<BuildingPrivlidge>());
             target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
             target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
         }
@@ -667,7 +657,7 @@ namespace Oxide.Plugins
         [ChatCommand("prod2")]
         void cmdProd2(BasePlayer player, string command, string[] args)
         {
-            if (!this.canCheckOwners(player))
+            if (!canCheckOwners(player))
             {
                 SendReply(player, messages["You are not allowed to use this command"]);
                 return;
@@ -678,40 +668,40 @@ namespace Oxide.Plugins
                 switch (args[0])
                 {
                     case "all":
-                        this.massProd<BaseEntity>(player);
+                        massProd<BaseEntity>(player);
                         break;
                     case "block":
-                        this.massProd<BuildingBlock>(player);
+                        massProd<BuildingBlock>(player);
                         break;
                     case "storage":
-                        this.massProd<StorageContainer>(player);
+                        massProd<StorageContainer>(player);
                         break;
                     case "sign":
-                        this.massProd<Signage>(player);
+                        massProd<Signage>(player);
                         break;
                     case "sleepingbag":
-                        this.massProd<SleepingBag>(player);
+                        massProd<SleepingBag>(player);
                         break;
                     case "plant":
-                        this.massProd<PlantEntity>(player);
+                        massProd<PlantEntity>(player);
                         break;
                     case "oven":
-                        this.massProd<BaseOven>(player);
+                        massProd<BaseOven>(player);
                         break;
                     case "turret":
-                        this.massProdTurret(player);
+                        massProdTurret(player);
                         break;
                     case "door":
-                        this.massProd<Door>(player);
+                        massProd<Door>(player);
                         break;
                     case "cupboard":
-                        this.massProdCupboard(player);
+                        massProdCupboard(player);
                         break;
                 }
             }
             else if (args.Length == 0)
             {
-                this.massProd<BaseEntity>(player);
+                massProd<BaseEntity>(player);
             }
             else
             {
@@ -741,17 +731,17 @@ namespace Oxide.Plugins
 
         #region Ownership Methods
 
-        private void massChangeOwner<T>(BasePlayer player, BasePlayer target = null) where T : BaseEntity
+        private void massChangeOwner<T>(BasePlayer player, ulong target = 0) where T : BaseEntity
         {
             object entityObject = false;
 
             if (typeof(T) == typeof(BuildingBlock))
             {
-                entityObject = FindBuilding(player.transform.position, this.DistanceThreshold);
+                entityObject = FindBuilding(player.transform.position, DistanceThreshold);
             }
             else
             {
-                entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+                entityObject = FindEntity(player.transform.position, DistanceThreshold);
             }
 
             if (entityObject is bool)
@@ -760,7 +750,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                if (target == null)
+                if (target == 0)
                 {
                     SendReply(player, messages["Removing ownership.."]);
                 }
@@ -769,12 +759,12 @@ namespace Oxide.Plugins
                     SendReply(player, messages["Changing ownership.."]);
                 }
 
-                T entity = entityObject as T;
-                List<T> entityList = new List<T>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as T;
+                var entityList = new HashSet<T>();
+                var checkFrom = new List<Vector3>();
                 entityList.Add((T)entity);
                 checkFrom.Add(entity.transform.position);
-                int c = 1;
+                var c = 1;
                 if (target == null)
                 {
                     RemoveOwner(entity);
@@ -784,8 +774,8 @@ namespace Oxide.Plugins
                     ChangeOwner(entity, target);
                 }
                 var current = 0;
-                int bbs = 0;
-                int ebs = 0;
+                var bbs = 0;
+                var ebs = 0;
                 if (entity is BuildingBlock)
                 {
                     bbs++;
@@ -797,11 +787,11 @@ namespace Oxide.Plugins
                 while (true)
                 {
                     current++;
-                    if (current > this.EntityLimit)
+                    if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
                         SendReply(player, string.Format(messages["Counted {0} entities ({1}/{2})"], c, bbs, ebs));
                         break;
@@ -812,45 +802,49 @@ namespace Oxide.Plugins
                         break;
                     }
 
-                    List<T> hits = this.FindEntities<T>(checkFrom[current - 1], this.DistanceThreshold);
+                    var hits = FindEntities<T>(checkFrom[current - 1], DistanceThreshold);
 
-                    foreach (T entityComponent in hits)
+                    foreach (var entityComponent in hits)
                     {
-                        if (!entityList.Contains(entityComponent))
+                        if (!entityList.Add(entityComponent)) continue;
+                        c++;
+                        checkFrom.Add(entityComponent.transform.position);
+
+                        if (entityComponent is BuildingBlock)
                         {
-                            c++;
-                            entityList.Add(entityComponent);
-                            checkFrom.Add(entityComponent.transform.position);
+                            bbs++;
+                        }
+                        else
+                        {
+                            ebs++;
+                        }
 
-                            if (entityComponent is BuildingBlock)
-                            {
-                                bbs++;
-                            }
-                            else
-                            {
-                                ebs++;
-                            }
-
-                            if (target == null)
-                            {
-                                RemoveOwner(entityComponent);
-                            }
-                            else
-                            {
-                                ChangeOwner(entityComponent, target);
-                            }
+                        if (target == null)
+                        {
+                            RemoveOwner(entityComponent);
+                        }
+                        else
+                        {
+                            ChangeOwner(entityComponent, target);
                         }
                     }
+                    Pool.FreeList(ref hits);
                 }
 
-                if (target != null)
-                {
-                    SendReply(player, string.Format(messages["New owner of all around is: {0}"], target.displayName));
-                    SendReply(target, messages["Owner: You were given ownership of this house and nearby deployables"]);
-                }
-                else
-                {
+                if(target == 0) {
                     SendReply(player, string.Format(messages["New owner of all around is: {0}"], "No one"));
+                } else {
+                    BasePlayer targetPlayer = BasePlayer.FindByID(target);
+
+                    if (targetPlayer != null)
+                    {
+                        SendReply(player, string.Format(messages["New owner of all around is: {0}"], targetPlayer.displayName));
+                        SendReply(targetPlayer, messages["Owner: You were given ownership of this house and nearby deployables"]);
+                    }
+                    else
+                    {
+                        SendReply(player, string.Format(messages["Owner is: {0}"], target));
+                    }
                 }
             }
         }
@@ -859,15 +853,15 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
             if (entityObject is bool)
             {
                 SendReply(player, messages["No entities found."]);
             }
             else
             {
-                Dictionary<ulong, int> prodOwners = new Dictionary<ulong, int>();
-                BaseEntity entity = entityObject as BaseEntity;
+                var prodOwners = new Dictionary<ulong, int>();
+                var entity = entityObject as BaseEntity;
                 if (entity.transform == null)
                 {
                     SendReply(player, messages["No entities found."]);
@@ -876,8 +870,8 @@ namespace Oxide.Plugins
 
                 SendReply(player, messages["Prodding structure.."]);
 
-                List<T> entityList = new List<T>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entityList = new HashSet<T>();
+                var checkFrom = new List<Vector3>();
 
                 if (entity is T)
                 {
@@ -885,7 +879,7 @@ namespace Oxide.Plugins
                 }
                 checkFrom.Add(entity.transform.position);
 
-                int total = 0;
+                var total = 0;
                 if (entity is T)
                 {
                     prodOwners.Add(entity.OwnerID, 1);
@@ -896,69 +890,68 @@ namespace Oxide.Plugins
                 while (true)
                 {
                     current++;
-                    if (current > this.EntityLimit)
+                    if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, "Count (" + total + ")");
+                        SendReply(player, $"Count ({total})");
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, "Count (" + total + ")");
+                        SendReply(player, $"Count ({total})");
                         break;
                     }
 
-                    float distanceThreshold = this.DistanceThreshold;
-                    if(typeof(T) != typeof(BuildingBlock) && typeof(T) != typeof(BaseEntity)) {
+                    var distanceThreshold = DistanceThreshold;
+                    if (typeof(T) != typeof(BuildingBlock) && typeof(T) != typeof(BaseEntity))
+                    {
                         distanceThreshold += 30;
                     }
 
-                    List<T> hits = this.FindEntities<T>(checkFrom[current - 1], distanceThreshold);
+                    var hits = FindEntities<T>(checkFrom[current - 1], distanceThreshold);
 
-                    foreach (T fentity in hits)
+                    foreach (var fentity in hits)
                     {
-                        if (!(entityList.Contains(fentity)))
+                        if (!entityList.Add(fentity)) continue;
+                        if (fentity.name == "player/player")
                         {
-                            if (fentity.name.ToString() == "player/player")
-                            {
-                                continue;
-                            }
-                            if (fentity.transform == null)
-                            {
-                                continue;
-                            }
-                            total++;
-                            entityList.Add(fentity);
-                            checkFrom.Add(fentity.transform.position);
-                            ulong pid = fentity.OwnerID;
-                            if (prodOwners.ContainsKey(pid))
-                            {
-                                prodOwners[pid]++;
-                            }
-                            else
-                            {
-                                prodOwners.Add(pid, 1);
-                            }
+                            continue;
+                        }
+                        if (fentity.transform == null)
+                        {
+                            continue;
+                        }
+                        total++;
+                        checkFrom.Add(fentity.transform.position);
+                        var pid = fentity.OwnerID;
+                        if (prodOwners.ContainsKey(pid))
+                        {
+                            prodOwners[pid]++;
+                        }
+                        else
+                        {
+                            prodOwners.Add(pid, 1);
                         }
                     }
+                    Pool.FreeList(ref hits);
                 }
 
-                Dictionary<ulong, int> percs = new Dictionary<ulong, int>();
-                int unknown = 100;
+                var percs = new Dictionary<ulong, int>();
+                var unknown = 100;
                 if (total > 0)
                 {
-                    foreach (KeyValuePair<ulong, int> kvp in prodOwners)
+                    foreach (var kvp in prodOwners)
                     {
-                        int perc = kvp.Value * 100 / total;
+                        var perc = kvp.Value * 100 / total;
                         percs.Add(kvp.Key, perc);
-                        string n = this.FindPlayerName(kvp.Key);
+                        var n = FindPlayerName(kvp.Key);
 
                         if (n != messages["Unknown player"])
                         {
-                            SendReply(player, n + ": " + perc + "%");
+                            SendReply(player, $"{n}: {perc}%");
                             unknown -= perc;
                         }
                     }
@@ -973,9 +966,9 @@ namespace Oxide.Plugins
 
         private void ProdCupboard(BasePlayer player, BuildingPrivlidge cupboard)
         {
-            List<string> authorizedUsers = this.GetToolCupboardUserNames(cupboard);
+            var authorizedUsers = GetToolCupboardUserNames(cupboard);
 
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
 
             if (authorizedUsers.Count == 0)
             {
@@ -984,7 +977,7 @@ namespace Oxide.Plugins
             else
             {
                 sb.AppendLine(string.Format(messages["({0}) Authorized"], authorizedUsers.Count));
-                foreach (string n in authorizedUsers)
+                foreach (var n in authorizedUsers)
                 {
                     sb.AppendLine(n);
                 }
@@ -995,9 +988,9 @@ namespace Oxide.Plugins
 
         private void ProdTurret(BasePlayer player, AutoTurret turret)
         {
-            List<string> authorizedUsers = this.GetTurretUserNames(turret);
+            var authorizedUsers = GetTurretUserNames(turret);
 
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
 
             if (authorizedUsers.Count == 0)
             {
@@ -1006,7 +999,7 @@ namespace Oxide.Plugins
             else
             {
                 sb.AppendLine(string.Format(messages["({0}) Authorized"], authorizedUsers.Count));
-                foreach (string n in authorizedUsers)
+                foreach (var n in authorizedUsers)
                 {
                     sb.AppendLine(n);
                 }
@@ -1019,7 +1012,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1027,12 +1020,12 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
-                Dictionary<ulong, int> prodOwners = new Dictionary<ulong, int>();
+                var total = 0;
+                var prodOwners = new Dictionary<ulong, int>();
                 SendReply(player, messages["Prodding cupboards.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1042,54 +1035,52 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BuildingPrivlidge> entities = this.FindEntities<BuildingPrivlidge>(checkFrom[current - 1], this.CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
 
-                    foreach (BuildingPrivlidge e in entities)
+                    foreach (var e in entities)
                     {
-                        if (!entityList.Contains(e))
-                        {
-                            entityList.Add(e);
+                        if (!entityList.Add(e)) continue;
                             checkFrom.Add(e.transform.position);
 
-                            foreach (ProtoBuf.PlayerNameID pnid in e.authorizedPlayers)
+                        foreach (var pnid in e.authorizedPlayers)
+                        {
+                            if (prodOwners.ContainsKey(pnid.userid))
                             {
-                                if (prodOwners.ContainsKey(pnid.userid))
-                                {
-                                    prodOwners[pnid.userid]++;
-                                }
-                                else
-                                {
-                                    prodOwners.Add(pnid.userid, 1);
-                                }
+                                prodOwners[pnid.userid]++;
                             }
-
-                            total++;
+                            else
+                            {
+                                prodOwners.Add(pnid.userid, 1);
+                            }
                         }
+
+                        total++;
                     }
+                    Pool.FreeList(ref entities);
                 }
 
-                Dictionary<ulong, int> percs = new Dictionary<ulong, int>();
-                int unknown = 100;
+                var percs = new Dictionary<ulong, int>();
+                var unknown = 100;
                 if (total > 0)
                 {
-                    foreach (KeyValuePair<ulong, int> kvp in prodOwners)
+                    foreach (var kvp in prodOwners)
                     {
-                        int perc = kvp.Value * 100 / total;
+                        var perc = kvp.Value * 100 / total;
                         percs.Add(kvp.Key, perc);
-                        string n = this.FindPlayerName(kvp.Key);
+                        var n = FindPlayerName(kvp.Key);
 
                         if (n != messages["Unknown player"])
                         {
@@ -1110,7 +1101,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1118,12 +1109,12 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
-                Dictionary<ulong, int> prodOwners = new Dictionary<ulong, int>();
+                var total = 0;
+                var prodOwners = new Dictionary<ulong, int>();
                 SendReply(player, messages["Prodding turrets.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1133,58 +1124,54 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BaseEntity> entities = this.FindEntities<BaseEntity>(checkFrom[current - 1], this.DistanceThreshold);
+                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
 
-                    foreach (BaseEntity e in entities)
+                    foreach (var e in entities)
                     {
-                        if (!entityList.Contains(e))
-                        {
-                            entityList.Add(e);
+                        if (!entityList.Add(e)) continue;
                             checkFrom.Add(e.transform.position);
 
-                            if (e is AutoTurret)
+                        var turret = e as AutoTurret;
+                        if (turret == null) continue;
+                        foreach (var pnid in turret.authorizedPlayers)
+                        {
+                            if (prodOwners.ContainsKey(pnid.userid))
                             {
-                                AutoTurret turret = (AutoTurret)e;
-                                foreach (ProtoBuf.PlayerNameID pnid in turret.authorizedPlayers)
-                                {
-                                    if (prodOwners.ContainsKey(pnid.userid))
-                                    {
-                                        prodOwners[pnid.userid]++;
-                                    }
-                                    else
-                                    {
-                                        prodOwners.Add(pnid.userid, 1);
-                                    }
-                                }
-
-                                total++;
+                                prodOwners[pnid.userid]++;
+                            }
+                            else
+                            {
+                                prodOwners.Add(pnid.userid, 1);
                             }
                         }
-                    }
-                }
 
-                Dictionary<ulong, int> percs = new Dictionary<ulong, int>();
-                int unknown = 100;
+                            total++;
+                        }
+                        Pool.FreeList(ref entities);
+                    }
+
+                var percs = new Dictionary<ulong, int>();
+                var unknown = 100;
                 if (total > 0)
                 {
-                    foreach (KeyValuePair<ulong, int> kvp in prodOwners)
+                    foreach (var kvp in prodOwners)
                     {
-                        int perc = kvp.Value * 100 / total;
+                        var perc = kvp.Value * 100 / total;
                         percs.Add(kvp.Key, perc);
-                        string n = this.FindPlayerName(kvp.Key);
+                        var n = FindPlayerName(kvp.Key);
 
                         if (n != messages["Unknown player"])
                         {
@@ -1205,7 +1192,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1213,11 +1200,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
+                var total = 0;
                 SendReply(player, messages["Authorizing cupboards.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1227,50 +1214,41 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BuildingPrivlidge> entities = this.FindEntities<BuildingPrivlidge>(checkFrom[current - 1], this.CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
 
-                    foreach (BuildingPrivlidge e in entities)
+                    foreach (var priv in entities)
                     {
-                        if (!entityList.Contains(e))
+                        if (!entityList.Add(priv)) continue;
+                        checkFrom.Add(priv.transform.position);
+                        if (HasCupboardAccess(priv, target)) continue;
+                        priv.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
                         {
-                            entityList.Add(e);
-                            checkFrom.Add(e.transform.position);
+                            userid = target.userID,
+                            username = target.displayName
+                        });
 
-                            if (e is BuildingPrivlidge)
-                            {
-                                BuildingPrivlidge priv = (BuildingPrivlidge)e;
-                                if (!this.HasCupboardAccess(priv, target))
-                                {
-                                    priv.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
-                                    {
-                                        userid = target.userID,
-                                        username = target.displayName
-                                    });
+                        priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                        target.SetInsideBuildingPrivilege(priv, true);
 
-                                    priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                    target.SetInsideBuildingPrivilege(priv, true);
-
-                                    total++;
-                                }
-                            }
-                        }
+                        total++;
                     }
+                    Pool.FreeList(ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Authorized {0} on {1} cupboards"], target.displayName, total.ToString()));
+                SendReply(player, string.Format(messages["Authorized {0} on {1} cupboards"], target.displayName, total));
             }
         }
 
@@ -1278,7 +1256,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1286,11 +1264,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
+                var total = 0;
                 SendReply(player, messages["Deauthorizing cupboards.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1300,51 +1278,43 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BuildingPrivlidge> entities = this.FindEntities<BuildingPrivlidge>(checkFrom[current - 1], this.CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
 
-                    foreach (BuildingPrivlidge e in entities)
+                    foreach (var priv in entities)
                     {
-                        if (!entityList.Contains(e))
+                        if (!entityList.Add(priv)) continue;
+                        checkFrom.Add(priv.transform.position);
+
+                        if (!HasCupboardAccess(priv, target)) continue;
+                        foreach (var p in priv.authorizedPlayers.ToArray())
                         {
-                            entityList.Add(e);
-                            checkFrom.Add(e.transform.position);
-
-                            if (e is BuildingPrivlidge)
+                            if (p.userid == target.userID)
                             {
-                                BuildingPrivlidge priv = (BuildingPrivlidge)e;
-                                if (this.HasCupboardAccess(priv, target))
-                                {
-                                    foreach (ProtoBuf.PlayerNameID p in priv.authorizedPlayers.ToList())
-                                    {
-                                        if (p.userid == target.userID)
-                                        {
-                                            priv.authorizedPlayers.Remove(p);
-                                            priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                            target.SetInsideBuildingPrivilege(priv, false);
-                                        }
-                                    }
-
-                                    total++;
-                                }
+                                priv.authorizedPlayers.Remove(p);
+                                priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                                target.SetInsideBuildingPrivilege(priv, false);
                             }
                         }
+
+                        total++;
                     }
+                    Pool.FreeList(ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Deauthorized {0} on {1} cupboards"], target.displayName, total.ToString()));
+                SendReply(player, string.Format(messages["Deauthorized {0} on {1} cupboards"], target.displayName, total));
             }
         }
 
@@ -1352,7 +1322,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1360,11 +1330,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
+                var total = 0;
                 SendReply(player, messages["Authorizing turrets.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1374,49 +1344,42 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BaseEntity> entities = this.FindEntities<BaseEntity>(checkFrom[current - 1], this.DistanceThreshold);
+                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
 
-                    foreach (BaseEntity e in entities)
+                    foreach (var e in entities)
                     {
-                        if (!entityList.Contains(e))
-                        {
-                            entityList.Add(e);
+                        if (!entityList.Add(e)) continue;
                             checkFrom.Add(e.transform.position);
 
-                            if (e is AutoTurret)
-                            {
-                                AutoTurret turret = (AutoTurret)e;
-                                if (!this.HasTurretAccess(turret, target))
-                                {
-                                    turret.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
-                                    {
-                                        userid = target.userID,
-                                        username = target.displayName
-                                    });
+                        var turret = e as AutoTurret;
+                        if (turret == null || HasTurretAccess(turret, target)) continue;
+                        turret.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
+                        {
+                            userid = target.userID,
+                            username = target.displayName
+                        });
 
-                                    turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                    turret.SetTarget(null);
-                                    total++;
-                                }
-                            }
-                        }
+                        turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                        turret.SetTarget(null);
+                        total++;
                     }
+                    Pool.FreeList(ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Authorized {0} on {1} turrets"], target.displayName, total.ToString()));
+                SendReply(player, string.Format(messages["Authorized {0} on {1} turrets"], target.displayName, total));
             }
         }
 
@@ -1424,7 +1387,7 @@ namespace Oxide.Plugins
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, this.DistanceThreshold);
+            entityObject = FindEntity(player.transform.position, DistanceThreshold);
 
             if (entityObject is bool)
             {
@@ -1432,11 +1395,11 @@ namespace Oxide.Plugins
             }
             else
             {
-                int total = 0;
+                var total = 0;
                 SendReply(player, messages["Deauthorizing turrets.."]);
-                BaseEntity entity = entityObject as BaseEntity;
-                List<BaseEntity> entityList = new List<BaseEntity>();
-                List<Vector3> checkFrom = new List<Vector3>();
+                var entity = entityObject as BaseEntity;
+                var entityList = new HashSet<BaseEntity>();
+                var checkFrom = new List<Vector3>();
 
                 checkFrom.Add(entity.transform.position);
 
@@ -1446,64 +1409,57 @@ namespace Oxide.Plugins
                     current++;
                     if (current > EntityLimit)
                     {
-                        if (this.debug)
+                        if (debug)
                         {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit.ToString());
+                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
                     if (current > checkFrom.Count)
                     {
-                        SendReply(player, string.Format(messages["Count ({0})"], total.ToString()));
+                        SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
 
-                    List<BaseEntity> entities = this.FindEntities<BaseEntity>(checkFrom[current - 1], this.DistanceThreshold);
+                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
 
-                    foreach (BaseEntity e in entities)
+                    foreach (var e in entities)
                     {
-                        if (!entityList.Contains(e))
-                        {
-                            entityList.Add(e);
+                        if (!entityList.Add(e)) continue;
                             checkFrom.Add(e.transform.position);
 
-                            if (e is AutoTurret)
+                        var turret = e as AutoTurret;
+                        if (turret == null || !HasTurretAccess(turret, target)) continue;
+                        foreach (var p in turret.authorizedPlayers.ToArray())
+                        {
+                            if (p.userid == target.userID)
                             {
-                                AutoTurret turret = (AutoTurret)e;
-                                if (this.HasTurretAccess(turret, target))
-                                {
-                                    foreach (ProtoBuf.PlayerNameID p in turret.authorizedPlayers.ToList())
-                                    {
-                                        if (p.userid == target.userID)
-                                        {
-                                            turret.authorizedPlayers.Remove(p);
-                                            turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                            turret.SetTarget(null);
-                                            total++;
-                                        }
-                                    }
-                                }
+                                turret.authorizedPlayers.Remove(p);
+                                turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                                turret.SetTarget(null);
+                                total++;
                             }
                         }
                     }
+                    Pool.FreeList(ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Deauthorized {0} on {1} turrets"], target.displayName, total.ToString()));
+                SendReply(player, string.Format(messages["Deauthorized {0} on {1} turrets"], target.displayName, total));
             }
         }
 
         private List<string> GetToolCupboardUserNames(BuildingPrivlidge cupboard)
         {
-            List<string> names = new List<string>();
+            var names = new List<string>();
             if (cupboard.authorizedPlayers.Count == 0)
             {
                 return names;
             }
 
-            foreach (ProtoBuf.PlayerNameID pnid in cupboard.authorizedPlayers)
+            foreach (var pnid in cupboard.authorizedPlayers)
             {
-                names.Add(this.FindPlayerName(pnid.userid) + " - " + pnid.userid);
+                names.Add($"{FindPlayerName(pnid.userid)} - {pnid.userid}");
             }
 
             return names;
@@ -1511,15 +1467,15 @@ namespace Oxide.Plugins
 
         private List<string> GetTurretUserNames(AutoTurret turret)
         {
-            List<string> names = new List<string>();
+            var names = new List<string>();
             if (turret.authorizedPlayers.Count == 0)
             {
                 return names;
             }
 
-            foreach (ProtoBuf.PlayerNameID pnid in turret.authorizedPlayers)
+            foreach (var pnid in turret.authorizedPlayers)
             {
-                names.Add(this.FindPlayerName(pnid.userid) + " - " + pnid.userid);
+                names.Add($"{FindPlayerName(pnid.userid)} - {pnid.userid}");
             }
 
             return names;
@@ -1560,6 +1516,10 @@ namespace Oxide.Plugins
             entity.OwnerID = player.userID;
         }
 
+        void ChangeOwner(BaseEntity entity, ulong player) {
+            entity.OwnerID = player;
+        }
+
         object FindEntityData(BaseEntity entity)
         {
             if (entity.OwnerID == 0)
@@ -1576,14 +1536,14 @@ namespace Oxide.Plugins
 
         private object RaycastAll<T>(Vector3 Pos, Vector3 Aim) where T : BaseEntity
         {
-            var hits = UnityEngine.Physics.RaycastAll(Pos, Aim);
+            var hits = Physics.RaycastAll(Pos, Aim);
             GamePhysics.Sort(hits);
-            float distance = 100f;
+            var distance = 100f;
             object target = false;
             foreach (var hit in hits)
             {
-                BaseEntity ent = hit.GetEntity();
-                if (ent != null && ent is T && hit.distance < distance)
+                var ent = hit.GetEntity();
+                if (ent is T && hit.distance < distance)
                 {
                     target = ent;
                     break;
@@ -1595,14 +1555,14 @@ namespace Oxide.Plugins
 
         private object RaycastAll<T>(Ray ray) where T : BaseEntity
         {
-            var hits = UnityEngine.Physics.RaycastAll(ray);
+            var hits = Physics.RaycastAll(ray);
             GamePhysics.Sort(hits);
-            float distance = 100f;
+            var distance = 100f;
             object target = false;
             foreach (var hit in hits)
             {
-                BaseEntity ent = hit.GetEntity();
-                if (ent != null && ent is T && hit.distance < distance)
+                var ent = hit.GetEntity();
+                if (ent is T && hit.distance < distance)
                 {
                     target = ent;
                     break;
@@ -1614,9 +1574,9 @@ namespace Oxide.Plugins
 
         object FindBuilding(Vector3 position, float distance = 3f)
         {
-            BuildingBlock hit = FindEntity<BuildingBlock>(position, distance);
+            var hit = FindEntity<BuildingBlock>(position, distance);
 
-            if (hit is BuildingBlock)
+            if (hit != null)
             {
                 return hit;
             }
@@ -1626,9 +1586,9 @@ namespace Oxide.Plugins
 
         object FindEntity(Vector3 position, float distance = 3f)
         {
-            BaseEntity hit = FindEntity<BaseEntity>(position, distance);
+            var hit = FindEntity<BaseEntity>(position, distance);
 
-            if (hit is BaseEntity)
+            if (hit != null)
             {
                 return hit;
             }
@@ -1638,12 +1598,14 @@ namespace Oxide.Plugins
 
         T FindEntity<T>(Vector3 position, float distance = 3f) where T : BaseEntity
         {
-            List<T> list = new List<T>();
-            Vis.Entities<T>(position, distance, list, layerMasks);
+            var list = Pool.GetList<T>();
+            Vis.Entities(position, distance, list, layerMasks);
 
             if (list.Count > 0)
             {
-                return list[0];
+                var entity = list[0];
+                Pool.FreeList(ref list);
+                return entity;
             }
 
             return null;
@@ -1651,16 +1613,17 @@ namespace Oxide.Plugins
 
         List<T> FindEntities<T>(Vector3 position, float distance = 3f) where T : BaseEntity
         {
-            List<T> list = new List<T>();
-            Vis.Entities<T>(position, distance, list, layerMasks);
+            var list = Pool.GetList<T>();
+            Vis.Entities(position, distance, list, layerMasks);
             return list;
         }
 
         List<BuildingBlock> GetProfileConstructions(BasePlayer player)
         {
-            List<BuildingBlock> result = new List<BuildingBlock>();
-            BuildingBlock[] blocks = UnityEngine.Object.FindObjectsOfType<BuildingBlock>();
-            foreach (BuildingBlock block in blocks) {
+            var result = new List<BuildingBlock>();
+            var blocks = UnityEngine.Object.FindObjectsOfType<BuildingBlock>();
+            foreach (var block in blocks)
+            {
                 if (block.OwnerID == player.userID)
                 {
                     result.Add(block);
@@ -1672,9 +1635,9 @@ namespace Oxide.Plugins
 
         List<BaseEntity> GetProfileDeployables(BasePlayer player)
         {
-            List<BaseEntity> result = new List<BaseEntity>();
-            BaseEntity[] entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
-            foreach (BaseEntity entity in entities)
+            var result = new List<BaseEntity>();
+            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
+            foreach (var entity in entities)
             {
                 if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
                 {
@@ -1687,8 +1650,8 @@ namespace Oxide.Plugins
 
         void ClearProfile(BasePlayer player)
         {
-            BaseEntity[] entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
-            foreach (BaseEntity entity in entities)
+            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
+            foreach (var entity in entities)
             {
                 if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
                 {
@@ -1704,35 +1667,37 @@ namespace Oxide.Plugins
 
         private string FindPlayerName(ulong playerID)
         {
-            BasePlayer player = FindPlayerByPartialName(playerID.ToString());
+            var player = FindPlayerByPartialName(playerID.ToString());
             if (player) 
             {
-                if(player.IsSleeping()) {
-                    return player.displayName + " [<color=lightblue>Sleeping</color>]";
-                } else {
-                    return player.displayName + " [<color=lime>Online</color>]";
+                if (player.IsSleeping())
+                {
+                    return $"{player.displayName} [<color=lightblue>Sleeping</color>]";
                 }
+                else {
+                    return $"{player.displayName} [<color=lime>Online</color>]";
+            }
             }
 
             var p = covalence.Players.GetPlayer(playerID.ToString());
             if (p != null)
             {
-                return p.Nickname + " [<color=red>Offline</color>]";
+                return $"{p.Nickname} [<color=red>Offline</color>]";
             }
 
-            return "Unknown : "+playerID.ToString();
+            return $"Unknown : {playerID}";
         }
 
         void SetValue(object inputObject, string propertyName, object propertyVal)
         {
             //find out the type
-            Type type = inputObject.GetType();
+            var type = inputObject.GetType();
 
             //get the property information based on the type
-            System.Reflection.FieldInfo propertyInfo = type.GetField(propertyName, BindingFlags.NonPublic | BindingFlags.Instance);
+            var propertyInfo = type.GetField(propertyName, BindingFlags.NonPublic | BindingFlags.Instance);
 
             //find the property type
-            Type propertyType = propertyInfo.FieldType;
+            var propertyType = propertyInfo.FieldType;
 
             //Convert.ChangeType does not handle conversion to nullable types
             //if the property type is nullable, we need to get the underlying type of the property
@@ -1750,12 +1715,25 @@ namespace Oxide.Plugins
             return type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(Nullable<>));
         }
 
-        protected static BasePlayer FindPlayerByPartialName(string name)
+        protected ulong FindUserIDByPartialName(string name) {
+            if (string.IsNullOrEmpty(name))
+                return 0;
+
+            IPlayer player = covalence.Players.FindPlayer(name);
+
+            if(player != null) {
+                return Convert.ToUInt64(player.UniqueID);
+            }
+            
+            return 0;
+        }
+
+        protected BasePlayer FindPlayerByPartialName(string name)
         {
             if (string.IsNullOrEmpty(name))
                 return null;
             BasePlayer player = null;
-            name = name.ToLower();
+
             var allPlayers = BasePlayer.activePlayerList.ToArray();
             // Try to find an exact match first
             foreach (var p in allPlayers)
@@ -1769,7 +1747,7 @@ namespace Oxide.Plugins
                     player = p;
                     break;
                 }
-                if (p.displayName == name)
+                if (p.displayName.Equals(name))
                 {
                     if (player != null)
                         return null; // Not unique
@@ -1781,11 +1759,7 @@ namespace Oxide.Plugins
             // Otherwise try to find a partial match
             foreach (var p in allPlayers)
             {
-                if (p == null)
-                {
-                    continue;
-                }
-                if (p.displayName.ToLower().IndexOf(name) >= 0)
+                if (p.displayName.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
                 {
                     if (player != null)
                         return null; // Not unique
