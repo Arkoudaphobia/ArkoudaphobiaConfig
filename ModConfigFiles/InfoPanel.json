@@ -138,7 +138,7 @@
 			"AnchorX": "Left",
 			"AnchorY": "Bottom",
 			"Autoload": false,
-			"Available": false,
+			"Available": true,
 			"BackgroundColor": "0 0 0 0.4",
 			"Dock": "BottomDock",
 			"Height": 0.95,
