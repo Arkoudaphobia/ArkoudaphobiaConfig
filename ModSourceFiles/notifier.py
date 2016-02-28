@@ -15,7 +15,7 @@ class notifier:
     def __init__(self):
 
         self.Title = 'Notifier'
-        self.Version = V(2, 18, 2)
+        self.Version = V(2, 18, 4)
         self.Author = 'SkinN'
         self.Description = 'Server administration tool with chat based notifications'
         self.ResourceId = 797
@@ -77,7 +77,7 @@ class notifier:
                 'MAP LINK DESC': '<orange>/map<end> <grey>-<end> Server map url.',
                 'ADVERTS DESC': '<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the adverts interval ( i.g: /adverts 5 )',
                 'PLAYERS ONLINE DESC': '<orange>/online<end> <grey>-<end> Shows the number of players and <cyan>Admins<end> online, plus a few server stats.',
-                'AIRDROP CALLED': 'An <yellow>Airdrop<end> is coming, will drop at <lime>{location}<end> coordinates.',
+                'AIRDROP CALLED': '<yellow>Airdrop<end> incoming, will drop at <lime>{x}<end>,<lime>{x}<end>, <lime>{x}<end>.',
                 'HELI CALLED': 'A <yellow>Patrol Helicopter<end> is coming!',
                 'ADVERTS COMMAND DESC': '<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the Adverts interval in-game.',
                 'MOTD DESC': '<orange>/motd<end> <grey>-<end> Allows <cyan>Admins<end> to change the MOTD in-game.'
@@ -222,11 +222,6 @@ class notifier:
 
         # Override config in developer mode is enabled
         if DEV: self.LoadDefaultConfig(); return
-
-        # Remove config versioning
-        if 'CONFIG_VERSION' in self.Config:
-
-            del self.Config['CONFIG_VERSION']
 
         # Start configuration checks
         for section in self.Default:
@@ -412,9 +407,9 @@ class notifier:
     def Unload(self):
         ''' Hook called on plugin unload '''
 
+        # Destroy timers
         try:
 
-            # Destroy timers
             for i in self.timers:
 
                 self.timers[i].Destroy()
@@ -498,9 +493,13 @@ class notifier:
 
         if PLUGIN['ANNOUNCE AIRDROPS']:
 
-            location = str(location).replace('(', '').replace(')', '')
+            loc = str(location).replace('(', '').replace(')', '')
+            x, y, z = loc.split(", ")
 
-            self.say(MSG['AIRDROP CALLED'].format(location=location), 'silver')
+            self.say(MSG['AIRDROP CALLED'].replace('{location}', loc)
+                                          .replace('{x}', x)
+                                          .replace('{y}', y)
+                                          .replace('{z}', x), 'silver')
 
     # -------------------------------------------------------------------------
     def OnEntitySpawned(self, entity):
@@ -903,7 +902,8 @@ class notifier:
     def playerlang(self, player, f=None):
         ''' Rules language filter '''
 
-        default = PLUGIN['RULES LANGUAGE'].upper()
+        try: default = PLUGIN['RULES LANGUAGE'].upper()
+        except : default = 'AUTO'
 
         if f:
 
