@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 
 using UnityEngine;
 
@@ -15,7 +13,7 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("InfoPanel", "Ghosst", "0.9.1", ResourceId = 1356)]
+    [Info("InfoPanel", "Ghosst", "0.9.3", ResourceId = 1356)]
     [Description("A little panel with useful informations.")]
     public class InfoPanel : RustPlugin
     {
@@ -34,7 +32,7 @@ namespace Oxide.Plugins
 
         private static PluginConfig Settings;
 
-        private List<string> TimeFormats = new List<string>
+        private readonly List<string> TimeFormats = new List<string>
         {
             {"H:mm"},
             {"HH:mm"},
@@ -60,8 +58,7 @@ namespace Oxide.Plugins
                     {"sw","Southwest"},
                     {"w","West"},
                     {"nw","Northwest"},
-                }
-                ,
+                },
                 Docks = new Dictionary<string, DockConfig>
                 {
                     { "BottomDock", new DockConfig
@@ -372,55 +369,31 @@ namespace Oxide.Plugins
 
             public T GetPanelSettingsValue<T>(string Panel, string Setting, T defaultValue)
             {
-                if (!this.Panels.ContainsKey(Panel))
-                {
+                PanelConfig panelConfig;
+                if (!Panels.TryGetValue(Panel, out panelConfig))
                     return defaultValue;
-                }
 
-                PanelConfig PanelCfg = this.Panels[Panel];
-
-                if (PanelCfg.PanelSettings == null)
-                {
+                if (panelConfig.PanelSettings == null)
                     return defaultValue;
-                }
 
-                if (!PanelCfg.PanelSettings.ContainsKey(Setting))
-                {
+                object value;
+                if (!panelConfig.PanelSettings.TryGetValue(Setting, out value))
                     return defaultValue;
-                }
-
-                var value = PanelCfg.PanelSettings[Setting];
 
                 return (T)Convert.ChangeType(value, typeof(T));
             }
 
             public bool CheckPanelAvailability(string Panel)
             {
-                if (!this.Panels.ContainsKey(Panel))
-                {
+                PanelConfig panelConfig;
+                if (!Panels.TryGetValue(Panel, out panelConfig))
                     return false;
-                }
 
-                PanelConfig PanelCfg = this.Panels[Panel];
-
-                if (!PanelCfg.Available)
-                {
+                if (!panelConfig.Available)
                     return false;
-                }
 
-                if (!this.Docks.ContainsKey(PanelCfg.Dock))
-                {
-                    return false;
-                }
-
-                DockConfig DockCfg = this.Docks[PanelCfg.Dock];
-
-                if (!DockCfg.Available)
-                {
-                    return false;
-                }
-
-                return true;
+                DockConfig dockConfig;
+                return Docks.TryGetValue(panelConfig.Dock, out dockConfig) && dockConfig.Available;
             }
 
         }
@@ -540,7 +513,7 @@ namespace Oxide.Plugins
         {
             Settings = Config.ReadObject<PluginConfig>();
 
-            Dictionary<string, PanelConfig> UnOrderPanels = Settings.Panels.Where(p => p.Value.Order == 0).ToDictionary(s => s.Key, s => s.Value);
+            var UnOrderPanels = Settings.Panels.Where(p => p.Value.Order == 0).ToDictionary(s => s.Key, s => s.Value);
 
             if (UnOrderPanels.Count == 0)
             {
@@ -549,7 +522,7 @@ namespace Oxide.Plugins
 
             PrintWarning("Reordering Panels.");
 
-            foreach (KeyValuePair<string, PanelConfig> PanelCfg in UnOrderPanels)
+            foreach (var PanelCfg in UnOrderPanels)
             {
                 //int HighestSiblingOrder = Settings.Panels.Where(p => p.Value.Dock == Settings.Panels[PanelName].Dock && p.Value.AnchorX == Settings.Panels[PanelName].AnchorX).Max(m => m.Value.Order);
                 Settings.Panels[PanelCfg.Key].Order = PanelReOrder(PanelCfg.Value.Dock, PanelCfg.Value.AnchorX);
@@ -563,21 +536,21 @@ namespace Oxide.Plugins
         {
             var SiblingPanels = Settings.Panels.Where(p => p.Value.Dock == DockName && p.Value.AnchorX == AnchorX);
 
-            int Max = 0;
+            var Max = 0;
             if (SiblingPanels.Any())
             {
                 Max = SiblingPanels.Max(m => m.Value.Order);
             }
 
-            foreach (KeyValuePair<string, Dictionary<string, PanelConfig>> PPanelCfg in Settings.ThirdPartyPanels)
+            foreach (var pPanelCfg in Settings.ThirdPartyPanels)
             {
-                if (PPanelCfg.Value.Count == 0) { continue; }
+                if (pPanelCfg.Value.Count == 0) { continue; }
 
-                var SiblingPluginPAnels = PPanelCfg.Value.Where(p => p.Value.Dock == DockName && p.Value.AnchorX == AnchorX);
+                var SiblingPluginPAnels = pPanelCfg.Value.Where(p => p.Value.Dock == DockName && p.Value.AnchorX == AnchorX);
 
                 if (SiblingPluginPAnels.Any())
                 {
-                    int PluginMax = PPanelCfg.Value.Where(p => p.Value.Dock == DockName && p.Value.AnchorX == AnchorX).Max(m => m.Value.Order);
+                    var PluginMax = pPanelCfg.Value.Where(p => p.Value.Dock == DockName && p.Value.AnchorX == AnchorX).Max(m => m.Value.Order);
                     if (PluginMax > Max)
                     {
                         Max = PluginMax;
@@ -637,7 +610,7 @@ namespace Oxide.Plugins
                 Settings.GetPanelSettingsValue("Coordinates", "RefreshRate(s)", 3)
             );
 
-            foreach (BasePlayer player in BasePlayer.activePlayerList)
+            foreach (var player in BasePlayer.activePlayerList)
             {
                 LoadPanels(player);
                 InitializeGUI(player);
@@ -755,7 +728,7 @@ namespace Oxide.Plugins
 
         private void Unload()
         {
-            foreach (BasePlayer player in BasePlayer.activePlayerList)
+            foreach (var player in BasePlayer.activePlayerList)
                 DestroyGUI(player);
 
             SaveData();
@@ -775,18 +748,18 @@ namespace Oxide.Plugins
         void OnPluginUnloaded(Plugin plugin)
         {
             if (!Settings.ThirdPartyPanels.ContainsKey(plugin.Title)) return;
-            List<string> PluginPanels = LoadedPluginPanels[plugin.Title];
+            var PluginPanels = LoadedPluginPanels[plugin.Title];
 
-            foreach(string PanelName in PluginPanels)
+            foreach(var PanelName in PluginPanels)
             {
-                foreach (var PlayerID in PlayerPanels.Keys)
+                foreach (var pair in PlayerPanels)
                 {
-                    if(PlayerPanels[PlayerID].ContainsKey(PanelName))
+                    if(pair.Value.ContainsKey(PanelName))
                     {
-                        PlayerPanels[PlayerID][PanelName].DestroyPanel();
+                        pair.Value[PanelName].DestroyPanel();
                     }
 
-                    PlayerPanels[PlayerID][PanelName].Remover();
+                    pair.Value[PanelName].Remover();
                 }
             }
 
@@ -812,81 +785,69 @@ namespace Oxide.Plugins
         /// <param name="Player"></param>
         private void LoadPanels(BasePlayer Player)
         {
-            foreach(KeyValuePair<string, DockConfig> Docks in Settings.Docks)
+            foreach(var Docks in Settings.Docks)
             {
                 if (!Settings.Docks[Docks.Key].Available)
-                {
                     continue;
-                }
-
-                IPanel DockPanel = LoadDockPanel(Docks.Key, Player);
+                LoadDockPanel(Docks.Key, Player);
             }
 
-            foreach (var GrouppedByDock in Settings.Panels.GroupBy(g => g.Value.Dock).ToDictionary(gd => gd.Key, gd => gd.Select(p => p).ToDictionary(gk => gk.Key, gk => gk.Value)))
+            var playerDockPanel = PlayerDockPanels[Player.UserIDString];
+            foreach (var grouppedByDock in Settings.Panels.GroupBy(g => g.Value.Dock).ToDictionary(gd => gd.Key, gd => gd.Select(p => p).ToDictionary(gk => gk.Key, gk => gk.Value)))
             {
-                if (!Settings.Docks[GrouppedByDock.Key].Available)
-                {
+                if (!Settings.Docks[grouppedByDock.Key].Available)
                     continue;
-                }
 
-                foreach (var PanelCfg in GrouppedByDock.Value)
+                foreach (var panelCfg in grouppedByDock.Value)
                 {
-                    if (!Settings.CheckPanelAvailability(PanelCfg.Key))
-                    {
+                    if (!Settings.CheckPanelAvailability(panelCfg.Key))
                         continue;
-                    }
 
-                    LoadPanel(PlayerDockPanels[Player.UserIDString][GrouppedByDock.Key], PanelCfg.Key, PanelCfg.Value);
+                    LoadPanel(playerDockPanel[grouppedByDock.Key], panelCfg.Key, panelCfg.Value);
                 }
             }
 
-            foreach(var LoadedPluginPanel in LoadedPluginPanels)
+            foreach(var loadedPluginPanel in LoadedPluginPanels)
             {
-                foreach(string PanelName in LoadedPluginPanel.Value)
+                foreach(var panelName in loadedPluginPanel.Value)
                 {
-                    if (!Settings.ThirdPartyPanels.ContainsKey(LoadedPluginPanel.Key)
-                        || !Settings.ThirdPartyPanels[LoadedPluginPanel.Key].ContainsKey(PanelName)
-                        || !Settings.ThirdPartyPanels[LoadedPluginPanel.Key][PanelName].Available)
-                    {
+                    Dictionary<string, PanelConfig> panelConfigs;
+                    PanelConfig panelConfig;
+                    if (!Settings.ThirdPartyPanels.TryGetValue(loadedPluginPanel.Key, out panelConfigs)
+                        || !panelConfigs.TryGetValue(panelName, out panelConfig)
+                        || !panelConfig.Available)
                         continue;
-                    }
 
-                    LoadPanel(PlayerDockPanels[Player.UserIDString][Settings.ThirdPartyPanels[LoadedPluginPanel.Key][PanelName].Dock], PanelName, Settings.ThirdPartyPanels[LoadedPluginPanel.Key][PanelName]);
+                    LoadPanel(playerDockPanel[panelConfig.Dock], panelName, panelConfig);
                 }
-
-
             }
         }
 
         private IPanel LoadDockPanel(string DockName, BasePlayer Player)
         {
-            IPanel DockPanel = new IPanel(DockName, Player, PlayerPanels, PlayerDockPanels);
-            DockPanel.Width = Settings.Docks[DockName].Width;
-            DockPanel.Height = Settings.Docks[DockName].Height;
-            DockPanel.AnchorX = Settings.Docks[DockName].AnchorX;
-            DockPanel.AnchorY = Settings.Docks[DockName].AnchorY;
-            DockPanel.Margin = Vector4Parser(Settings.Docks[DockName].Margin);
-            DockPanel.BackgroundColor = ColorEx.Parse(Settings.Docks[DockName].BackgroundColor);
+            var DockPanel = new IPanel(DockName, Player, PlayerPanels, PlayerDockPanels);
+            var dockConfig = Settings.Docks[DockName];
+            DockPanel.Width = dockConfig.Width;
+            DockPanel.Height = dockConfig.Height;
+            DockPanel.AnchorX = dockConfig.AnchorX;
+            DockPanel.AnchorY = dockConfig.AnchorY;
+            DockPanel.Margin = Vector4Parser(dockConfig.Margin);
+            DockPanel.BackgroundColor = ColorEx.Parse(dockConfig.BackgroundColor);
             DockPanel.IsDock = true;
 
             //LoadedDocks.Add(DockName, DockPanel);
 
-            if(!PlayerDockPanels.ContainsKey(Player.UserIDString))
-            {
-                PlayerDockPanels.Add(Player.UserIDString, new Dictionary<string, IPanel>());
-                PlayerDockPanels[Player.UserIDString].Add(DockName, DockPanel);
-            }
-            else
-            {
-                PlayerDockPanels[Player.UserIDString].Add(DockName, DockPanel);
-            }
+            Dictionary<string, IPanel> panels;
+            if(!PlayerDockPanels.TryGetValue(Player.UserIDString, out panels))
+                PlayerDockPanels.Add(Player.UserIDString, panels = new Dictionary<string, IPanel>());
+            panels.Add(DockName, DockPanel);
 
             return DockPanel;
         }
 
         private void LoadPanel(IPanel Dock, string PanelName, PanelConfig PCfg)
         {
-            IPanel Panel = Dock.AddPanel(PanelName);
+            var Panel = Dock.AddPanel(PanelName);
             Panel.Width = PCfg.Width;
             Panel.Height = PCfg.Height;
             Panel.AnchorX = PCfg.AnchorX;
@@ -901,7 +862,7 @@ namespace Oxide.Plugins
 
             if (PCfg.Text != null)
             {
-                IPanelText Text = Panel.AddText(PanelName + "Text");
+                var Text = Panel.AddText(PanelName + "Text");
                 Text.Width = PCfg.Text.Width;
                 Text.Height = PCfg.Text.Height;
                 Text.Margin = Vector4Parser(PCfg.Text.Margin);
@@ -916,16 +877,14 @@ namespace Oxide.Plugins
 
             if (PCfg.Image != null)
             {
-                IPanelRawImage Image = Panel.AddImage(PanelName + "Image");
+                var Image = Panel.AddImage(PanelName + "Image");
                 Image.Width = PCfg.Image.Width;
                 Image.Height = PCfg.Image.Height;
                 Image.Margin = Vector4Parser(PCfg.Image.Margin);
                 Image.Url = PCfg.Image.Url;
                 Image.Order = PCfg.Image.Order;
-                if(PCfg.Image.Color != null)
-                {
+                if (PCfg.Image.Color != null)
                     Image.Color = ColorEx.Parse(PCfg.Image.Color);
-                }
             }
         }
 
@@ -947,7 +906,7 @@ namespace Oxide.Plugins
 
             public Watch(int RefreshRate, bool Available)
             {
-                this.RefresRate = RefreshRate;
+                RefresRate = RefreshRate;
                 this.Available = Available;
             }
 
@@ -964,31 +923,26 @@ namespace Oxide.Plugins
             public string ShowTime(string PlayerID, StoredData storedData)
             {
                 if (storedData.GetPlayerPanelSettings(PlayerID, "Clock", "Type", "Game") == "Server")
-                {
                     return GetServerTime(PlayerID, storedData);
-                }
 
                 return GetSkyTime(PlayerID, storedData);
             }
 
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
-                if(!Settings.CheckPanelAvailability("Clock"))
-                {
+                if (!Settings.CheckPanelAvailability("Clock"))
                     return;
-                }
 
-                foreach (KeyValuePair<string, Dictionary<string, IPanel>> panel in panels)
+                foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("ClockText"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("ClockText", out iPanel)) continue;
+                    var showTime = ShowTime(panel.Key, storedData);
+                    var panelText = (IPanelText)iPanel;
+                    if (!showTime.Equals(panelText.Content))
                     {
-                        var showTime = ShowTime(panel.Key, storedData);
-                        var panelText = (IPanelText)panel.Value["ClockText"];
-                        if (!showTime.Equals(panelText.Content))
-                        {
-                            panelText.Content = showTime;
-                            panelText.Refresh();
-                        }
+                        panelText.Content = showTime;
+                        panelText.Refresh();
                     }
                 }
             }
@@ -1014,7 +968,7 @@ namespace Oxide.Plugins
 
             public Messenger(List<string> msgs, int RefreshRate,string MsgOrder)
             {
-                this.Messages = msgs;
+                Messages = msgs;
                 this.RefreshRate = RefreshRate;
                 this.MsgOrder = MsgOrder;
 
@@ -1034,8 +988,8 @@ namespace Oxide.Plugins
             {
                 if (MsgOrder == "random")
                 {
-                    int OldCounter = Counter;
-                    int NewCounter = Core.Random.Range(0, Messages.Count - 1);
+                    var OldCounter = Counter;
+                    var NewCounter = Core.Random.Range(0, Messages.Count - 1);
 
                     if(OldCounter == NewCounter)
                     {
@@ -1063,21 +1017,18 @@ namespace Oxide.Plugins
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
                 if (!Settings.CheckPanelAvailability("MessageBox"))
-                {
                     return;
-                }
 
-                foreach (KeyValuePair<string, Dictionary<string, IPanel>> panel in panels)
+                foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("MessageBoxText"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("MessageBoxText", out iPanel)) continue;
+                    var message = GetMessage();
+                    var panelText = (IPanelText)iPanel;
+                    if (!message.Equals(panelText.Content))
                     {
-                        var message = GetMessage();
-                        var panelText = (IPanelText)panel.Value["MessageBoxText"];
-                        if (!message.Equals(panelText.Content))
-                        {
-                            panelText.Content = message;
-                            panelText.Refresh();
-                        }
+                        panelText.Content = message;
+                        panelText.Refresh();
                     }
                 }
 
@@ -1115,7 +1066,7 @@ namespace Oxide.Plugins
 
             public void SetActivity(bool active)
             {
-                this.isActive = active;
+                isActive = active;
 
                 if (isActive)
                 {
@@ -1129,20 +1080,17 @@ namespace Oxide.Plugins
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
                 if (!Settings.CheckPanelAvailability("AirdropEvent"))
-                {
                     return;
-                }
 
                 foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("AirdropEventImage"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("AirdropEventImage", out iPanel)) continue;
+                    var panelRawImage = (IPanelRawImage)iPanel;
+                    if (panelRawImage.Color != ImageColor)
                     {
-                        var panelRawImage = (IPanelRawImage)panel.Value["AirdropEventImage"];
-                        if (panelRawImage.Color != ImageColor)
-                        {
-                            panelRawImage.Color = ImageColor;
-                            panelRawImage.Refresh();
-                        }
+                        panelRawImage.Color = ImageColor;
+                        panelRawImage.Refresh();
                     }
                 }
             }
@@ -1160,7 +1108,7 @@ namespace Oxide.Plugins
 
             public void SetActivity(bool active)
             {
-                this.isActive = active;
+                isActive = active;
 
                 if (isActive)
                 {
@@ -1169,27 +1117,22 @@ namespace Oxide.Plugins
                 }
 
                 ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("HelicopterEvent", "InactiveColor", "1 1 1 0.1"));
-                return;
-
             }
 
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
                 if (!Settings.CheckPanelAvailability("HelicopterEvent"))
-                {
                     return;
-                }
 
                 foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("HelicopterEventImage"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("HelicopterEventImage", out iPanel)) continue;
+                    var panelRawImage = (IPanelRawImage)iPanel;
+                    if (panelRawImage.Color != ImageColor)
                     {
-                        var panelRawImage = (IPanelRawImage)panel.Value["HelicopterEventImage"];
-                        if (panelRawImage.Color != ImageColor)
-                        {
-                            panelRawImage.Color = ImageColor;
-                            panelRawImage.Refresh();
-                        }
+                        panelRawImage.Color = ImageColor;
+                        panelRawImage.Refresh();
                     }
                 }
             }
@@ -1217,7 +1160,7 @@ namespace Oxide.Plugins
 
             public void SetActivity(bool active)
             {
-                this.isActive = active;
+                isActive = active;
 
                 if (isActive)
                 {
@@ -1226,34 +1169,27 @@ namespace Oxide.Plugins
                 }
 
                 ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("Radiation", "InactiveColor", "1 1 1 0.1"));
-                return;
-
             }
 
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
-                if(isActive == ConVar.Server.radiation)
-                {
+                if (isActive == ConVar.Server.radiation)
                     return;
-                }
 
                 SetActivity(ConVar.Server.radiation);
 
                 if (!Settings.CheckPanelAvailability("Radiation"))
-                {
                     return;
-                }
 
-                foreach (KeyValuePair<string, Dictionary<string, IPanel>> panel in panels)
+                foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("RadiationImage"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("RadiationImage", out iPanel)) continue;
+                    var panelRawImage = (IPanelRawImage)iPanel;
+                    if (panelRawImage.Color != ImageColor)
                     {
-                        var panelRawImage = (IPanelRawImage)panel.Value["RadiationImage"];
-                        if (panelRawImage.Color != ImageColor)
-                        {
-                            panelRawImage.Color = ImageColor;
-                            panelRawImage.Refresh();
-                        }
+                        panelRawImage.Color = ImageColor;
+                        panelRawImage.Refresh();
                     }
                 }
             }
@@ -1261,7 +1197,7 @@ namespace Oxide.Plugins
 
         public void CheckAirplane()
         {
-            ActivePlanes.RemoveAll(p => !p.IsActive());
+            ActivePlanes.RemoveAll(p => !p.IsValid() || !p.gameObject.activeInHierarchy);
             if (ActivePlanes.Count > 0)
             {
                 if(Airplane.isActive == false)
@@ -1271,7 +1207,7 @@ namespace Oxide.Plugins
                 }
 
                 AirplaneTimer = true;
-                timer.In(10, () => CheckAirplane());
+                timer.In(10, CheckAirplane);
                 return;
             }
 
@@ -1282,7 +1218,7 @@ namespace Oxide.Plugins
 
         public void CheckHelicopter()
         {
-            ActiveHelicopters.RemoveAll(p => !p.IsActive());
+            ActiveHelicopters.RemoveAll(p => !p.IsValid() || !p.gameObject.activeInHierarchy);
 
             if (ActiveHelicopters.Count > 0)
             {
@@ -1322,31 +1258,25 @@ namespace Oxide.Plugins
 
             public string GetCoord(string PlayerID)
             {
-                BasePlayer player = BasePlayer.activePlayerList.FirstOrDefault(p => p.UserIDString == PlayerID);
-
-                Vector3 PCurrent = player.transform.position;
-
-                return "X: " + PCurrent.x.ToString("0") + " | Z: " + PCurrent.z.ToString("0");
+                var player = BasePlayer.activePlayerList.FirstOrDefault(p => p.UserIDString == PlayerID);
+                return $"X: {player.transform.position.x.ToString("0")} | Z: {player.transform.position.z.ToString("0")}";
             }
 
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
             {
                 if (!Settings.CheckPanelAvailability("Coordinates"))
-                {
                     return;
-                }
 
                 foreach (var panel in panels)
                 {
-                    if (panel.Value.ContainsKey("CoordinatesText"))
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("CoordinatesText", out iPanel)) continue;
+                    var coord = GetCoord(panel.Key);
+                    var panelText = (IPanelText)iPanel;
+                    if (!coord.Equals(panelText.Content))
                     {
-                        var coord = GetCoord(panel.Key);
-                        var panelText = (IPanelText)panel.Value["CoordinatesText"];
-                        if (!coord.Equals(panelText.Content))
-                        {
-                            panelText.Content = coord;
-                            panelText.Refresh();
-                        }
+                        panelText.Content = coord;
+                        panelText.Refresh();
                     }
                 }
             }
@@ -1370,11 +1300,11 @@ namespace Oxide.Plugins
 
             public string GetDirection(string PlayerID)
             {
-                BasePlayer player = BasePlayer.activePlayerList.FirstOrDefault(p => p.UserIDString == PlayerID);
+                var player = BasePlayer.activePlayerList.FirstOrDefault(p => p.UserIDString == PlayerID);
 
-                Vector3 PCurrent = player.eyes.rotation.eulerAngles;
+                var PCurrent = player.eyes.rotation.eulerAngles;
 
-                string str = PCurrent.y.ToString("0") + "°";
+                string str = $"{PCurrent.y.ToString("0")}°";
 
                 if (Settings.GetPanelSettingsValue("Compass", "TextOrAngle", "text") == "text")
                 {
@@ -1431,7 +1361,7 @@ namespace Oxide.Plugins
         {
             if (args.Length == 0)
             {
-                string Str = "InfoPanel Available Commands:\n";
+                var Str = "InfoPanel Available Commands:\n";
                 Str += "<b><color=#ffa500ff>/ipanel</color></b> - Chat Command list \n";
                 Str += "<b><color=#ffa500ff>/ipanel <hide|show></color></b>- To hide or show the panel. \n";
                 Str += "<b><color=#ffa500ff>/ipanel clock game</color></b> - Change to game time. \n";
@@ -1471,9 +1401,9 @@ namespace Oxide.Plugins
 
                         if (args.Length == 3)
                         {
-                            int offset = 0;
+                            var offset = 0;
 
-                            if (Int32.TryParse(args[2], out offset) && offset > -23 && offset < 23)
+                            if (int.TryParse(args[2], out offset) && offset > -23 && offset < 23)
                             {
                                 ChangePlayerPanelSettings(player, "Clock", "Offset", offset.ToString());
                             }
@@ -1488,19 +1418,19 @@ namespace Oxide.Plugins
                 case "timeformat":
                     if (args.Length == 1)
                     {
-                        string Str = "Available Time Formats:\n";
+                        var Str = "Available Time Formats:\n";
 
-                        for (int index = 0; index < Settings.TimeFormats.Count; index++)
+                        for (var index = 0; index < Settings.TimeFormats.Count; index++)
                         {
-                            Str += "[<color=#ffa500ff>" + index + "</color>] - " + DateTime.Now.ToString(Settings.TimeFormats[index])+"\n";
+                            Str += $"[<color=#ffa500ff>{index}</color>] - {DateTime.Now.ToString(Settings.TimeFormats[index])}\n";
                         }
 
                         PrintToChat(player, Str+"Usage: /ipanel timeformat <color=#ffa500ff> NUMBER </color>");
                     }
                     else if(args.Length == 2)
                     {
-                        int TimeFormat = 0;
-                        if (Int32.TryParse(args[1], out TimeFormat) && TimeFormat >= 0 && TimeFormat < Settings.TimeFormats.Count)
+                        var TimeFormat = 0;
+                        if (int.TryParse(args[1], out TimeFormat) && TimeFormat >= 0 && TimeFormat < Settings.TimeFormats.Count)
                         {
                             ChangePlayerPanelSettings(player, "Clock", "TimeFormat", TimeFormats[TimeFormat]);
                         }
@@ -1570,41 +1500,35 @@ namespace Oxide.Plugins
 
             public StoredData()
             {
-                this.Players = new Dictionary<string, PlayerSettings>();
+                Players = new Dictionary<string, PlayerSettings>();
             }
 
             public bool CheckPlayerData(BasePlayer Player)
             {
-                return (Players.ContainsKey(Player.UserIDString)) ? true : false;
+                return Players.ContainsKey(Player.UserIDString);
             }
 
             public T GetPlayerSettings<T>(string PlayerID, string Key, T DefaultValue)
             {
-                if (Players.ContainsKey(PlayerID))
-                {
-                    return Players[PlayerID].GetSetting(Key, DefaultValue);
-                }
-
+                PlayerSettings playerSettings;
+                if (Players.TryGetValue(PlayerID, out playerSettings))
+                    return playerSettings.GetSetting(Key, DefaultValue);
                 return DefaultValue;
             }
 
             public T GetPlayerPanelSettings<T>(BasePlayer Player, string Panel, string Key, T DefaultValue)
             {
-
-                if (Players.ContainsKey(Player.UserIDString))
-                {
-                    return Players[Player.UserIDString].GetPanelSetting(Panel, Key, DefaultValue);
-                }
+                PlayerSettings playerSettings;
+                if (Players.TryGetValue(Player.UserIDString, out playerSettings))
+                    return playerSettings.GetPanelSetting(Panel, Key, DefaultValue);
                 return DefaultValue;
             }
 
             public T GetPlayerPanelSettings<T>(string PlayerID, string Panel, string Key, T DefaultValue)
             {
-
-                if (Players.ContainsKey(PlayerID))
-                {
-                    return Players[PlayerID].GetPanelSetting(Panel, Key, DefaultValue);
-                }
+                PlayerSettings playerSettings;
+                if (Players.TryGetValue(PlayerID, out playerSettings))
+                    return playerSettings.GetPanelSetting(Panel, Key, DefaultValue);
                 return DefaultValue;
             }
 
@@ -1618,52 +1542,43 @@ namespace Oxide.Plugins
 
             public PlayerSettings()
             {
-                this.Settings = new Dictionary<string, string>();
-                this.PanelSettings = new Dictionary<string, Dictionary<string, string>>();
+                Settings = new Dictionary<string, string>();
+                PanelSettings = new Dictionary<string, Dictionary<string, string>>();
             }
 
             public PlayerSettings(BasePlayer player)
             {
                 UserId = player.UserIDString;
-                this.Settings = new Dictionary<string, string>();
-                this.PanelSettings = new Dictionary<string, Dictionary<string, string>>();
+                Settings = new Dictionary<string, string>();
+                PanelSettings = new Dictionary<string, Dictionary<string, string>>();
             }
 
             public void SetSetting(string Key, string Value)
             {
-                this.Settings[Key] = Value;
+                Settings[Key] = Value;
             }
 
             public void SetPanelSetting(string Panel, string Key, string Value)
             {
-                if (!this.PanelSettings.ContainsKey(Panel))
-                {
-                    this.PanelSettings.Add(Panel, new Dictionary<string, string>());
-                }
+                Dictionary<string, string> settings;
+                if (!PanelSettings.TryGetValue(Panel, out settings))
+                    PanelSettings.Add(Panel, settings = new Dictionary<string, string>());
 
-                this.PanelSettings[Panel][Key] = Value;
+                settings[Key] = Value;
             }
 
             public T GetPanelSetting<T>(string Panel, string Key, T DefaultValue)
             {
-                if (!this.PanelSettings.ContainsKey(Panel))
-                {
+                Dictionary<string, string> PanelConfig;
+                if (!PanelSettings.TryGetValue(Panel, out PanelConfig))
                     return DefaultValue;
-                }
 
-                var PanelConfig = this.PanelSettings[Panel];
-
-                if (!PanelConfig.ContainsKey(Key))
-                {
+                string value;
+                if (!PanelConfig.TryGetValue(Key, out value))
                     return DefaultValue;
-                }
-
-                var value = PanelConfig[Key];
 
                 if (value == null)
-                {
                     return DefaultValue;
-                }
                 return (T)Convert.ChangeType(value, typeof(T));
             }
 
@@ -1671,17 +1586,12 @@ namespace Oxide.Plugins
             public T GetSetting<T>(string Key, T DefaultValue)
             {
 
-                if (!this.Settings.ContainsKey(Key))
-                {
+                string value;
+                if (!Settings.TryGetValue(Key, out value))
                     return DefaultValue;
-                }
-
-                var value = this.Settings[Key];
 
                 if (value == null)
-                {
                     return DefaultValue;
-                }
 
                 return (T)Convert.ChangeType(value, typeof(T));
             }
@@ -1767,11 +1677,11 @@ namespace Oxide.Plugins
             {
                 get
                 {
-                    return this._BGColor;
+                    return _BGColor;
                 }
                 set
                 {
-                    this._BGColor = value;
+                    _BGColor = value;
 
                     if (ImageComponent == null)
                     {
@@ -1790,12 +1700,12 @@ namespace Oxide.Plugins
             {
                 get
                 {
-                    return this._VerticalOffset;
+                    return _VerticalOffset;
                 }
 
                 set
                 {
-                    this._VerticalOffset = value;
+                    _VerticalOffset = value;
                     SetVerticalPosition();
                 }
             }
@@ -1827,8 +1737,8 @@ namespace Oxide.Plugins
             public IPanel(string name, BasePlayer Player, Dictionary<string, Dictionary<string, IPanel>> playerPanels, Dictionary<string, Dictionary<string, IPanel>> playerDockPanels)
             {
 
-                this.Name = name;
-                this.Owner = Player;
+                Name = name;
+                Owner = Player;
                 this.playerPanels = playerPanels;
                 this.playerDockPanels = playerDockPanels;
 
@@ -1845,8 +1755,8 @@ namespace Oxide.Plugins
 
             public void SetAnchorXY(string Horizontal, string Vertical)
             {
-                this.AnchorX = Horizontal;
-                this.AnchorY = Vertical;
+                AnchorX = Horizontal;
+                AnchorY = Vertical;
             }
 
             #region Positioning
@@ -1856,21 +1766,21 @@ namespace Oxide.Plugins
             {
                 float Left;
                 float Right;
-                float Offset = GetOffset();
+                var Offset = GetOffset();
 
                 if (AnchorX == "Right")
                 {
                     Right = 1f;
-                    Left = Right - (this.Width);
+                    Left = Right - (Width);
 
-                    this.HorizontalPosition = new Vector2(Left, Right) - new Vector2(Offset - this.Margin.y, Offset - this.Margin.y);
+                    HorizontalPosition = new Vector2(Left, Right) - new Vector2(Offset - Margin.y, Offset - Margin.y);
                 }
                 else
                 {
                     Left = 0f;
-                    Right = Left + (this.Width);
+                    Right = Left + (Width);
 
-                    this.HorizontalPosition = new Vector2(Left, Right) + new Vector2(Offset + this.Margin.w, Offset + this.Margin.w);
+                    HorizontalPosition = new Vector2(Left, Right) + new Vector2(Offset + Margin.w, Offset + Margin.w);
                 }
 
                 RecTransform.AnchorMin = $"{HorizontalPosition.x} {VerticalPosition.x}";
@@ -1886,14 +1796,14 @@ namespace Oxide.Plugins
                 {
                     Top = 1f;
                     Bottom = Top - (Height);
-                    this.VerticalPosition = new Vector2(Bottom, Top) + new Vector2(this._VerticalOffset - this.Margin.x, this._VerticalOffset - this.Margin.x);
+                    VerticalPosition = new Vector2(Bottom, Top) + new Vector2(_VerticalOffset - Margin.x, _VerticalOffset - Margin.x);
                 }
                 else
                 {
                     Bottom = 0f;
                     Top = Bottom + (Height);
 
-                    this.VerticalPosition = new Vector2(Bottom, Top) + new Vector2(this._VerticalOffset + this.Margin.z, this._VerticalOffset + this.Margin.z);
+                    VerticalPosition = new Vector2(Bottom, Top) + new Vector2(_VerticalOffset + Margin.z, _VerticalOffset + Margin.z);
                 }
 
                 RecTransform.AnchorMin = $"{HorizontalPosition.x} {VerticalPosition.x}";
@@ -1902,7 +1812,7 @@ namespace Oxide.Plugins
 
             float FullWidth()
             {
-                return this.Width + this.Margin.y + this.Margin.w;
+                return Width + Margin.y + Margin.w;
             }
 
             float GetSiblingsFullWidth()
@@ -1932,18 +1842,18 @@ namespace Oxide.Plugins
             {
                 // Előző testvérek ugyan azzal az anchorX-el
 
-                float Offset = 0f;
+                var Offset = 0f;
 
-                IPanel Parent = GetPanel(ParentName);
+                var Parent = GetPanel(ParentName);
 
                 if (Parent == null)
                 {
                     return Offset;
                 }
 
-                List<IPanel> Siblings = Parent.GetChilds().Where(c => c.Value.AnchorX == this.AnchorX && c.Value.Order <= this.Order && c.Value.IsActive && c.Value.Name != this.Name).Select(c => c.Value).OrderBy(s => s.Order).ToList();
+                var Siblings = Parent.GetChilds().Where(c => c.Value.AnchorX == AnchorX && c.Value.Order <= Order && c.Value.IsActive && c.Value.Name != Name).Select(c => c.Value).OrderBy(s => s.Order).ToList();
 
-                foreach (IPanel Sibling in Siblings)
+                foreach (var Sibling in Siblings)
                 {
                     Offset += Sibling.Width + Sibling.Margin.y + Sibling.Margin.w;
                 }
@@ -1953,7 +1863,7 @@ namespace Oxide.Plugins
 
             public string GetJson(bool Brackets = true)
             {
-                string Panel = ToJson();
+                var Panel = ToJson();
 
                 if (Brackets)
                 {
@@ -1968,33 +1878,33 @@ namespace Oxide.Plugins
 
             public int GetLastChild()
             {
-                if (this.Childs.Count == 0)
+                if (Childs.Count == 0)
                 {
                     return 0;
                 }
                 else
                 {
-                    return this.GetChilds().Max(p => p.Value.Order);
+                    return GetChilds().Max(p => p.Value.Order);
                 }
             }
 
             public IPanelText AddText(string Name)
             {
-                IPanelText Text = new IPanelText(Name, this.Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
+                var Text = new IPanelText(Name, Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
                 Childs.Add(Name);
                 return Text;
             }
 
             public IPanelRawImage AddImage(string Name)
             {
-                IPanelRawImage Image = new IPanelRawImage(Name, this.Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
+                var Image = new IPanelRawImage(Name, Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
                 Childs.Add(Name);
                 return Image;
             }
 
             public IPanel AddPanel(string Name)
             {
-                IPanel Panel = new IPanel(Name, this.Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
+                var Panel = new IPanel(Name, Owner, playerPanels, playerDockPanels) {ParentName = this.Name};
                 Childs.Add(Name);
                 return Panel;
             }
@@ -2005,8 +1915,8 @@ namespace Oxide.Plugins
 
             List<string> GetActiveAfterThis()
             {
-                List<string> Panels = playerPanels[this.Owner.UserIDString]
-                    .Where(p => p.Value.IsActive && p.Value.Order > this.Order && p.Value.ParentName == this.ParentName && p.Value.AnchorX == this.AnchorX)
+                var Panels = playerPanels[Owner.UserIDString]
+                    .Where(p => p.Value.IsActive && p.Value.Order > Order && p.Value.ParentName == ParentName && p.Value.AnchorX == AnchorX)
                     .OrderBy(s => s.Value.Order)
                     .Select(k => k.Key)
                     .ToList();
@@ -2016,14 +1926,14 @@ namespace Oxide.Plugins
 
             public Dictionary<string, IPanel> GetChilds()
             {
-                return playerPanels[this.Owner.UserIDString].Where(x => Childs.Contains(x.Key)).ToDictionary(se => se.Key, se => se.Value);
+                return playerPanels[Owner.UserIDString].Where(x => Childs.Contains(x.Key)).ToDictionary(se => se.Key, se => se.Value);
             }
 
             public IPanel GetParent()
             {
-                if (GetPanel(this.ParentName) != null)
+                if (GetPanel(ParentName) != null)
                 {
-                    return GetPanel(this.ParentName);
+                    return GetPanel(ParentName);
                 }
 
                 return null;
@@ -2031,21 +1941,23 @@ namespace Oxide.Plugins
 
             public List<IPanel> GetSiblings()
             {
-                IPanel Parent = GetPanel(ParentName);
+                var Parent = GetPanel(ParentName);
 
                 if(Parent != null)
                 {
-                    return Parent.GetChilds().Where(c => c.Value.AnchorX == this.AnchorX && c.Value.Name != this.Name).Select(c => c.Value).OrderBy(s => s.Order).ToList();
+                    return Parent.GetChilds().Where(c => c.Value.AnchorX == AnchorX && c.Value.Name != Name).Select(c => c.Value).OrderBy(s => s.Order).ToList();
                 }
 
-                return new List<IPanel>() { };
+                return new List<IPanel>();
             }
 
             public IPanel GetPanel(string PName)
             {
-                if (playerPanels[this.Owner.UserIDString].ContainsKey(PName))
+                Dictionary<string, IPanel> panels;
+                IPanel panel;
+                if (playerPanels.TryGetValue(Owner.UserIDString, out panels) && panels.TryGetValue(PName, out panel))
                 {
-                    return playerPanels[this.Owner.UserIDString][PName];
+                    return panel;
                 }
 
                 return null;
@@ -2055,9 +1967,11 @@ namespace Oxide.Plugins
             {
                 if (DockName == null) return null;
 
-                if (playerDockPanels[this.Owner.UserIDString].ContainsKey(DockName))
+                Dictionary<string, IPanel> panels;
+                IPanel panel;
+                if (playerDockPanels.TryGetValue(Owner.UserIDString, out panels) && panels.TryGetValue(DockName, out panel))
                 {
-                    return playerPanels[this.Owner.UserIDString][DockName];
+                    return panel;
                 }
 
                 return null;
@@ -2070,12 +1984,12 @@ namespace Oxide.Plugins
 
             public void Hide()
             {
-                foreach (KeyValuePair<string, IPanel> Panel in GetChilds().Where(p => p.Value.IsActive))
+                foreach (var Panel in GetChilds().Where(p => p.Value.IsActive))
                 {
                     Panel.Value.Hide();
                 }
 
-                Oxide.Game.Rust.Cui.CuiHelper.DestroyUi(this.Owner, this.Name);
+                CuiHelper.DestroyUi(Owner, Name);
                 //CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo(this.Owner.net.connection), null, "DestroyUI", new Facepunch.ObjectList(this._Name));
             }
 
@@ -2083,13 +1997,13 @@ namespace Oxide.Plugins
             {
 
                 //Interface.Oxide.LogInfo(GetJson()); //TODO
-                Oxide.Game.Rust.Cui.CuiHelper.AddUi(this.Owner, GetJson());
+                CuiHelper.AddUi(Owner, GetJson());
                 //CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo(this.Owner.net.connection), null, "AddUI", new Facepunch.ObjectList(GetJson()));
 
                 IsActive = true;
                 IsHidden = false;
 
-                foreach (KeyValuePair<string, IPanel> Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
+                foreach (var Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
                 {
                     Child.Value.Reveal();
                 }
@@ -2098,12 +2012,12 @@ namespace Oxide.Plugins
 
             void ReDrawPanels(List<string> PanelsName)
             {
-                foreach (string PanelName in PanelsName)
+                foreach (var PanelName in PanelsName)
                 {
                     GetPanel(PanelName)?.DestroyPanel(false);
                 }
 
-                foreach (string PanelName in PanelsName)
+                foreach (var PanelName in PanelsName)
                 {
                     GetPanel(PanelName)?.ShowPanel();
                 }
@@ -2117,15 +2031,15 @@ namespace Oxide.Plugins
             {
                 if (storedData.GetPlayerSettings(Owner.UserIDString, "enable", true))
                 {
-                    IPanel Dock = GetDock();
+                    var Dock = GetDock();
                     if(Dock != null && Dock.IsActive == false)
                     {
                         Dock.ShowPanel(false);
                     }
 
-                    List<string> ActivePanelsAfterThis = GetActiveAfterThis();
+                    var ActivePanelsAfterThis = GetActiveAfterThis();
 
-                    foreach (string PanelName in ActivePanelsAfterThis)
+                    foreach (var PanelName in ActivePanelsAfterThis)
                     {
                         GetPanel(PanelName)?.DestroyPanel(false);
                     }
@@ -2135,7 +2049,7 @@ namespace Oxide.Plugins
                     if (storedData.GetPlayerSettings(Owner.UserIDString, "enable", true))
                     {
                         //Interface.Oxide.LogInfo(GetJson()); //TODO
-                        Oxide.Game.Rust.Cui.CuiHelper.AddUi(this.Owner, GetJson());
+                        CuiHelper.AddUi(Owner, GetJson());
                         //CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo(this.Owner.net.connection), null, "AddUI", new Facepunch.ObjectList(GetJson()));
                     }
 
@@ -2144,13 +2058,13 @@ namespace Oxide.Plugins
 
                     if(Childs)
                     {
-                        foreach (KeyValuePair<string, IPanel> Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
+                        foreach (var Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
                         {
                             Child.Value.ShowPanel();
                         }
                     }
 
-                    foreach (string PanelName in ActivePanelsAfterThis)
+                    foreach (var PanelName in ActivePanelsAfterThis)
                     {
                         GetPanel(PanelName)?.ShowPanel();
                     }
@@ -2168,7 +2082,7 @@ namespace Oxide.Plugins
                 IsHidden = true;
                 if (Childs)
                 {
-                    foreach (KeyValuePair<string, IPanel> Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
+                    foreach (var Child in GetChilds().Where(p => p.Value.Autoload || p.Value.IsActive).OrderBy(s => s.Value.Order))
                     {
                         Child.Value.ShowPanel();
                     }
@@ -2179,12 +2093,12 @@ namespace Oxide.Plugins
             public void DestroyPanel( bool Redraw = true)
             {
 
-                foreach (KeyValuePair<string, IPanel> Panel in GetChilds().Where(p => p.Value.IsActive))
+                foreach (var Panel in GetChilds().Where(p => p.Value.IsActive))
                 {
                     Panel.Value.DestroyPanel(false);
                 }
 
-                Oxide.Game.Rust.Cui.CuiHelper.DestroyUi(this.Owner, this.Name);
+                CuiHelper.DestroyUi(Owner, Name);
                 //CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo(this.Owner.net.connection), null, "DestroyUI", new Facepunch.ObjectList(this._Name));
 
                 IsActive = false;
@@ -2194,15 +2108,15 @@ namespace Oxide.Plugins
                     ReDrawPanels(GetActiveAfterThis());
                 }
 
-                IPanel Dock = GetDock();
+                var Dock = GetDock();
                 if(Dock?.GetChilds().Count(p => p.Value.IsActive) == 0) Dock.DestroyPanel();
             }
 
 
             public virtual void Refresh()
             {
-                this.DestroyPanel();
-                this.ShowPanel();
+                DestroyPanel();
+                ShowPanel();
             }
 
             #endregion
@@ -2211,13 +2125,13 @@ namespace Oxide.Plugins
 
             public void Remover()
             {
-                foreach (KeyValuePair<string, IPanel> Child in GetChilds())
+                foreach (var Child in GetChilds())
                 {
                     Child.Value.Remover();
                 }
 
-                GetPanel(ParentName).Childs.Remove(this.Name);
-                playerPanels[this.Owner.UserIDString].Remove(this.Name);
+                GetPanel(ParentName).Childs.Remove(Name);
+                playerPanels[Owner.UserIDString].Remove(Name);
             }
 
             protected string ColorToString(Color color)
@@ -2234,33 +2148,33 @@ namespace Oxide.Plugins
             {
                 get
                 {
-                    return this.TextComponent.Text;
+                    return TextComponent.Text;
                 }
                 set
                 {
-                    this.TextComponent.Text = value;
+                    TextComponent.Text = value;
                 }
             }
             public TextAnchor Align
             {
                 get
                 {
-                    return this.TextComponent.Align;
+                    return TextComponent.Align;
                 }
 
                 set
                 {
-                    this.TextComponent.Align = value;
+                    TextComponent.Align = value;
                 }
             }
             public int FontSize {
                 get
                 {
-                    return this.TextComponent.FontSize;
+                    return TextComponent.FontSize;
                 }
                 set
                 {
-                    this.TextComponent.FontSize = value;
+                    TextComponent.FontSize = value;
                 }
             }
             public Color _FontColor = Color.white;
@@ -2268,11 +2182,11 @@ namespace Oxide.Plugins
             {
                 get
                 {
-                    return this._FontColor;
+                    return _FontColor;
                 }
                 set
                 {
-                    this._FontColor = value;
+                    _FontColor = value;
                     TextComponent.Color = $"{value.r} {value.g} {value.b} {value.a}";
                 }
             }
@@ -2282,14 +2196,14 @@ namespace Oxide.Plugins
             public IPanelText(string Name, BasePlayer Player, Dictionary<string, Dictionary<string, IPanel>> playerPanels, Dictionary<string, Dictionary<string, IPanel>> playerDockPanels) : base(Name, Player, playerPanels, playerDockPanels)
             {
                 TextComponent = new CuiTextComponent();
-                Components.Insert(0, this.TextComponent);
+                Components.Insert(0, TextComponent);
             }
 
             public void RefreshText(BasePlayer player, string text)
             {
-                this.DestroyPanel();
-                this.Content = text;
-                this.ShowPanel();
+                DestroyPanel();
+                Content = text;
+                ShowPanel();
             }
         }
 
@@ -2312,11 +2226,11 @@ namespace Oxide.Plugins
             {
                 get
                 {
-                    return this._Color;
+                    return _Color;
                 }
                 set
                 {
-                    this._Color = value;
+                    _Color = value;
                     RawImageComponent.Color = ColorToString(value);
                 }
             }
@@ -2326,7 +2240,7 @@ namespace Oxide.Plugins
             public IPanelRawImage(string Name, BasePlayer Player, Dictionary<string, Dictionary<string, IPanel>> playerPanels, Dictionary<string, Dictionary<string, IPanel>> playerDockPanels) : base(Name, Player, playerPanels, playerDockPanels)
             {
                 RawImageComponent = new CuiRawImageComponent();
-                Components.Insert(0, this.RawImageComponent);
+                Components.Insert(0, RawImageComponent);
             }
         }
 
@@ -2336,7 +2250,7 @@ namespace Oxide.Plugins
 
         private void DestroyGUI(BasePlayer player)
         {
-            foreach (KeyValuePair<string, IPanel> Dock in PlayerDockPanels[player.UserIDString])
+            foreach (var Dock in PlayerDockPanels[player.UserIDString])
             {
                 Dock.Value.DestroyPanel(false);
             }
@@ -2350,15 +2264,12 @@ namespace Oxide.Plugins
             {
                 timer.In(2, () => GUITimerInit(player));
             }
-            else
+            else if (!PlayerDockPanels.ContainsKey(player.UserIDString))
             {
-                if (!PlayerDockPanels.ContainsKey(player.UserIDString))
-                {
-                    LoadPanels(player);
-                    InitializeGUI(player);
+                LoadPanels(player);
+                InitializeGUI(player);
 
-                    RefreshOnlinePlayers();
-                }
+                RefreshOnlinePlayers();
             }
         }
 
@@ -2369,47 +2280,41 @@ namespace Oxide.Plugins
                 return;
             }
 
-            foreach (KeyValuePair<string, IPanel> Panel in PlayerPanels[player.UserIDString])
+            foreach (var Panel in PlayerPanels[player.UserIDString])
             {
-                if (Panel.Key == "ClockText")
+                switch (Panel.Key)
                 {
-                    ((IPanelText) Panel.Value).Content = Clock.ShowTime(player.UserIDString, storedData);
-                }
-                else if (Panel.Key == "OPlayersText")
-                {
-                    ((IPanelText) Panel.Value).Content = BasePlayer.activePlayerList.Count + "/" + ConVar.Server.maxplayers;
-                }
-                else if (Panel.Key == "SleepersText")
-                {
-                    ((IPanelText) Panel.Value).Content = BasePlayer.sleepingPlayerList.Count.ToString();
-                }
-                else if (Panel.Key == "MessageBoxText")
-                {
-                    ((IPanelText) Panel.Value).Content = MessageBox.GetMessage();
-                }
-                else if (Panel.Key == "CoordinatesText")
-                {
-                    ((IPanelText) Panel.Value).Content = Coord.GetCoord(player.UserIDString);
-                }
-                else if (Panel.Key == "RadiationImage")
-                {
-                    ((IPanelRawImage) Panel.Value).Color = Rad.ImageColor;
-                }
-                else if (Panel.Key == "AirdropEventImage")
-                {
-                    ((IPanelRawImage) Panel.Value).Color = Airplane.ImageColor;
-                }
-                else if (Panel.Key == "HelicopterEventImage")
-                {
-                    ((IPanelRawImage) Panel.Value).Color = Helicopter.ImageColor;
-                }
-                else if (Panel.Key == "CompassText")
-                {
-                    ((IPanelText) Panel.Value).Content = CompassObj.GetDirection(player.UserIDString);
+                    case "ClockText":
+                        ((IPanelText) Panel.Value).Content = Clock.ShowTime(player.UserIDString, storedData);
+                        break;
+                    case "OPlayersText":
+                        ((IPanelText) Panel.Value).Content = BasePlayer.activePlayerList.Count + "/" + ConVar.Server.maxplayers;
+                        break;
+                    case "SleepersText":
+                        ((IPanelText) Panel.Value).Content = BasePlayer.sleepingPlayerList.Count.ToString();
+                        break;
+                    case "MessageBoxText":
+                        ((IPanelText) Panel.Value).Content = MessageBox.GetMessage();
+                        break;
+                    case "CoordinatesText":
+                        ((IPanelText) Panel.Value).Content = Coord.GetCoord(player.UserIDString);
+                        break;
+                    case "RadiationImage":
+                        ((IPanelRawImage) Panel.Value).Color = Rad.ImageColor;
+                        break;
+                    case "AirdropEventImage":
+                        ((IPanelRawImage) Panel.Value).Color = Airplane.ImageColor;
+                        break;
+                    case "HelicopterEventImage":
+                        ((IPanelRawImage) Panel.Value).Color = Helicopter.ImageColor;
+                        break;
+                    case "CompassText":
+                        ((IPanelText) Panel.Value).Content = CompassObj.GetDirection(player.UserIDString);
+                        break;
                 }
             }
 
-            foreach (KeyValuePair<string, IPanel> Dock in PlayerDockPanels[player.UserIDString])
+            foreach (var Dock in PlayerDockPanels[player.UserIDString])
             {
                 if(Dock.Value.Childs.Count != 0)
                 {
@@ -2421,7 +2326,7 @@ namespace Oxide.Plugins
 
         private void RevealGUI(BasePlayer player)
         {
-            foreach (KeyValuePair<string, IPanel> Dock in PlayerDockPanels[player.UserIDString])
+            foreach (var Dock in PlayerDockPanels[player.UserIDString])
             {
                 if (Dock.Value.Childs.Count != 0)
                 {
@@ -2432,7 +2337,7 @@ namespace Oxide.Plugins
 
         private void RefreshOnlinePlayers()
         {
-            foreach (KeyValuePair<string, Dictionary<string, IPanel>> panel in PlayerPanels)
+            foreach (var panel in PlayerPanels)
             {
                 if (Settings.GetPanelSettingsValue("OPlayers", "Available", true) && panel.Value.ContainsKey("OPlayersText"))
                 {
@@ -2445,7 +2350,7 @@ namespace Oxide.Plugins
 
         private void RefreshSleepers()
         {
-            foreach (KeyValuePair<string, Dictionary<string, IPanel>> panel in PlayerPanels)
+            foreach (var panel in PlayerPanels)
             {
                 if (Settings.GetPanelSettingsValue("Sleepers", "Available", true) && panel.Value.ContainsKey("SleepersText"))
                 {
@@ -2475,7 +2380,7 @@ namespace Oxide.Plugins
                 return true;
             }
 
-            PanelConfig Cfg = JsonConvert.DeserializeObject<PanelConfig>(json);
+            var Cfg = JsonConvert.DeserializeObject<PanelConfig>(json);
 
             Dictionary<string, PanelConfig> thirdPartyPanel;
             if (!Settings.ThirdPartyPanels.TryGetValue(PluginName, out thirdPartyPanel))
@@ -2488,10 +2393,10 @@ namespace Oxide.Plugins
                 thirdPartyPanel.Add(PanelName, Cfg);
 
                 Config.WriteObject(Settings, true);
-                PrintWarning("New panel added to the config file: [" + PluginName + "] " + PanelName);
+                PrintWarning($"New panel added to the config file: {PanelName}");
             }
 
-            foreach (KeyValuePair<string,Dictionary<string,IPanel>> Docks in PlayerDockPanels)
+            foreach (var Docks in PlayerDockPanels)
             {
                 if(Docks.Value.ContainsKey(Cfg.Dock))
                 {
@@ -2519,7 +2424,7 @@ namespace Oxide.Plugins
                 return true;
             }
 
-            foreach(string PlayerID in PlayerPanels.Keys)
+            foreach(var PlayerID in PlayerPanels.Keys)
             {
                 PlayerPanels[PlayerID][PanelName].ShowPanel();
             }
@@ -2540,7 +2445,7 @@ namespace Oxide.Plugins
                 return true;
             }
 
-            foreach (string PlayerID in PlayerPanels.Keys)
+            foreach (var PlayerID in PlayerPanels.Keys)
             {
                 PlayerPanels[PlayerID][PanelName].DestroyPanel();
             }
@@ -2562,7 +2467,7 @@ namespace Oxide.Plugins
                 return true;
             }
 
-            foreach (string PlayerID in PlayerPanels.Keys)
+            foreach (var PlayerID in PlayerPanels.Keys)
             {
                 PlayerPanels[PlayerID][PanelName].DestroyPanel();
                 PlayerPanels[PlayerID][PanelName].ShowPanel();
@@ -2575,8 +2480,8 @@ namespace Oxide.Plugins
         {
             if (PlayerId != null && PlayerPanels.ContainsKey(PlayerId))
             {
-                IPanel Panel = PlayerPanels[PlayerId][PanelName];
-                PropertyInfo PropInfo = Panel.GetType().GetProperty(Attribute);
+                var Panel = PlayerPanels[PlayerId][PanelName];
+                var PropInfo = Panel.GetType().GetProperty(Attribute);
 
                 if (PropInfo == null)
                 {
@@ -2602,10 +2507,10 @@ namespace Oxide.Plugins
                 return;
             }
 
-            foreach (string playerID in PlayerPanels.Keys)
+            foreach (var playerID in PlayerPanels.Keys)
             {
-                IPanel Panel = PlayerPanels[playerID][PanelName];
-                PropertyInfo PropInfo = Panel.GetType().GetProperty(Attribute);
+                var Panel = PlayerPanels[playerID][PanelName];
+                var PropInfo = Panel.GetType().GetProperty(Attribute);
 
                 if (PropInfo == null)
                 {
@@ -2632,22 +2537,23 @@ namespace Oxide.Plugins
 
         private bool SendPanelInfo(string PluginName, List<string> Panels)
         {
-           if(!Settings.ThirdPartyPanels.ContainsKey(PluginName))
+            Dictionary<string, PanelConfig> panelConfig;
+            if(!Settings.ThirdPartyPanels.TryGetValue(PluginName, out panelConfig))
             {
                 return false;
             }
 
-            List<string> Removable = Settings.ThirdPartyPanels[PluginName].Keys.Except(Panels).ToList();
+            var Removable =panelConfig.Keys.Except(Panels).ToList();
 
-            foreach(string item in Removable)
+            foreach(var item in Removable)
             {
-                Settings.ThirdPartyPanels[PluginName].Remove(item);
+                panelConfig.Remove(item);
             }
 
             if(Removable.Count > 0)
             {
                 Config.WriteObject(Settings, true);
-                PrintWarning("Config File refreshed! " + Removable.Count + " panel removed! [" + PluginName + "]");
+                PrintWarning($"Config File refreshed! {Removable.Count} panel removed!");
             }
 
             return true;
@@ -2663,28 +2569,12 @@ namespace Oxide.Plugins
         #region Utility
         internal static Vector4 Vector4Parser(string p)
         {
-            string[] strArrays = p.Split(' ');
+            var strArrays = p.Split(' ');
             if ((int)strArrays.Length != 4)
             {
                 return Vector4.zero;
             }
             return new Vector4(float.Parse(strArrays[0]), float.Parse(strArrays[1]), float.Parse(strArrays[2]), float.Parse(strArrays[3]));
-        }
-
-        public bool IsList(object o)
-        {
-            if (o == null) return false;
-            return o is IList &&
-                   o.GetType().IsGenericType &&
-                   o.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(List<>));
-        }
-
-        public static bool IsDictionary(object o)
-        {
-            if (o == null) return false;
-            return o is IDictionary &&
-                   o.GetType().IsGenericType &&
-                   o.GetType().GetGenericTypeDefinition().IsAssignableFrom(typeof(Dictionary<,>));
         }
         #endregion
     }

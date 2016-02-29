@@ -14,6 +14,7 @@
     <Mod Name="EnhancedBanSystem.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
+    <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
@@ -31,7 +32,6 @@
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
-    <Mod Name="Reserved.cs" Enabled="false"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="Spawns.cs" Enabled="true"/>
@@ -65,7 +65,6 @@
     <Config Name="Polling.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
-    <Config Name="Reserved.json" remove="true"/>
     <Config Name="RainOfFire.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
