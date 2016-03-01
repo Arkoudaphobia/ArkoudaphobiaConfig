@@ -30,7 +30,8 @@
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
-    <Mod Name="Polling.cs" Enabled="true"/>
+    <Mod Name="Polling.cs" Enabled="false"/>
+    <Mod Name="Pollingcs.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
@@ -63,7 +64,8 @@
     <Config Name="Ping.json" remove="false"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
-    <Config Name="Polling.json" remove="false"/>
+    <Config Name="Polling.json" remove="true"/>
+    <Config Name="Pollingcs.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
