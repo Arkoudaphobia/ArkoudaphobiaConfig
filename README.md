@@ -1,6 +1,8 @@
 # Arkoudaphobia Server Config
-Public Listing of the various mods and config files used for the management of the Arkoudaphobia Dedicate Rust Server.
+This repository is a living document of sorts.  What you see here is going to be what you'll get on the server and the changes made here will, through automation I've setup, end up on the server.
 
-Configuration updates and updates for mods are pushed on the even numbered hours (PST Time Zone) of the day (12:00 AM, 2:00 AM, 4:00 AM, 6:00 AM, etc).  Below you'll find an indicator of the status of the latest build that was pushed to the server.  For information on how to contribute or request changes see the wiki artical on requesting and making changes.
+Configuration updates and updates for mods are pushed ever two hours starting at 12:00 AM PST.  For information on how to contribute or request changes see the wiki artical on requesting and making changes located here.
 
-Latest Build Status: ![Valid XHTML](https://ihsvs.visualstudio.com/DefaultCollection/_apis/public/build/definitions/972e80ea-cbd8-4fcc-b9c0-1169eb05e925/27/badge)
+Below you'll find an indicator of the status of the latest build that was pushed to the server.
+
+Latest Deployment Status: ![Valid XHTML](https://ihsvs.visualstudio.com/DefaultCollection/_apis/public/build/definitions/972e80ea-cbd8-4fcc-b9c0-1169eb05e925/27/badge)
