@@ -25,6 +25,7 @@
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.py" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
+    <Mod Name="PillsHere.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
@@ -60,6 +61,7 @@
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
+    <Config Name="PillsHere.json" remove="false"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
     <Config Name="Polling.json" remove="false"/>
