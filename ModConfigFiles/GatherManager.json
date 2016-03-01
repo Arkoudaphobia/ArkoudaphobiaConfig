@@ -30,7 +30,7 @@
     },
     "MiningQuarryResourceTickRate": 10.0,
     "PickupResourceModifiers": {
-      "*": 1.0
+      "*": 4.0
     },
     "QuarryResourceModifiers": {
       "Crude Oil": 0.67,
