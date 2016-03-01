@@ -5,7 +5,6 @@
     "<red>Cheating is strictly prohibited.<end>",
     "Type <orange>/map<end> for the server map link.",
     "You are playing on: <lime>{server.hostname}<end>",
-    "The game time is <lime>{gamedate} {gametime}<end>",
     "Take advantage of our convenient transit system.  With seven points on the map including the central hub by the refinery it's easy to fast travel without spending all that time.",
     "There appears to be a bug in the transit system where the portals are currently invisible.  I am investigating this issue and tracking it under issue #22 on the servers GitHub Repository.",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
