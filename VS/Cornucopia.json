@@ -1,0 +1,28 @@
+{
+  "Animals": {
+    "minBears": 10,
+    "minBoars": 25,
+    "minChickens": 5,
+    "minHorses": 60,
+    "minStags": 35,
+    "minWolves": 5
+  },
+  "Barrels": {
+    "minGoodBarrels": 25,
+    "minNormalBarrels": 15,
+    "minTrashCans": 45
+  },
+  "Crates": {
+    "minBoxCrates": 20,
+    "minWeaponCrates": 15
+  },
+  "General": {
+    "refreshIntervalSeconds": 900,
+    "fixloot": true
+  },
+  "Minerals": {
+    "minMetalNodes": 70,
+    "minStoneNodes": 70,
+    "minSulfurNodes": 70
+  }
+}
