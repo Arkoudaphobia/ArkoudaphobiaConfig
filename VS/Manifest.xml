@@ -8,6 +8,7 @@
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true" />
     <Mod Name="chatmute.lua" Enabled="true"/>
+    <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="DeadPlayersList.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="DemolishRefund.coffee" Enabled="true"/>
@@ -23,18 +24,18 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.py" Enabled="true">
-      <RequestReload DateTime="2/29/2016 1:58 PM"/>
-    </Mod>
+    <Mod Name="notifier.py" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
+    <Mod Name="PillsHere.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
-    <Mod Name="Polling.cs" Enabled="false"/>
-    <Mod Name="Pollingcs.cs" Enabled="true"/>
+    <Mod Name="Pollingcs.cs" Enabled="false"/>
+    <Mod Name="Polling.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
+    <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="Spawns.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
@@ -49,6 +50,7 @@
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="chatmute.json" remove="false"/>
+    <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EnhancedBanSystem.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
@@ -62,12 +64,14 @@
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
+    <Config Name="PillsHere.json" remove="false"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
-    <Config Name="Polling.json" remove="true"/>
+    <Config Name="Polling.json" remove="false"/>
     <Config Name="Pollingcs.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
+    <Config Name="RainOfFire.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>

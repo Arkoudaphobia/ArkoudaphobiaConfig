@@ -1,0 +1,6 @@
+{
+  "DamageMultiplier": 0.2,
+  "EventIntervals": 7200.0,
+  "ItemDropMultiplier": 1.5,
+  "NotifyEvent": false
+}
