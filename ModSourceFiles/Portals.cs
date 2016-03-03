@@ -97,11 +97,11 @@ namespace Oxide.Plugins
                 {
                     var Entrance = new Vector3(Convert.ToInt32(Config[portalName, "EntranceX"]), Convert.ToInt32(Config[portalName, "EntranceY"]) + i, Convert.ToInt32(Config[portalName, "EntranceZ"]));
                     var Exit = new Vector3(Convert.ToInt32(Config[portalName, "ExitX"]), Convert.ToInt32(Config[portalName, "ExitY"]) + i, Convert.ToInt32(Config[portalName, "ExitZ"]));
-                    Effect.server.Run("assets/prefabs/weapons/rocketlauncher/effects/pfx_fire_rocket_smokeout.prefab", Entrance, Vector3.up, null, true);
+                    Effect.server.Run("assets/bundled/prefabs/fx/impacts/additive/fire.prefab", Entrance, Vector3.up, null, true);
 
                     if(Config[portalName, "OneWay"].ToString() == "false")
                     {
-                        Effect.server.Run("assets/prefabs/weapons/rocketlauncher/effects/pfx_fire_rocket_smokeout.prefab", Exit, Vector3.up, null, true);
+                        Effect.server.Run("assets/bundled/prefabs/fx/impacts/additive/fire.prefab", Exit, Vector3.up, null, true);
                     }
                 }
             }

@@ -137,7 +137,7 @@
 		"Coordinates": {
 			"AnchorX": "Left",
 			"AnchorY": "Bottom",
-			"Autoload": false,
+			"Autoload": true,
 			"Available": true,
 			"BackgroundColor": "0 0 0 0.4",
 			"Dock": "BottomDock",
