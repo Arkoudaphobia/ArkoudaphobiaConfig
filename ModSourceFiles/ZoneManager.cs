@@ -20,7 +20,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("ZoneManager", "Reneb / Nogrod", "2.4.0", ResourceId = 739)]
+    [Info("ZoneManager", "Reneb / Nogrod", "2.4.1", ResourceId = 739)]
     public class ZoneManager : RustPlugin
     {
         private const string PermZone = "zonemanager.zone";
@@ -963,21 +963,30 @@ namespace Oxide.Plugins
         // OnPlayerLoot(PlayerLoot lootInventory,  BasePlayer targetPlayer)
         // Called when a player tries to loot another player
         /////////////////////////////////////////
-        private void OnLootPlayer(BasePlayer looter, BasePlayer target)
+        private object CanLootPlayer(BasePlayer target, BasePlayer looter)
         {
-            OnLootPlayerInternal(looter);
+            return OnLootPlayerInternal(looter, target) ? null : (object)false;
         }
 
-        private void OnLootPlayerInternal(BasePlayer looter)
+        private void OnLootPlayer(BasePlayer looter, BasePlayer target)
         {
-            if (HasPlayerFlag(looter, ZoneFlags.NoPlayerLoot))
-                timer.Once(0.01f, looter.EndLooting);
+            OnLootPlayerInternal(looter, target);
+        }
+
+        private bool OnLootPlayerInternal(BasePlayer looter, BasePlayer target)
+        {
+            if (HasPlayerFlag(looter, ZoneFlags.NoPlayerLoot) || target != null && HasPlayerFlag(target, ZoneFlags.NoPlayerLoot))
+            {
+                NextTick(looter.EndLooting);
+                return false;
+            }
+            return true;
         }
 
         private void OnLootEntity(BasePlayer looter, BaseEntity target)
         {
             if (target is BaseCorpse)
-                OnLootPlayerInternal(looter);
+                OnLootPlayerInternal(looter, null);
             else if (HasPlayerFlag(looter, ZoneFlags.NoBoxLoot))
             {
                 if (target is StorageContainer && ((StorageContainer)target).transform.position == Vector3.zero) return;
