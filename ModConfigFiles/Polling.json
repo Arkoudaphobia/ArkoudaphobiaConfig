@@ -9,7 +9,7 @@
     },
     "Plugin Settings": {
       "AutoSkipNights": {
-        "Enabled": true,
+        "Enabled": false,
         "TimeOfSkip": "18:00"
       },
       "CargoPlane": {
