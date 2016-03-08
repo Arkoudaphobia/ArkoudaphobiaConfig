@@ -31,7 +31,7 @@
 	},
 	"Messages": [
 		"Welcome to Arkoudaphobia!",
-	"Arkoudaphobia means the fear of bears",
+	  "Arkoudaphobia means the fear of bears",
 		"Beware! You Are Not Alone!",
 		"Visit https://playrust.utmonline.net"
 	],
@@ -137,8 +137,8 @@
 		"Coordinates": {
 			"AnchorX": "Left",
 			"AnchorY": "Bottom",
-			"Autoload": true,
-			"Available": true,
+			"Autoload": false,
+			"Available": false,
 			"BackgroundColor": "0 0 0 0.4",
 			"Dock": "BottomDock",
 			"Height": 0.95,
@@ -271,8 +271,8 @@
 		"Radiation": {
 			"AnchorX": "Left",
 			"AnchorY": "Bottom",
-			"Autoload": true,
-			"Available": true,
+			"Autoload": false,
+			"Available": false,
 			"BackgroundColor": "0 0 0 0.4",
 			"Dock": "BottomDock",
 			"Height": 0.95,
