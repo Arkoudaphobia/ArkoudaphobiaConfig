@@ -271,8 +271,8 @@
 		"Radiation": {
 			"AnchorX": "Left",
 			"AnchorY": "Bottom",
-			"Autoload": true,
-			"Available": true,
+			"Autoload": false,
+			"Available": false,
 			"BackgroundColor": "0 0 0 0.4",
 			"Dock": "BottomDock",
 			"Height": 0.95,
