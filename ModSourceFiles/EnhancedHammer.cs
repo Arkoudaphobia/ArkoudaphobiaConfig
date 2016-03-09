@@ -3,11 +3,12 @@ using Oxide.Plugins;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Visagalis", "0.4.8", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Visagalis", "0.4.9", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         public class PlayerDetails
@@ -34,6 +35,9 @@ namespace Oxide.Plugins
             if (PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED))
                 return;
 
+            
+
+
             if (playersInfo[player.userID].upgradeInfo == BuildingGrade.Enum.Count
                 || playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type
                 || !player.CanBuild())
@@ -52,6 +56,16 @@ namespace Oxide.Plugins
             }
             else
             {
+                BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                MethodInfo dynMethod = block.GetType().GetMethod("CanChangeToGrade", flags);
+                bool canChangeGrade = (bool)dynMethod.Invoke(block, new object[] { playersInfo[player.userID].upgradeInfo, player });
+
+                if (!canChangeGrade)
+                {
+                    SendReply(player, pluginPrefix + "You can't upgrade it, something is blocking it's way.");
+                    return;
+                }
+
                 if (block.name.ToLower().Contains("wall.external"))
                 {
                     SendReply(player, pluginPrefix + "Can't upgrade walls! Switching to REPAIR mode.");
@@ -61,6 +75,8 @@ namespace Oxide.Plugins
                 float currentHealth = block.health;
                 var currentGradeType = block.currentGrade.gradeBase.type;
                 block.SetGrade(playersInfo[player.userID].upgradeInfo);
+                var TwigsDecay = plugins.Find("TwigsDecay");
+                TwigsDecay?.Call("OnStructureUpgrade", block, player, playersInfo[player.userID].upgradeInfo);
 				block.UpdateSkin(false);
                 var cost = block.currentGrade.gradeBase.baseCost;
                 int hasEnough = 0;
@@ -88,7 +104,8 @@ namespace Oxide.Plugins
                 else
                 {
                     block.SetGrade(currentGradeType);
-					block.UpdateSkin(false);
+                    TwigsDecay?.Call("OnStructureUpgrade", block, player, currentGradeType);
+                    block.UpdateSkin(false);
                     block.health = currentHealth;
                     SendReply(player, pluginPrefix + "Can't afford to upgrade!");
                 }
