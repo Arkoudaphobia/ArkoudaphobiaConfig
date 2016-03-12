@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.0.2", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.1", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -827,7 +827,7 @@ namespace Oxide.Plugins
                 data.attacker.entity = victim.lastAttacker as BaseCombatEntity;
 
             data.attacker.type = data.attacker.TryGetType();
-            data.attacker.name = data.attacker.TryGetName();
+            data.attacker.name = StripTags(data.attacker.TryGetName());
             data.weapon = info?.Weapon?.GetItem()?.info?.displayName?.english ?? FormatThrownWeapon(info?.WeaponPrefab?.name ?? "No Weapon");
             data.attachments = GetAttachments(info);
             data.damageType = FirstUpper(victim.lastDamage.ToString());
