@@ -25,6 +25,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text;
+using System.Linq;
 
 //Oxide
 using Oxide.Core;
@@ -32,6 +33,7 @@ using Oxide.Core.Logging;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
 using Oxide.Game.Rust.Cui;
+using Oxide.Core.Libraries;
 
 //UnityEngine
 using UnityEngine;
@@ -43,14 +45,14 @@ using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
-    [Info("Polling Plugin", "Feramor", "1.1.1", ResourceId = 793)]
+    [Info("Polling Plugin", "Feramor", "1.2.0", ResourceId = 793)]
     [Description("Allows players with permission to run polls.")]
     public class Polling : RustPlugin
     {
         #region Custom Classes
         static class Constants
         {
-            public const string ConfigVersion = "1.0.7";
+            public const string ConfigVersion = "1.2.2";
         }
         public class Poll
         {
@@ -83,13 +85,23 @@ namespace Oxide.Plugins
             public string ChoiceText { set; get; }
             public int VoteCount { set; get; }
         }
+        public class PollSchedule
+        {
+            public string PollType { get; set; }
+            public string Cron { get; set; }
+            public uint Duration { get; set; }
+        }
         #endregion
         #region Veriables
+        [PluginReference]
+        private Plugin CronLibrary;
+
         private static Core.Logging.Logger RootLogger = Interface.GetMod().RootLogger;
 
         private Dictionary<string, object> MainSettings;
         private Dictionary<string, object> PluginSetting;
         private Dictionary<string, object> CustomPolls;
+        private List<PollSchedule> PollSchedules;
 
         private Dictionary<string,Poll> PollTypes;
         private PollData Current;
@@ -140,7 +152,7 @@ namespace Oxide.Plugins
                 {"ErrorPermission","You <color=#ce422b>don't</color> have permission to create {0} polls." },
                 {"ErrorAlreadyPoll","There is already a poll running." },
                 {"ErrorSyntax","There has been an syntax error in command.\nCorrect form is\n" },
-                {"ErrorTime","You have entered an invalid time.Time limits Min:30 Max:300" },
+                {"ErrorTime","You have entered an invalid time.Time limits Min:30 Max:3600" },
                 {"PollStarted","Poll Started\n     <color=red>*</color> {0}" },
                 {"PollNotVoted","You haven't voted.Please vote now!\n     <color=red>*</color> {0}" },
                 {"VoteFinish","Vote Finished\n     <color=red>*</color> {0}" },
@@ -161,7 +173,10 @@ namespace Oxide.Plugins
                 {"Night","Night" },
                 {"NoUser","There is no user found with search with Name/SteamID ({0})" },
                 {"KickReason","You have been kicked by poll results." },
-                {"BanReason","You have been banned by poll results." }
+                {"BanReason","You have been banned by poll results." },
+                {"ButtonReRunPoll","Re-run Poll" },
+                {"ErrorEndVote","You <color=#ce422b>don't</color> have permission to end polls." },
+                {"ButtonEndVote","End Poll" }
             };
             SortedDictionary<string, string> sortedMessages = new SortedDictionary<string, string>(messages);
             messages.Clear();
@@ -175,9 +190,10 @@ namespace Oxide.Plugins
         {
             var NewSettings = new Dictionary<string, object>
             {
-                {"Main Settings",new Dictionary<string, object> { { "ChatCommand", "poll" }, { "ChatTag", "Polling" }, { "CountNonVoters", true }, { "ConfigVersion", Constants.ConfigVersion }, { "ReminderTimer", 20 } } },
+                {"Main Settings",new Dictionary<string, object> { { "ChatCommand", "poll" }, { "ChatTag", "Polling" }, { "ChatProfile", "76561198286931766" }, { "CountNonVoters", true }, { "ConfigVersion", Constants.ConfigVersion }, { "ReminderTimer", 20 } } },
                 {"Plugin Settings",new Dictionary<string, object> { { "CargoPlane", new Dictionary<string, object> { { "Enabled", false }, { "PluginConsoleCommand", "" } } }, { "PatrolHelicopter", new Dictionary<string, object> { { "Enabled", false }, { "PluginConsoleCommand", "" } } }, { "AutoSkipNights", new Dictionary<string, object> { { "Enabled", true }, { "TimeOfSkip", "18:00" } } } } },
-                {"Polls",new Dictionary<string, object> { } }
+                {"Polls",new Dictionary<string, object> { } },
+                {"Poll Schedules",new List<PollSchedule> { } }
             };
             if ((Config["Settings"] == null) || ((Config["Settings"] as Dictionary<string, object>)["Main Settings"] as Dictionary<string, object>)["ConfigVersion"] as string != Constants.ConfigVersion)
             {
@@ -186,6 +202,7 @@ namespace Oxide.Plugins
                 Config["Settings"] = NewSettings;
                 SaveConfig();
             }
+            
         }
         #endregion
         #region Hooks
@@ -197,8 +214,12 @@ namespace Oxide.Plugins
             MainSettings = (Config["Settings"] as Dictionary<string, object>)["Main Settings"] as Dictionary<string, object>;
             PluginSetting = (Config["Settings"] as Dictionary<string, object>)["Plugin Settings"] as Dictionary<string, object>;
             CustomPolls = (Config["Settings"] as Dictionary<string, object>)["Polls"] as Dictionary<string, object>;
+            PollSchedules = JsonConvert.DeserializeObject<List<PollSchedule>>(JsonConvert.SerializeObject((Config["Settings"] as Dictionary<string, object>)["Poll Schedules"]));
 
             PollTypes = new Dictionary<string, Poll>();
+
+            permission.RegisterPermission("Polling.Can.CleanHistory", this);
+            permission.RegisterPermission("Polling.Can.EndPolls", this);
 
             RegisterPoll("Airdrop", GetMessage("QuestionAirdrop"), "Polling.Create.Airdrop", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 0);
             RegisterPoll("Ban", GetMessage("QuestionBan"), "Polling.Create.Ban", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 1);
@@ -208,7 +229,21 @@ namespace Oxide.Plugins
             RegisterPoll("Time", GetMessage("QuestionTime"), "Polling.Create.Time", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 5);
 
             //Register Custom Plugins
-            RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Currently {0} custom poll(s) registered.(NYI)",CustomPolls.Count);
+            RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Registering {0} custom poll(s) .", CustomPolls.Count);
+            foreach (KeyValuePair<string,object> CurrentCustomPoll in CustomPolls)
+            {
+                Dictionary<string, object> currentCustomPoll = CurrentCustomPoll.Value as Dictionary<string, object>;
+                Dictionary<string, object> CustomPollChoices = currentCustomPoll["PollChoices"] as Dictionary<string, object>;
+                List<Dictionary<string, string>> currentCustomPollChoices = new List<Dictionary<string, string>>();
+                foreach (KeyValuePair<string, object> CurrentCustomPollChoices in CustomPollChoices)
+                {
+                    Dictionary<string, string> newCustomPollChoice = new Dictionary<string, string>();
+                    newCustomPollChoice.Add("ChoiceText", (CurrentCustomPollChoices.Value as Dictionary<string,object>)["ChoiceText"] as string);
+                    newCustomPollChoice.Add("ChoiceConsoleCommand", (CurrentCustomPollChoices.Value as Dictionary<string, object>)["ChoiceConsoleCommand"] as string);
+                    currentCustomPollChoices.Add(newCustomPollChoice);
+                }
+                RegisterPoll(CurrentCustomPoll.Key, currentCustomPoll["AskQuestion"] as string, string.Format("Polling.Create.{0}", CurrentCustomPoll.Key), currentCustomPollChoices);
+            }
             //Register Custom Plugins
 
             cmd.AddChatCommand(MainSettings["ChatCommand"] as string, this, "Chat_Polling_GUI_CurrentPoll");
@@ -230,6 +265,53 @@ namespace Oxide.Plugins
             Active_GUI_Help = new Dictionary<ulong, string>();
             Active_GUI_History = new Dictionary<ulong, string>();
             CurrentPollUpdater = new Dictionary<ulong, Timer>();
+
+            #region  Register Poll Schedules
+            RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Registering {0} scheduled polls.", PollSchedules.Count);
+            if (PollSchedules.Count > 0)
+            {
+                if ((CronLibrary != null) && (CronLibrary.IsLoaded))
+                {
+                    foreach (PollSchedule CurrentPollSchedule in PollSchedules)
+                    {
+                        CronLibrary?.CallHook("RegisterCron", this, true, CurrentPollSchedule.Cron, new Action(() =>
+                        {
+                            if (Current == null)
+                            {
+                                Poll CurrentPollType;
+                                if (PollTypes.TryGetValue(CurrentPollSchedule.PollType, out CurrentPollType))
+                                {
+                                    PollData NewPoll = new PollData();
+                                    NewPoll.ID = History.Count + 1;
+                                    NewPoll.Command = CurrentPollType.Command;
+                                    NewPoll.Question = CurrentPollType.Question;
+                                    NewPoll.Target = "";
+                                    NewPoll.VotedUserList = new List<string>();
+                                    NewPoll.PollChoices = new List<PollChoiceData>();
+                                    foreach (PollChoice CurrentChoice in CurrentPollType.PollChoices.Values)
+                                    {
+                                        NewPoll.PollChoices.Add(new PollChoiceData { ChoiceText = CurrentChoice.ChoiceText, VoteCount = 0 });
+                                    }
+                                    NewPoll.isActive = true;
+                                    NewPoll.Owner = "Scheduled Poll";
+                                    NewPoll.StartTime = GetLibrary<Core.Libraries.Time>().GetUnixTimestamp();
+                                    NewPoll.EndTime = NewPoll.StartTime + CurrentPollSchedule.Duration;
+                                    this.Current = NewPoll;
+                                    History.Add(NewPoll.ID, NewPoll);
+                                }
+                                else
+                                    RootLogger.Write(Core.Logging.LogType.Error, "[Polling] There is no poll type with [{0}].", CurrentPollSchedule.PollType);
+                            }
+                            else
+                                RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Since there is already running poll, skipped a schedule poll [{0}] for {1}.", CurrentPollSchedule.PollType, CurrentPollSchedule.Cron);
+                        }));
+                        RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Added new schedule poll [{0}] for {1}.", CurrentPollSchedule.PollType, CurrentPollSchedule.Cron);
+                    }
+                }
+                else
+                    RootLogger.Write(Core.Logging.LogType.Error, "[Polling] You need Cron Library plugin to schedule polls.");
+            }
+            #endregion
         }
         void Unload()
         {
@@ -351,23 +433,6 @@ namespace Oxide.Plugins
 
                 }
             }
-        }
-        void UpdateCurrentPoll(BasePlayer player)
-        {
-            if (!Active_GUI_CurrentPoll.ContainsKey(player.userID))
-            {
-                if (CurrentPollUpdater.ContainsKey(player.userID))
-                    CurrentPollUpdater[player.userID].Destroy();
-            }
-            else if(!BasePlayer.activePlayerList.Contains(player))
-            {
-                if (Active_GUI_CurrentPoll.ContainsKey(player.userID))
-                    Active_GUI_CurrentPoll.Remove(player.userID);
-                if (CurrentPollUpdater.ContainsKey(player.userID))
-                    CurrentPollUpdater[player.userID].Destroy();
-            }
-            else
-                Polling_GUI_CurrentPoll(player);
         }
         [HookMethod("SendHelpText")]
         private void SendHelpText(BasePlayer player)
@@ -509,6 +574,11 @@ namespace Oxide.Plugins
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.73", AnchorMax = "0.99 0.81" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenQuestion"), Current.Question) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.65", AnchorMax = "0.99 0.73" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenStarted"), ReadableUnixTime(Current.StartTime)) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.61", AnchorMax = "0.99 0.65" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("CurrenTimeleft"), Current.EndTime - GetLibrary<Core.Libraries.Time>().GetUnixTimestamp()) } }, MainElement);
+                    if (HasPermission(player, "Polling.Can.EndPolls"))
+                    {
+                        elements.Add(new CuiPanel { Image = { Color = "0 0 0 0.90" }, RectTransform = { AnchorMin = "0.61 0.61", AnchorMax = "0.99 0.65" } }, MainElement);
+                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.EndVote"), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.62 0.62", AnchorMax = "0.98 0.64" }, Text = { Text = GetMessage("ButtonEndVote"), Align = TextAnchor.MiddleCenter, FontSize = 10 } }, MainElement);
+                    }
                     int Number = 0;
                     foreach (PollChoiceData CurrentPollChoice in Current.PollChoices)
                     {
@@ -530,7 +600,11 @@ namespace Oxide.Plugins
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.84", AnchorMax = "0.99 0.92" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenQuestion"), Current.Question) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.76", AnchorMax = "0.99 0.84" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenStarted"), ReadableUnixTime(Current.StartTime)) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.72", AnchorMax = "0.99 0.76" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("CurrenTimeleft"), Current.EndTime - GetLibrary<Core.Libraries.Time>().GetUnixTimestamp()) } }, MainElement);
-
+                    if (HasPermission(player, "Polling.Can.EndPolls"))
+                    {
+                        elements.Add(new CuiPanel { Image = { Color = "0 0 0 0.90" }, RectTransform = { AnchorMin = "0.61 0.72", AnchorMax = "0.99 0.76" } }, MainElement);
+                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.EndVote"), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.62 0.73", AnchorMax = "0.98 0.75" }, Text = { Text = GetMessage("ButtonEndVote"), Align = TextAnchor.MiddleCenter, FontSize = 10 } }, MainElement);
+                    }
                     int Number = 0;
                     foreach (PollChoiceData CurrentPollChoice in Current.PollChoices)
                     {
@@ -558,6 +632,19 @@ namespace Oxide.Plugins
             else
             {
                 string Command = args[0];
+                if (Command == "Clean History")
+                {
+                    if (!HasPermission(player, "Polling.Can.CleanHistory"))
+                        SendReply(player, string.Format(GetMessage("ErrorPermission"), Command));
+                    else if (this.Current != null)
+                        SendReply(player, GetMessage("ErrorAlreadyPoll"));
+                    else
+                    {
+                        History = new SortedList<int, PollData>();
+                        Interface.Oxide.DataFileSystem.WriteObject<SortedList<int, PollData>>("Polling", History);
+                        RootLogger.Write(Core.Logging.LogType.Error, "[Polling] Polling history cleaned by {0}", player.displayName);
+                    }
+                }
                 Poll Current;
                 if (PollTypes.TryGetValue(Command,out Current))
                 {
@@ -646,6 +733,21 @@ namespace Oxide.Plugins
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.84", AnchorMax = "0.99 0.92" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenQuestion"), CurrentPollData.Question) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.76", AnchorMax = "0.99 0.84" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenStarted"), ReadableUnixTime(CurrentPollData.StartTime)) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.72", AnchorMax = "0.99 0.76" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0} <color=#ce422b>{1}</color>", GetMessage("CurrenOwner"), CurrentPollData.Owner) } }, MainElement);
+                    
+                    //Rerun Poll
+                    if ((Current == null) && (!CurrentPollData.isActive))
+                    {
+                        if (HasPermission(player))
+                        {
+                            if (HasPermission(player, "Polling.Create." + CurrentPollData.Command))
+                            {
+                                elements.Add(new CuiPanel { Image = { Color = "0 0 0 0.90" }, RectTransform = { AnchorMin = "0.61 0.88", AnchorMax = "0.99 0.92" } }, MainElement);
+                                elements.Add(new CuiButton { Button = { Command = string.Format("Polling.ReRun {0}", CurrentPollData.ID), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.62 0.89", AnchorMax = "0.98 0.91" }, Text = { Text = GetMessage("ButtonReRunPoll"), Align = TextAnchor.MiddleCenter, FontSize = 10 } }, MainElement);
+                            }
+                        }
+                    }
+                    //Rerun Poll
+
                     int zNumber = 0;
                     int TotalVotes = 0;
                     foreach (PollChoiceData CurrentPollChoice in CurrentPollData.PollChoices)
@@ -706,6 +808,64 @@ namespace Oxide.Plugins
         }
         #endregion
         #region Polling Functions
+        [ConsoleCommand("Polling.ReRun")]
+        void Polling_ReRun(ConsoleSystem.Arg arg)
+        {
+            if (arg == null || arg.connection == null || arg.connection.player == null || arg.Args == null)
+                return;
+
+            var player = arg.connection.player as BasePlayer;
+
+            if (player == null)
+                return;
+
+            if (arg.Args.Length == 0)
+                return;
+
+            if (this.Current != null)
+                return;
+
+            if (!HasPermission(player))
+                return;
+
+            int Id = 0;
+            if (arg.Args != null)
+                if (arg.Args.Length > 0)
+                    if (!Int32.TryParse(arg.Args[0], out Id))
+                        return;
+
+            PollData CurrentPollData;
+            if (!History.TryGetValue(Id, out CurrentPollData))
+                return;
+
+            Poll CurrentType;
+            if (!PollTypes.TryGetValue(CurrentPollData.Command, out CurrentType))
+                return;
+
+            if (!HasPermission(player, CurrentType.Permission))
+                return;
+
+            PollData NewPoll;
+            uint Timer = CurrentPollData.EndTime - CurrentPollData.StartTime;
+
+            NewPoll = new PollData();
+            NewPoll.ID = History.Count + 1;
+            NewPoll.Command = CurrentPollData.Command;
+            NewPoll.Question = CurrentPollData.Question;
+            NewPoll.Target = CurrentPollData.Target;
+            NewPoll.VotedUserList = new List<string>();
+            NewPoll.PollChoices = new List<PollChoiceData>();
+            foreach (PollChoiceData CurrentChoice in CurrentPollData.PollChoices)
+            {
+                NewPoll.PollChoices.Add(new PollChoiceData { ChoiceText = CurrentChoice.ChoiceText, VoteCount = 0 });
+            }
+            NewPoll.isActive = true;
+            NewPoll.Owner = player.displayName;
+            NewPoll.StartTime = GetLibrary<Core.Libraries.Time>().GetUnixTimestamp();
+            NewPoll.EndTime = NewPoll.StartTime + Timer;
+            this.Current = NewPoll;
+            History.Add(NewPoll.ID, NewPoll);
+        }
         [ConsoleCommand("Polling.Vote")]
         void Polling_Vote(ConsoleSystem.Arg arg)
         {
@@ -788,7 +948,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpAirdropPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -824,7 +984,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpUserBanPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -868,7 +1028,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpCustomPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -904,7 +1064,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpHeliPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -940,7 +1100,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpUserKickPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -988,7 +1148,7 @@ namespace Oxide.Plugins
                         {
                             SendReply(player, GetMessage("ErrorSyntax") + string.Format(GetMessage("HelpTimePollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string));
                         }
-                        else if ((Timer < 30) || (Timer > 300))
+                        else if ((Timer < 30) || (Timer > 3600))
                         {
                             SendReply(player, GetMessage("ErrorTime"));
                         }
@@ -1018,8 +1178,64 @@ namespace Oxide.Plugins
             }
             else
             {
-
+                #region Custom
+                if (args.Length < 2)
+                {
+                    SendReply(player, GetMessage("ErrorSyntax") + string.Format("<color=#ce422b>     /{0}</color> '{1}' 'Timer'".Replace("'", "''"), MainSettings["ChatCommand"] as string, Current.Command));
+                }
+                else if (!uint.TryParse(args[1], out Timer))
+                {
+                    SendReply(player, GetMessage("ErrorSyntax") + string.Format("<color=#ce422b>     /{0}</color> '{1}' 'Timer'".Replace("'", "''"), MainSettings["ChatCommand"] as string, Current.Command));
+                }
+                else if ((Timer < 30) || (Timer > 3600))
+                {
+                    SendReply(player, GetMessage("ErrorTime"));
+                }
+                else
+                {
+                    NewPoll = new PollData();
+                    NewPoll.ID = History.Count + 1;
+                    NewPoll.Command = Current.Command;
+                    NewPoll.Question = Current.Question;
+                    NewPoll.Target = "";
+                    NewPoll.VotedUserList = new List<string>();
+                    NewPoll.PollChoices = new List<PollChoiceData>();
+                    foreach (PollChoice CurrentChoice in Current.PollChoices.Values)
+                    {
+                        NewPoll.PollChoices.Add(new PollChoiceData { ChoiceText = CurrentChoice.ChoiceText, VoteCount = 0 });
+                    }
+                    NewPoll.isActive = true;
+                    NewPoll.Owner = player.displayName;
+                    NewPoll.StartTime = GetLibrary<Core.Libraries.Time>().GetUnixTimestamp();
+                    NewPoll.EndTime = NewPoll.StartTime + Timer;
+                    this.Current = NewPoll;
+                    History.Add(NewPoll.ID, NewPoll);
+                }
+                #endregion
             }
+        }
+        [ConsoleCommand("Polling.EndVote")]
+        void Polling_EndVote(ConsoleSystem.Arg arg)
+        {
+            if (arg == null || arg.connection == null || arg.connection.player == null)
+                return;
+            var player = arg.connection.player as BasePlayer;
+            if (player == null)
+                return;
+            if (Current == null)
+            {
+                SendReply(player, GetMessage("NoPoll"));
+            }
+            else if (!HasPermission(player, "Polling.Can.EndPolls"))
+            {
+                SendReply(player, GetMessage("ErrorEndVote"));
+            }
+            else
+            {
+                EndVote();
+            }
+            Polling_GUI_Close(arg);
+            Polling_GUI_CurrentPoll(player);
         }
         public void EndVote()
         {
@@ -1039,12 +1255,9 @@ namespace Oxide.Plugins
                                 Current.isActive = false;
                                 if ((bool)MainSettings["CountNonVoters"])
                                 {
-                                    int NonVoters = BasePlayer.activePlayerList.Count - Current.VotedUserList.Count;
-                                    if (NonVoters > 0)
-                                        Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
+                                    Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
                                 }
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ToList()[0];
                                 if (Winner.ChoiceText == GetMessage("Yes"))
                                 {
                                     if ((bool)(PluginSetting["CargoPlane"] as Dictionary<string, object>)["Enabled"])
@@ -1074,12 +1287,9 @@ namespace Oxide.Plugins
                                 Current.isActive = false;
                                 if ((bool)MainSettings["CountNonVoters"])
                                 {
-                                    int NonVoters = BasePlayer.activePlayerList.Count - Current.VotedUserList.Count;
-                                    if (NonVoters > 0)
-                                        Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
+                                    Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
                                 }
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ToList()[0];
                                 if (Winner.ChoiceText == GetMessage("Yes"))
                                 {
                                     BasePlayer BanUser = BasePlayer.activePlayerList.Find(e => e.UserIDString == Current.Target);
@@ -1097,11 +1307,10 @@ namespace Oxide.Plugins
                                 }
                                 break;
                             #endregion
-                            #region Ban
+                            #region Custom
                             case "Custom":
                                 Current.isActive = false;
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ThenBy(c => c.ChoiceText).ToList()[0];
                                 break;
                             #endregion
                             #region Heli
@@ -1109,12 +1318,9 @@ namespace Oxide.Plugins
                                 Current.isActive = false;
                                 if ((bool)MainSettings["CountNonVoters"])
                                 {
-                                    int NonVoters = BasePlayer.activePlayerList.Count - Current.VotedUserList.Count;
-                                    if (NonVoters > 0)
-                                        Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
+                                    Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
                                 }
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ToList()[0];
                                 if (Winner.ChoiceText == GetMessage("Yes"))
                                 {
                                     if ((bool)(PluginSetting["PatrolHelicopter"] as Dictionary<string, object>)["Enabled"])
@@ -1146,12 +1352,9 @@ namespace Oxide.Plugins
                                 Current.isActive = false;
                                 if ((bool)MainSettings["CountNonVoters"])
                                 {
-                                    int NonVoters = BasePlayer.activePlayerList.Count - Current.VotedUserList.Count;
-                                    if (NonVoters > 0)
-                                        Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
+                                    Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
                                 }
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ToList()[0];
                                 if (Winner.ChoiceText == GetMessage("Yes"))
                                 {
                                     BasePlayer KickUser = BasePlayer.activePlayerList.Find(e => e.UserIDString == Current.Target);
@@ -1169,12 +1372,9 @@ namespace Oxide.Plugins
                                 Current.isActive = false;
                                 if ((bool)MainSettings["CountNonVoters"])
                                 {
-                                    int NonVoters = BasePlayer.activePlayerList.Count - Current.VotedUserList.Count;
-                                    if (NonVoters > 0)
-                                        Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
+                                    Current.PollChoices.Find(Choice => Choice.ChoiceText == GetMessage("No")).VoteCount += GetNonVoters();
                                 }
-                                Current.PollChoices.Sort((x, y) => -1 * x.VoteCount.CompareTo(y.VoteCount));
-                                Winner = Current.PollChoices[0];
+                                Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ToList()[0];
                                 if (Winner.ChoiceText == GetMessage("Yes"))
                                 {
                                     if (Current.Target == "Day")
@@ -1196,7 +1396,16 @@ namespace Oxide.Plugins
                     }
                     else
                     {
-
+                        Current.isActive = false;
+                        Winner = Current.PollChoices.OrderByDescending(c => c.VoteCount).ThenBy(c => c.ChoiceText).ToList()[0];
+                        string[] ConsoleCommands = PollType.PollChoices.Values.First(c => c.ChoiceText == Winner.ChoiceText).ChoiceConsoleCommand.Split(',');
+                        if (ConsoleCommands.Length > 0)
+                            foreach (string CurrentConsoleCommand in ConsoleCommands)
+                                if (!string.IsNullOrEmpty(CurrentConsoleCommand))
+                                {
+                                    RootLogger.Write(Core.Logging.LogType.Warning, "[Polling] Custom poll running console command ({0})", CurrentConsoleCommand);
+                                    rust.RunServerCommand(CurrentConsoleCommand);
+                                }
                     }
                     if (Winner != null)
                     {
@@ -1273,6 +1482,23 @@ namespace Oxide.Plugins
             }
             return NonVoters;
         }
+        void UpdateCurrentPoll(BasePlayer player)
+        {
+            if (!Active_GUI_CurrentPoll.ContainsKey(player.userID))
+            {
+                if (CurrentPollUpdater.ContainsKey(player.userID))
+                    CurrentPollUpdater[player.userID].Destroy();
+            }
+            else if (!BasePlayer.activePlayerList.Contains(player))
+            {
+                if (Active_GUI_CurrentPoll.ContainsKey(player.userID))
+                    Active_GUI_CurrentPoll.Remove(player.userID);
+                if (CurrentPollUpdater.ContainsKey(player.userID))
+                    CurrentPollUpdater[player.userID].Destroy();
+            }
+            else
+                Polling_GUI_CurrentPoll(player);
+        }
         #endregion
         #region Helper Methods
         string GetMessage(string key, string steamId = null) => lang.GetMessage(key, this, steamId);
@@ -1288,7 +1514,7 @@ namespace Oxide.Plugins
         }
         void SendReply(BasePlayer player,string Message)
         {
-            rust.RunClientCommand(player, "chat.add", 76561198286931766, string.Format("[<color=orange>{0}</color>] : {1}", (string)MainSettings["ChatTag"], Message));
+            rust.RunClientCommand(player, "chat.add", Convert.ToInt64((string)MainSettings["ChatProfile"]), string.Format("[<color=orange>{0}</color>] : {1}", (string)MainSettings["ChatTag"], Message));
         }
         Vector3 GetRandomVector()
         {
