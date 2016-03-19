@@ -11,7 +11,7 @@ using Newtonsoft.Json.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Jail", "Reneb / k1lly0u", "3.0.3", ResourceId = 1649)]
+    [Info("Jail", "Reneb / k1lly0u", "3.0.61", ResourceId = 1649)]
     class Jail : RustPlugin
     {
         [PluginReference]
@@ -29,7 +29,6 @@ namespace Oxide.Plugins
         private DynamicConfigFile JailData;
 
         private Dictionary<BasePlayer, Timer> jailTimerList = new Dictionary<BasePlayer, Timer>();
-        //private Dictionary<BasePlayer, Timer> PlayerZoneTimers = new Dictionary<BasePlayer, Timer>();
 
         private List<string> prisonIDs = new List<string>();
 
@@ -69,6 +68,11 @@ namespace Oxide.Plugins
             }
             Started = true;
             return true;
+        }        
+        private bool IsPrisoner(BasePlayer player)
+        {
+            if (jailData.Prisoners.ContainsKey(player.userID)) return true;
+            return false;
         }
 
         void LoadDefaultConfig()
@@ -87,12 +91,8 @@ namespace Oxide.Plugins
                 SaveData();
             }
         }
-        void OnPlayerSleepEnded(BasePlayer player)
-        {
-            if (Started)
-                if (jailData.Prisoners.ContainsKey(player.userID))
-                    CheckInmate(player);
-        }
+        void OnPlayerInit(BasePlayer player) => CheckPlayer(player);
+        void OnPlayerSleepEnded(BasePlayer player) => CheckPlayer(player);
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitinfo)
         {
             if (Started)
@@ -121,11 +121,12 @@ namespace Oxide.Plugins
                 }
             }
         }
-        void OnPlayerRespawned(BasePlayer player)
+        void OnPlayerRespawned(BasePlayer player) => CheckPlayer(player);
+        void CheckPlayer(BasePlayer player)
         {
             if (Started)
                 if (jailData.Prisoners.ContainsKey(player.userID))
-                    CheckInmate(player); 
+                    CheckInmate(player);
         }
         void CheckInmate(BasePlayer player)
         {
@@ -176,7 +177,7 @@ namespace Oxide.Plugins
 
             return foundPlayers[0];
         }
-        private object FindPlayerByID(ulong steamid)
+        private BasePlayer FindPlayerByID(ulong steamid)
         {
             BasePlayer targetplayer = BasePlayer.FindByID(steamid);
             if (targetplayer != null)
@@ -223,6 +224,10 @@ namespace Oxide.Plugins
                     if (location != null && location is Vector3)
                         data.location = (Vector3)location;
 
+                    object radius = ZoneManager?.Call("GetZoneRadius", new object[] { (string)zoneid });
+                    if (radius != null && radius is float)
+                        data.zoneRadius = float.Parse(radius.ToString());
+
                     data.spawnFile = args[3];
 
                     int cellCount = (int)CheckSpawns(args[3]);
@@ -242,13 +247,19 @@ namespace Oxide.Plugins
         {
             if (jailData.prisons.ContainsKey(arg.ToLower()))
             {
+                EraseJailZone(arg.ToLower());
                 jailData.prisons.Remove(arg.ToLower());
                 SendMsg(player, lang.GetMessage("remJail", this, player.UserIDString) + arg);
                 SaveData();
             }
             else SendMsg(player, lang.GetMessage("noJail", this, player.UserIDString));
         }
-        private object SendToJail(BasePlayer player, string prisonName, int time)
+        private void EraseJailZone(string zoneID)
+        {
+            ZoneManager.Call("EraseZone", zoneID);
+            Puts("Jail Zone " + zoneID + " removed.");
+        }
+        private object SendPlayerToJail(BasePlayer player, string prisonName, int time)
         {
             object cellNum = FindEmptyCell(prisonName);
             if (cellNum != null)
@@ -313,7 +324,7 @@ namespace Oxide.Plugins
         private Vector3 CalculateFreePos(string prisonName)
         {
             Vector3 zonePos = jailData.prisons[prisonName].location;
-            int zoneRadius = jailData.prisons[prisonName].zoneRadius;
+            float zoneRadius = jailData.prisons[prisonName].zoneRadius;
             Vector3 calcPos = zonePos + new Vector3(zoneRadius + 10, 0, 0);
             Vector3 finalPos = CalculateGroundPos(calcPos);
             return finalPos;
@@ -378,22 +389,7 @@ namespace Oxide.Plugins
             if (emptyCell == -1) return null;
             return emptyCell;
         }
-        /*private void StartKillTimer(BasePlayer player)
-        {
-            int time = 10;
-            PlayerZoneTimers.Add(player, timer.Repeat(1, time, () =>
-            {
-                time--;
-                SendMsg(player, "<color=red> " + time.ToString() + "</color>");
-                if (time == 0)
-                {
-                    Effect.server.Run("assets/prefabs/tools/c4/effects/c4_explosion.prefab", (player.transform.position));
-                    player.Hurt(200f, Rust.DamageType.Explosion, null, true);
-                    PlayerZoneTimers[player].Destroy();
-                    PlayerZoneTimers.Remove(player);
-                }
-            }));
-        }*/
+       
         int CurrentTime() { return System.Convert.ToInt32(System.DateTime.UtcNow.Subtract(epoch).TotalSeconds); }
         private void SendMsg(BasePlayer player, string msg)
         {
@@ -480,6 +476,7 @@ namespace Oxide.Plugins
                 SendMsg(player, lang.GetMessage("synRem", this, player.UserIDString));
                 SendMsg(player, lang.GetMessage("synList", this, player.UserIDString));
                 SendMsg(player, lang.GetMessage("synZone", this, player.UserIDString));
+                SendMsg(player, lang.GetMessage("synWipe", this, player.UserIDString));
                 return;
             }
             if (!hasPermission(player)) return;
@@ -504,7 +501,7 @@ namespace Oxide.Plugins
                         if (args.Length >= 3)
                             int.TryParse(args[2], out time);
 
-                        object success = SendToJail(target, prison, time);
+                        object success = SendPlayerToJail(target, prison, time);
                         if (success is bool)
                             if ((bool)success) SendMsg(player, string.Format(lang.GetMessage("sentTo", this, player.UserIDString), target.displayName, prison));
                             else if (success is string)
@@ -549,13 +546,25 @@ namespace Oxide.Plugins
                         int.TryParse(args[1], out radius);
                     string zoneID = "Jail" + (jailData.prisons.Count + 1);
                     string[] zoneargs = new string[] { "eject", "true", "radius", radius.ToString(), "sleepgod", "true", "undestr", "true", "nobuild", "true", "notp", "true", "nokits", "true", "nodeploy", "true", "nosuicide", "true" };
-                    ZoneManager.Call("CreateOrUpdateZone", zoneID, zoneargs, player.transform.position);
+                    ZoneManager?.Call("CreateOrUpdateZone", zoneID, zoneargs, player.transform.position);
                     SendMsg(player, lang.GetMessage("createJail", this, player.UserIDString));
                     SendMsg(player, string.Format(lang.GetMessage("jailID", this, player.UserIDString), zoneID));
                     return;
                 case "list":
                     foreach (var entry in jailData.prisons)
                         SendReply(player, "Name: " + entry.Key + ", Location: " + entry.Value.location.ToString());
+                    return;
+                case "wipe":
+                    foreach(var entry in jailData.prisons) EraseJailZone(entry.Key);
+                    foreach (var entry in jailData.Prisoners)
+                    {
+                        BasePlayer inmate = FindPlayerByID(entry.Key);
+                        if (inmate != null)
+                            FreeFromJail(inmate);
+                    }
+                    jailData.Prisoners.Clear();
+                    jailData.prisons.Clear();
+                    SaveData();
                     return;
             }
         }
@@ -576,7 +585,6 @@ namespace Oxide.Plugins
                 }
             }            
             else SendReply(arg, lang.GetMessage("synFree", this));
-
         }
         [ConsoleCommand("jail.send")]
         private void ccmdjailSend(ConsoleSystem.Arg arg)
@@ -601,7 +609,7 @@ namespace Oxide.Plugins
                 if (arg.Args.Length >= 2)
                     int.TryParse(arg.Args[1], out time);
 
-                object success = SendToJail(target, prison, time);
+                object success = SendPlayerToJail(target, prison, time);
                 if (success is bool)
                     if ((bool)success) SendReply(arg, lang.GetMessage("sentTo", this), target.displayName, prison);
                     else if (success is string)
@@ -711,7 +719,7 @@ namespace Oxide.Plugins
         public class Prison
         {
             public string zoneID;
-            public int zoneRadius;
+            public float zoneRadius;
             public string spawnFile;
             public Dictionary<int, bool> freeCells = new Dictionary<int, bool>();
             public Vector3 location;
@@ -886,6 +894,7 @@ namespace Oxide.Plugins
             {"synRem", "/jail remove <prisonname> - Remove a prison" },
             {"synZone", "/jail zone <radius> - Create a prison zone with required flags" },
             {"synList", "/jail list - Lists all prison's" },
+            {"synWipe", "/jail wipe - Wipe's all prison data" },
             {"noPrisons", "The are no prisons available!" },
             {"sentTo", "{0} has been sent to {1}" },
             {"noCells", "The are no free cells available at {0}" },
