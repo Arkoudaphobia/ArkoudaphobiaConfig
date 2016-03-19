@@ -45,7 +45,7 @@ using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
-    [Info("Polling Plugin", "Feramor", "1.2.0", ResourceId = 793)]
+    [Info("Polling Plugin", "Feramor", "1.2.1", ResourceId = 793)]
     [Description("Allows players with permission to run polls.")]
     public class Polling : RustPlugin
     {
@@ -103,9 +103,9 @@ namespace Oxide.Plugins
         private Dictionary<string, object> CustomPolls;
         private List<PollSchedule> PollSchedules;
 
-        private Dictionary<string,Poll> PollTypes;
+        private Dictionary<string, Poll> PollTypes;
         private PollData Current;
-        private SortedList<int,PollData> History;
+        private SortedList<int, PollData> History;
 
         private Dictionary<ulong, string> Active_GUI_CurrentPoll;
         private Dictionary<ulong, string> Active_GUI_Help;
@@ -176,7 +176,8 @@ namespace Oxide.Plugins
                 {"BanReason","You have been banned by poll results." },
                 {"ButtonReRunPoll","Re-run Poll" },
                 {"ErrorEndVote","You <color=#ce422b>don't</color> have permission to end polls." },
-                {"ButtonEndVote","End Poll" }
+                {"ButtonEndVote","End Poll" },
+                {"ScheduledPollCount","Currently there is/are {0} scheduled polls" },
             };
             SortedDictionary<string, string> sortedMessages = new SortedDictionary<string, string>(messages);
             messages.Clear();
@@ -202,7 +203,7 @@ namespace Oxide.Plugins
                 Config["Settings"] = NewSettings;
                 SaveConfig();
             }
-            
+
         }
         #endregion
         #region Hooks
@@ -225,12 +226,12 @@ namespace Oxide.Plugins
             RegisterPoll("Ban", GetMessage("QuestionBan"), "Polling.Create.Ban", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 1);
             RegisterPoll("Custom", GetMessage("QuestionCustom"), "Polling.Create.Custom", new List<Dictionary<string, string>> { }, false, 2);
             RegisterPoll("Heli", GetMessage("QuestionHeli"), "Polling.Create.Heli", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 3);
-            RegisterPoll("Kick", GetMessage("QuestionKick"), "Polling.Create.Kick", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText",GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 4);
+            RegisterPoll("Kick", GetMessage("QuestionKick"), "Polling.Create.Kick", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 4);
             RegisterPoll("Time", GetMessage("QuestionTime"), "Polling.Create.Time", new List<Dictionary<string, string>> { new Dictionary<string, string> { { "ChoiceText", GetMessage("Yes") }, { "ChoiceConsoleCommand", "" } }, new Dictionary<string, string> { { "ChoiceText", GetMessage("No") }, { "ChoiceConsoleCommand", "" } } }, false, 5);
 
             //Register Custom Plugins
             RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Registering {0} custom poll(s) .", CustomPolls.Count);
-            foreach (KeyValuePair<string,object> CurrentCustomPoll in CustomPolls)
+            foreach (KeyValuePair<string, object> CurrentCustomPoll in CustomPolls)
             {
                 Dictionary<string, object> currentCustomPoll = CurrentCustomPoll.Value as Dictionary<string, object>;
                 Dictionary<string, object> CustomPollChoices = currentCustomPoll["PollChoices"] as Dictionary<string, object>;
@@ -238,7 +239,7 @@ namespace Oxide.Plugins
                 foreach (KeyValuePair<string, object> CurrentCustomPollChoices in CustomPollChoices)
                 {
                     Dictionary<string, string> newCustomPollChoice = new Dictionary<string, string>();
-                    newCustomPollChoice.Add("ChoiceText", (CurrentCustomPollChoices.Value as Dictionary<string,object>)["ChoiceText"] as string);
+                    newCustomPollChoice.Add("ChoiceText", (CurrentCustomPollChoices.Value as Dictionary<string, object>)["ChoiceText"] as string);
                     newCustomPollChoice.Add("ChoiceConsoleCommand", (CurrentCustomPollChoices.Value as Dictionary<string, object>)["ChoiceConsoleCommand"] as string);
                     currentCustomPollChoices.Add(newCustomPollChoice);
                 }
@@ -256,7 +257,7 @@ namespace Oxide.Plugins
                 History = new SortedList<int, PollData>();
                 Interface.Oxide.DataFileSystem.WriteObject<SortedList<int, PollData>>("Polling", History);
                 RootLogger.Write(Core.Logging.LogType.Error, "[Polling] There has been an error occured while loading history.Reseting history file.", History.Count);
-                
+
             }
 
             RootLogger.Write(Core.Logging.LogType.Info, "[Polling] Currently {0} poll(s) loaded to History.", History.Count);
@@ -331,7 +332,7 @@ namespace Oxide.Plugins
                     CurrentPollReminder.Destroy();
                 CurrentPollReminder = null;
             }
-            Interface.Oxide.DataFileSystem.WriteObject<SortedList<int,PollData>>("Polling", History);
+            Interface.Oxide.DataFileSystem.WriteObject<SortedList<int, PollData>>("Polling", History);
         }
         void OnServerInitialized()
         {
@@ -404,7 +405,7 @@ namespace Oxide.Plugins
                     }
                 }
             }
-            else if ((bool)(PluginSetting["AutoSkipNights"] as Dictionary<string,object>)["Enabled"])
+            else if ((bool)(PluginSetting["AutoSkipNights"] as Dictionary<string, object>)["Enabled"])
             {
                 TOD_Sky Sky = TOD_Sky.Instance;
                 if (Sky.Cycle.DateTime.ToString("HH:mm") == ((PluginSetting["AutoSkipNights"] as Dictionary<string, object>)["TimeOfSkip"] as string))
@@ -476,60 +477,128 @@ namespace Oxide.Plugins
             elements.Add(new CuiPanel { Image = { Color = "0 0 0 0.90" }, RectTransform = { AnchorMin = "0.01 0.01", AnchorMax = "0.99 0.07" } }, MainElement);
             elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.01", AnchorMax = "0.98 0.07" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 12, Text = "By <color=#ce422b>Feramor</color>" } }, MainElement);
             elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.01", AnchorMax = "0.98 0.07" }, Text = { Align = TextAnchor.MiddleRight, FontSize = 12, Text = string.Format("Version <color=#ce422b>{0}</color>", Version.ToString()) } }, MainElement);
-
-            if (HasPermission(player))
+            #region PreDefined Polls
+            if ((arg.Args == null || arg.Args.Length == 0))
             {
-                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.81", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = GetMessage("CanCreatePoll") } }, MainElement);
-                int Number = 0;
-                if (HasPermission(player, "Polling.Create.Airdrop"))
+                if (PollSchedules.Count == 0)
                 {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpAirdropPoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpAirdropPollUsage").Replace("'","''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (HasPermission(player, "Polling.Create.Ban"))
-                {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpUserBanPoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpUserBanPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (HasPermission(player, "Polling.Create.Custom"))
-                {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpCustomPoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpCustomPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (HasPermission(player, "Polling.Create.Heli"))
-                {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpHeliPoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpHeliPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (HasPermission(player,"Polling.Create.Kick"))
-                {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpUserKickPoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpUserKickPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (HasPermission(player, "Polling.Create.Time"))
-                {
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpTimePoll") } }, MainElement);
-                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpTimePollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
-                    Number++;
-                }
-                if (CustomPolls.Count == 0)
-                {
-                    elements.Add(new CuiButton { Button = { Color = "255 0 0 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = string.Format(GetMessage("CustomPollCount") + "(NYI)", CustomPolls.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                    elements.Add(new CuiButton { Button = { Command = "Polling.GUI.Help Scheduled", Color = "255 0 0 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = string.Format(GetMessage("ScheduledPollCount"), PollSchedules.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
                 }
                 else
                 {
-                    elements.Add(new CuiButton { Button = { Color = "255 0 0 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = string.Format(GetMessage("CustomPollCount") + "(NYI)", CustomPolls.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                    elements.Add(new CuiButton { Button = { Command = "Polling.GUI.Help Scheduled", Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = string.Format(GetMessage("ScheduledPollCount"), PollSchedules.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                }
+                if (HasPermission(player))
+                {
+                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.81", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = GetMessage("CanCreatePoll") } }, MainElement);
+                    int Number = 0;
+                    if (HasPermission(player, "Polling.Create.Airdrop"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpAirdropPoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpAirdropPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (HasPermission(player, "Polling.Create.Ban"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpUserBanPoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpUserBanPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (HasPermission(player, "Polling.Create.Custom"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpCustomPoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpCustomPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (HasPermission(player, "Polling.Create.Heli"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpHeliPoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpHeliPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (HasPermission(player, "Polling.Create.Kick"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpUserKickPoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpUserKickPollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (HasPermission(player, "Polling.Create.Time"))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = GetMessage("HelpTimePoll") } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format(GetMessage("HelpTimePollUsage").Replace("'", "''"), MainSettings["ChatCommand"] as string) } }, MainElement);
+                        Number++;
+                    }
+                    if (CustomPolls.Count == 0)
+                    {
+                        elements.Add(new CuiButton { Button = { Command = "Polling.GUI.Help Custom", Color = "255 0 0 0.90" }, RectTransform = { AnchorMin = "0.02 0.15", AnchorMax = "0.99 0.19" }, Text = { Text = string.Format(GetMessage("CustomPollCount"), CustomPolls.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                    }
+                    else
+                    {
+                        elements.Add(new CuiButton { Button = { Command = "Polling.GUI.Help Custom", Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.15", AnchorMax = "0.99 0.19" }, Text = { Text = string.Format(GetMessage("CustomPollCount"), CustomPolls.Count), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                    }
+                }
+                else
+                {
+                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.70", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = GetMessage("CantCreatePoll") } }, MainElement);
                 }
             }
-            else
+            #endregion
+            #region Custom Polls
+            else if ((arg.Args.Length > 0 && arg.Args[0] == "Custom"))
             {
-                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.70", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = GetMessage("CantCreatePoll") } }, MainElement);
+                int Page = 0;
+                if (arg.Args != null)
+                    if (arg.Args.Length > 1)
+                        Int32.TryParse(arg.Args[1], out Page);
+                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.81", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = string.Format(GetMessage("CustomPollCount"), CustomPolls.Count.ToString()) } }, MainElement);
+                int Number = 0;
+                int x = (Page * 7);
+                foreach (KeyValuePair<string, object> CurrentCustomPoll in CustomPolls)
+                {
+                    if ((Number < 7) && (Number >= x))
+                    {
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = "<color=#ce422b> * </color>" + (CurrentCustomPoll.Value as Dictionary<string, object>)["Description"] as string } }, MainElement);
+                        elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("<color=#ce422b>     /{0}</color> '{1}' 'Timer'".Replace("'", "''"), MainSettings["ChatCommand"] as string, CurrentCustomPoll.Key) } }, MainElement);
+                    }
+                    Number++;
+                }
+                if (Page != 0)
+                    elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.Help Custom {0}", Page - 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.42 0.12" }, Text = { Text = GetMessage("ButtonPreviousPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.42 0.08", AnchorMax = "0.59 0.12" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 12, Text = string.Format(GetMessage("Page"), Page + 1) } }, MainElement);
+                if (CustomPolls.Count - (Page * 7) - 7 > 0)
+                    elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.Help Custom {0}", Page + 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.59 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = GetMessage("ButtonNextPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+
             }
+            #endregion
+            #region Scheduled Polls
+            else if ((arg.Args.Length > 0 && arg.Args[0] == "Scheduled"))
+            {
+                if (CronLibrary != null && CronLibrary.IsLoaded)
+                {
+                    int Page = 0;
+                    if (arg.Args != null)
+                        if (arg.Args.Length > 1)
+                            Int32.TryParse(arg.Args[1], out Page);
+                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.81", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = string.Format(GetMessage("ScheduledPollCount") + "\n{1}\nCron Library : {2}", PollSchedules.Count.ToString(), DateTime.UtcNow.ToString("ddd, dd MMM yyyy HH':'mm':'ss 'UTC'"), CronLibrary.Version.ToString()) } }, MainElement);
+                    int Number = 0;
+                    int x = (Page * 7);
+                    foreach (PollSchedule CurrentPollSchedule in PollSchedules)
+                    {
+                        if ((Number < 7) && (Number >= x))
+                        {
+                            elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.76 - (Number * 0.08)), AnchorMax = "0.99 " + (0.80 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = "<color=#ce422b> * </color>" + string.Format("{0} - {1}", CurrentPollSchedule.PollType, CurrentPollSchedule.Cron) } }, MainElement);
+                            elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.72 - (Number * 0.08)), AnchorMax = "0.99 " + (0.76 - (Number * 0.08)) }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("<color=#ce422b>     Next Occurrence</color>     : {0} UTC", CronLibrary?.CallHook("GetNextOccurrence", true, CurrentPollSchedule.Cron, true) as string) } }, MainElement);
+                        }
+                        Number++;
+                    }
+                    if (Page != 0)
+                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.Help Scheduled {0}", Page - 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.42 0.12" }, Text = { Text = GetMessage("ButtonPreviousPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                    elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.42 0.08", AnchorMax = "0.59 0.12" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 12, Text = string.Format(GetMessage("Page"), Page + 1) } }, MainElement);
+                    if (PollSchedules.Count - (Page * 7) - 7 > 0)
+                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.Help Scheduled {0}", Page + 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.59 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = GetMessage("ButtonNextPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                }
+            }
+            #endregion
             CuiHelper.AddUi(player, elements);
         }
         #endregion
@@ -608,7 +677,7 @@ namespace Oxide.Plugins
                     int Number = 0;
                     foreach (PollChoiceData CurrentPollChoice in Current.PollChoices)
                     {
-                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.Vote {0}",Number), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 " + (0.66 - (Number * 0.06)), AnchorMax = "0.90 " + (0.70 - (Number * 0.06)) }, Text = { Text = CurrentPollChoice.ChoiceText , Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                        elements.Add(new CuiButton { Button = { Command = string.Format("Polling.Vote {0}", Number), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 " + (0.66 - (Number * 0.06)), AnchorMax = "0.90 " + (0.70 - (Number * 0.06)) }, Text = { Text = CurrentPollChoice.ChoiceText, Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
                         elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.91 " + (0.66 - (Number * 0.06)), AnchorMax = "0.99 " + (0.70 - (Number * 0.06)) }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = CurrentPollChoice.VoteCount.ToString() } }, MainElement);
                         Number++;
                     }
@@ -617,7 +686,7 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.99 0.12" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 12, Text = GetMessage("AutoRefresh") } }, MainElement);
             CuiHelper.AddUi(player, elements);
             if (!CurrentPollUpdater.ContainsKey(player.userID))
-                CurrentPollUpdater.Add(player.userID,timer.Repeat(10, 0, () => UpdateCurrentPoll(player)));
+                CurrentPollUpdater.Add(player.userID, timer.Repeat(10, 0, () => UpdateCurrentPoll(player)));
         }
         void Chat_Polling_GUI_CurrentPoll(BasePlayer player, string command, string[] args = null)
         {
@@ -646,7 +715,7 @@ namespace Oxide.Plugins
                     }
                 }
                 Poll Current;
-                if (PollTypes.TryGetValue(Command,out Current))
+                if (PollTypes.TryGetValue(Command, out Current))
                 {
                     if (!HasPermission(player, Current.Permission))
                     {
@@ -701,10 +770,10 @@ namespace Oxide.Plugins
                         Int32.TryParse(arg.Args[1], out Page);
                 elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.81", AnchorMax = "0.99 0.93" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 14, Text = string.Format(GetMessage("HistoryCount"), History.Count.ToString()) } }, MainElement);
                 int Number = 0;
-                for (int x = History.Count - (Page * 10);x > History.Count - (Page * 10) - 10;x-- )
+                for (int x = History.Count - (Page * 10); x > History.Count - (Page * 10) - 10; x--)
                 {
                     PollData CurrentPollData;
-                    if (History.TryGetValue(x,out CurrentPollData))
+                    if (History.TryGetValue(x, out CurrentPollData))
                     {
                         elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 " + (0.77 - (Number * 0.06)), AnchorMax = "0.08 " + (0.81 - (Number * 0.06)) }, Text = { Align = TextAnchor.MiddleRight, FontSize = 12, Text = string.Format("{0})", x.ToString()) } }, MainElement);
                         elements.Add(new CuiPanel { Image = { Color = "192 192 192 0.90" }, RectTransform = { AnchorMin = "0.09 " + (0.77 - (Number * 0.06)), AnchorMax = "0.80 " + (0.81 - (Number * 0.06)) } }, MainElement);
@@ -715,8 +784,8 @@ namespace Oxide.Plugins
                 }
 
                 if (Page != 0)
-                    elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.History List {0}",Page - 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.42 0.12" }, Text = { Text = GetMessage("ButtonPreviousPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
-                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.42 0.08", AnchorMax = "0.59 0.12" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 12, Text = string.Format(GetMessage("Page"),Page + 1) } }, MainElement);
+                    elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.History List {0}", Page - 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.02 0.08", AnchorMax = "0.42 0.12" }, Text = { Text = GetMessage("ButtonPreviousPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
+                elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.42 0.08", AnchorMax = "0.59 0.12" }, Text = { Align = TextAnchor.MiddleCenter, FontSize = 12, Text = string.Format(GetMessage("Page"), Page + 1) } }, MainElement);
                 if (History.Count - (Page * 10) - 10 > 0)
                     elements.Add(new CuiButton { Button = { Command = string.Format("Polling.GUI.History List {0}", Page + 1), Close = MainElement, Color = "0 255 255 0.90" }, RectTransform = { AnchorMin = "0.59 0.08", AnchorMax = "0.99 0.12" }, Text = { Text = GetMessage("ButtonNextPage"), Align = TextAnchor.MiddleCenter, FontSize = 12 } }, MainElement);
             }
@@ -733,7 +802,7 @@ namespace Oxide.Plugins
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.84", AnchorMax = "0.99 0.92" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenQuestion"), CurrentPollData.Question) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.76", AnchorMax = "0.99 0.84" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0}\n     - {1}", GetMessage("CurrenStarted"), ReadableUnixTime(CurrentPollData.StartTime)) } }, MainElement);
                     elements.Add(new CuiLabel { RectTransform = { AnchorMin = "0.02 0.72", AnchorMax = "0.99 0.76" }, Text = { Align = TextAnchor.MiddleLeft, FontSize = 14, Text = string.Format("{0} <color=#ce422b>{1}</color>", GetMessage("CurrenOwner"), CurrentPollData.Owner) } }, MainElement);
-                    
+
                     //Rerun Poll
                     if ((Current == null) && (!CurrentPollData.isActive))
                     {
@@ -934,9 +1003,9 @@ namespace Oxide.Plugins
         {
             PollData NewPoll;
             uint Timer;
-            if (Current.Custom==false)
+            if (Current.Custom == false)
             {
-                switch(Current.Command)
+                switch (Current.Command)
                 {
                     #region Airdrop
                     case "Airdrop":
@@ -963,7 +1032,7 @@ namespace Oxide.Plugins
                             NewPoll.PollChoices = new List<PollChoiceData>();
                             foreach (PollChoice CurrentChoice in Current.PollChoices.Values)
                             {
-                                NewPoll.PollChoices.Add(new PollChoiceData {ChoiceText = CurrentChoice.ChoiceText, VoteCount = 0 });
+                                NewPoll.PollChoices.Add(new PollChoiceData { ChoiceText = CurrentChoice.ChoiceText, VoteCount = 0 });
                             }
                             NewPoll.isActive = true;
                             NewPoll.Owner = player.displayName;
@@ -1041,7 +1110,7 @@ namespace Oxide.Plugins
                             NewPoll.Target = "";
                             NewPoll.VotedUserList = new List<string>();
                             NewPoll.PollChoices = new List<PollChoiceData>();
-                            for (int x = 3;x < args.Length;x++)
+                            for (int x = 3; x < args.Length; x++)
                             {
                                 NewPoll.PollChoices.Add(new PollChoiceData { ChoiceText = args[x], VoteCount = 0 });
                             }
@@ -1173,7 +1242,7 @@ namespace Oxide.Plugins
                             History.Add(NewPoll.ID, NewPoll);
                         }
                         break;
-                    #endregion
+                        #endregion
                 }
             }
             else
@@ -1391,7 +1460,7 @@ namespace Oxide.Plugins
 
                                 }
                                 break;
-                            #endregion
+                                #endregion
                         }
                     }
                     else
@@ -1474,7 +1543,7 @@ namespace Oxide.Plugins
         int GetNonVoters()
         {
             int NonVoters = 0;
-            foreach(BasePlayer CurrentPlayer in BasePlayer.activePlayerList)
+            foreach (BasePlayer CurrentPlayer in BasePlayer.activePlayerList)
             {
                 if (Current != null)
                     if (!Current.VotedUserList.Contains(CurrentPlayer.UserIDString))
@@ -1512,7 +1581,7 @@ namespace Oxide.Plugins
             }
             return false;
         }
-        void SendReply(BasePlayer player,string Message)
+        void SendReply(BasePlayer player, string Message)
         {
             rust.RunClientCommand(player, "chat.add", Convert.ToInt64((string)MainSettings["ChatProfile"]), string.Format("[<color=orange>{0}</color>] : {1}", (string)MainSettings["ChatTag"], Message));
         }
