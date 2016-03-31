@@ -24,7 +24,6 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.py" Enabled="false"/>
     <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PillsHere.cs" Enabled="true"/>
