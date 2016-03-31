@@ -24,14 +24,13 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.py" Enabled="false"/>
     <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PillsHere.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
-    <Mod Name="Polling.cs" Enabled="true"/>
+    <Mod Name="Polling.cs" Enabled="false"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
@@ -68,7 +67,6 @@
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
     <Config Name="Polling.json" remove="false"/>
-    <Config Name="Pollingcs.json" remove="true"/>
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
