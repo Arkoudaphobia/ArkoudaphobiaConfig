@@ -11,7 +11,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Notifier", "SkinN", "3.0.6", ResourceId = 797)]
+    [Info("Notifier", "SkinN", "3.0.7", ResourceId = 797)]
     [Description("Server administration tool with chat based notifications")]
 
     class Notifier : RustPlugin
@@ -34,7 +34,7 @@ namespace Oxide.Plugins
         {
             { "EN", "English" },
             { "PT", "Portuguese" },
-            { "ES", "Spanish"},
+            { "ES", "Spanish" },
             { "FR", "French" },
             { "DE", "German" },
             { "TR", "Turk" },
@@ -526,11 +526,14 @@ namespace Oxide.Plugins
             else
                 Players[uid].Update(player);
 
-            if ((new[] { Players[uid].country, Players[uid].countrycode }).Contains("Unknown"))
+            string country = Players[uid].country;
+            string cCode = Players[uid].countrycode;
+            if ((country == "Unknown" || country == null) || (cCode == "Unknown" || cCode == null))
                 webrequest.EnqueueGet("http://ip-api.com/json/" + Players[uid].ipaddress + "?fields=3",
                     (code, response) => WebrequestFilter(code, response, player, sendJoinMessages), this);
             else if (sendJoinMessages)
                 JoinMessages(player);
+
         }
 
         void OnPlayerDisconnected(BasePlayer player, string reason)
@@ -753,8 +756,12 @@ namespace Oxide.Plugins
                     if (Players.ContainsKey(uid))
                     {
                         var json = JObject.Parse(response);
-                        Players[uid].country = (string) json["country"];
-                        Players[uid].countrycode = (string) json["countryCode"];
+                        string country = (string) json["country"];
+                        string cCode = (string) json["countryCode"];
+                        if (country != null)
+                            Players[uid].country = country;
+                        if (cCode != null)
+                            Players[uid].countrycode = cCode;
                     }
                 }
             } catch {}
