@@ -1,6 +1,25 @@
-﻿$ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
-[XML]$RustManafest = Get-Content .\VS\Manifest.xml
+﻿Param(
+	[Switch]$QuarterlyClean
+)
+
 $BaseServerPath = "C:\RustServerOxide\server\ArkoudaphobiaModded"
+
+If($QuarterlyClean)
+{
+	$DataDirBasePath = "$BaseServerPath\oxide\data"
+	$BaseDataFiles = Get-ChildItem -Path $DataDirBasePath
+	$BaseDataFiles | ?{$_.Mode -match 'a'} | Remove-Item -Force -Confirm:$false
+	foreach($Directory in ($BaseDataFiles | ?{$_.Mode -match 'd'}))
+	{
+		If($Directory.Name -ne 'PlayerDatabase')
+		{
+			$Directory | Get-ChildItem -Recurse | Remove-Item -Recurse -Force:$true -Confirm:$false
+		}
+	}
+}
+
+$ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
+[XML]$RustManafest = Get-Content .\VS\Manifest.xml
 
 Foreach($Config in $RustManafest.ArkoudaphobiaConfig.ModConfigFiles.Config)
 {
