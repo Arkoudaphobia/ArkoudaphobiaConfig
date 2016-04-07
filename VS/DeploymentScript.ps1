@@ -31,6 +31,18 @@ If($QuarterlyClean)
 
 	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json"
 	Write-Verbose -Message "Removed Last wipes portal config file"
+
+	Get-ChildItem -Path "$BaseServerPath\cfg" | Remove-Item -Recurse -Force -Confirm:$false
+	Write-Verbose -Message "Removed config items in the cfg directory"
+
+	Get-ChildItem -Path "$BaseServerPath\save" | Remove-Item -Recurse -Force -Confirm:$false
+	Write-Verbose -Message "Removed saves from the save directory"
+
+	Remove-Item -Path "$BaseServerPath\Storage.db" -Confirm:$false -Force
+	Write-Verbose -Message "Removed the storage database"
+
+	Remove-Item -Path "$BaseServerPath\UserPersistence.db" -Confirm:$false -Force:$true
+	Write-Verbose -Message "Removed the User Persistence Database"
 }
 
 If($MonthlyClean)
