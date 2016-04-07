@@ -1,5 +1,8 @@
 ﻿Param(
-	[Switch]$QuarterlyClean
+	[Parameter(ParameterSetName="Quarterly")]
+	[Switch]$QuarterlyClean,
+	[Parameter(ParameterSetName="Monthly")]
+	[Switch]$MonthlyClean
 )
 
 $BaseServerPath = "C:\RustServerOxide\server\ArkoudaphobiaModded"
@@ -9,13 +12,31 @@ If($QuarterlyClean)
 	$DataDirBasePath = "$BaseServerPath\oxide\data"
 	$BaseDataFiles = Get-ChildItem -Path $DataDirBasePath
 	$BaseDataFiles | ?{$_.Mode -match 'a'} | Remove-Item -Force -Confirm:$false
+	Write-Verbose -Message "Removed files in the data directory"
 	foreach($Directory in ($BaseDataFiles | ?{$_.Mode -match 'd'}))
 	{
 		If($Directory.Name -ne 'PlayerDatabase')
 		{
-			$Directory | Get-ChildItem -Recurse | Remove-Item -Recurse -Force:$true -Confirm:$false
+			try
+			{
+				$Directory | Get-ChildItem -Recurse | Remove-Item -Recurse -Force:$true -Confirm:$false
+				Write-Verbose -Message "Removed files in $($Directory.Name)"
+			}
+			catch [System.Exception]
+			{
+				Write-Error -Message "An error occured removing files from the $(Directory.Name) directory"
+			}
 		}
 	}
+
+	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json"
+	Write-Verbose -Message "Removed Last wipes portal config file"
+}
+
+If($MonthlyClean)
+{
+	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json"
+	Write-Verbose -Message "Removed Last wipes portal config file"
 }
 
 $ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
