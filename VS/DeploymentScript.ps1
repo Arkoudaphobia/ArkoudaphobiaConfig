@@ -1,7 +1,5 @@
 ﻿Param(
-	[Parameter(ParameterSetName="Quarterly")]
 	[Switch]$QuarterlyClean,
-	[Parameter(ParameterSetName="Monthly")]
 	[Switch]$MonthlyClean
 )
 
