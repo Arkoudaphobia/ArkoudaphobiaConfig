@@ -5,7 +5,6 @@
     "<red>Cheating is strictly prohibited.<end>",
     "Type <orange>/map<end> for the server map link.",
     "You are playing on: <lime>{server.hostname}<end>",
-    "Take advantage of our convenient transit system.  With five points on the map including the central hub by the satalites and power plant (N12) it's easy to fast travel without spending all that time.",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
   ],
   "COLORS": {
