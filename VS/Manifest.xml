@@ -25,7 +25,9 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.cs" Enabled="true"/>
+    <Mod Name="notifier.cs" Enabled="true">
+      <RequestReload DateTime="4/7/2016 5:05 PM"/>
+    </Mod>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PillsHere.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
