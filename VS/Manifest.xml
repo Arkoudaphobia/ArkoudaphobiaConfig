@@ -6,7 +6,9 @@
     </Mod>
     <Mod Name="AntiAdminAbuse.cs" Enabled="true" />
     <Mod Name="AutoDoors.cs" Enabled="true" />
-    <Mod Name="BetterChat.cs" Enabled="true" />
+    <Mod Name="BetterChat.cs" Enabled="true">
+      <RequestReload DateTime="4/9/2016 3:00 PM"/>
+    </Mod>
     <Mod Name="chatmute.lua" Enabled="true"/>
     <Mod Name="Cornucopia.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
