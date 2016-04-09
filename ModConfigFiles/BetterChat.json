@@ -1,59 +1,18 @@
 {
-  "admin": {
-    "ConsoleFormatting": "{Title} {Name}: {Message}",
-    "Formatting": "{Title} {Name}<color={TextColor}>:</color> {Message}",
-    "NameColor": "#DCFF66",
-    "Permission": "admin",
-    "Rank": 3,
-    "TextColor": "white",
-    "Title": "[Admin]",
-    "TitleColor": "red"
+  "Anti Flood": {
+    "Enabled": true,
+    "Seconds": 1.5
   },
-  "AntiSpam": {
-    "Enabled": false,
-    "MaxCharacters": 85
+  "General": {
+    "Reverse Title Order": false
   },
-  "default": {
-    "ConsoleFormatting": "{Title} {Name}: {Message}",
-    "Formatting": "{Title} {Name}<color={TextColor}>:</color> {Message}",
-    "NameColor": "#DCFF66",
-    "Permission": "player",
-    "Rank": 1,
-    "TextColor": "white",
-    "Title": "[Player]",
-    "TitleColor": "#C4FF00"
-  },
-  "moderator": {
-    "ConsoleFormatting": "{Title} {Name}: {Message}",
-    "Formatting": "{Title} {Name}<color={TextColor}>:</color> {Message}",
-    "NameColor": "#DCFF66",
-    "Permission": "moderator",
-    "Rank": 2,
-    "TextColor": "white",
-    "Title": "[Mod]",
-    "TitleColor": "yellow"
-  },
-  "Mute": {
-    "Enabled": true
-  },
-  "player": {
-    "ConsoleFormatting": "{Title} {Name}: {Message}",
-    "Formatting": "{Title} {Name}<color={TextColor}>:</color> {Message}",
-    "NameColor": "#DCFF66",
-    "Permission": "player",
-    "Rank": 1,
-    "TextColor": "white",
-    "Title": "[Player]",
-    "TitleColor": "#C4FF00"
-  },
-  "WordFilter": {
-    "Banned Words": [
+  "Word Filter": {
+    "Custom Replacement": "naughty",
+    "Enabled": true,
+    "Phrases": [
       "nigger",
-      "faggot",
-      "test"
+      "faggot"
     ],
-    "CustomReplacement": "Naughty",
-    "Enabled": false,
     "Replacement": "*",
     "Use Custom Replacement": true
   }
