@@ -3,7 +3,7 @@
     "Want to know the available commands? Type <orange>/help<end>.",
     "Respect the server <orange>/rules<end>.",
     "<red>Cheating is strictly prohibited.<end>",
-    "Type <orange>/map<end> for the server map link.",
+    "To view the server map browse to https://utmo.link/rustmap",
     "You are playing on: <lime>{server.hostname}<end>",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
   ],
