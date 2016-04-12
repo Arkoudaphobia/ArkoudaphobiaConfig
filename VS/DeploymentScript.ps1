@@ -75,7 +75,7 @@ Foreach($Config in $RustManafest.ArkoudaphobiaConfig.ModConfigFiles.Config)
 
 Foreach($Mod in $RustManafest.ArkoudaphobiaConfig.ModFiles.Mod)
 {
-	If(($Mod.RequestReload.DateTime -gt (Get-Date).AddHours(-2)) -and ($Mod.RequestReload.DateTime -lt (Get-Date)))
+	If(((Get-Date $Mod.RequestReload.DateTime) -gt (Get-Date).AddHours(-2)) -and ((Get-Date $Mod.RequestReload.DateTime) -lt (Get-Date)))
 	{
 		Remove-Item -Path $BaseServerPath\Oxide\plugins\$($Mod.Name)
 		Write-Host "$($Mod.Name) has been unloaded."
