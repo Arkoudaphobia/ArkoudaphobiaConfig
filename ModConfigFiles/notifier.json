@@ -55,8 +55,8 @@
     "Enable Welcome Message": true,
     "Hide Admins": false,
     "Icon Profile": "76561198235146288",
-    "Notify Incoming Airdrop": true,
-    "Notify Incoming Helicopter": false,
+    "Notify Incoming Airdrop": false,
+    "Notify Incoming Helicopter": true,
     "Prefix": "<white>[ <cyan>NOTIFIER<end> ]<end>",
     "Rules Default Language": "auto",
     "Time Format": "{hour}:{minute}:{second}"
