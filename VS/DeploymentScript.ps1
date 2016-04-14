@@ -75,12 +75,20 @@ Foreach($Config in $RustManafest.ArkoudaphobiaConfig.ModConfigFiles.Config)
 
 Foreach($Mod in $RustManafest.ArkoudaphobiaConfig.ModFiles.Mod)
 {
-	If(((Get-Date $Mod.RequestReload.DateTime) -gt (Get-Date).AddHours(-2)) -and ((Get-Date $Mod.RequestReload.DateTime) -lt (Get-Date)))
+	try
 	{
-		Remove-Item -Path $BaseServerPath\Oxide\plugins\$($Mod.Name)
-		Write-Host "$($Mod.Name) has been unloaded."
-		Start-Sleep -Seconds 5
+		If(((Get-Date $Mod.RequestReload.DateTime) -gt (Get-Date).AddHours(-2)) -and ((Get-Date $Mod.RequestReload.DateTime) -lt (Get-Date)))
+		{
+			Remove-Item -Path $BaseServerPath\Oxide\plugins\$($Mod.Name)
+			Write-Host "$($Mod.Name) has been unloaded."
+			Start-Sleep -Seconds 5
+		}
 	}
+	catch [System.Management.Automation.ParameterBindingException]
+	{
+		Write-Host "$($Mod.Name) not set to be updated"
+	}
+
 
 	If($Mod.enabled -eq $true)
 	{
