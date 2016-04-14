@@ -54,22 +54,27 @@ $ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
 
 Foreach($Config in $RustManafest.ArkoudaphobiaConfig.ModConfigFiles.Config)
 {
-	If($Config.remove -eq $true)
+	Switch ($Config.remove)
 	{
-		If((Test-Path $BaseServerPath\oxide\config\$($Config.Name)) -eq $true)
+		$true
 		{
-			Remove-Item -Path $BaseServerPath\Oxide\config\$($Config.Name) -Confirm:$false
-			Write-Host "$($Config.Name) has been removed from the server."
+			If((Test-Path $BaseServerPath\oxide\config\$($Config.Name)) -eq $true)
+			{
+				Remove-Item -Path $BaseServerPath\Oxide\config\$($Config.Name) -Confirm:$false
+				Write-Host "$($Config.Name) has been removed from the server."
+			}
+			else
+			{
+				Write-Host "$($Config.Name) does not exsist on the server.  It can be safely removed from the manafest file now."
+			}
+			break
 		}
-		else
+		$false
 		{
-			Write-Host "$($Config.Name) does not exsist on the server.  It can be safely removed from the manafest file now."
+			Copy-Item ".\ModConfigFiles\$($Config.Name)" -Destination $BaseServerPath\oxide\config -Force -Confirm:$false
+			Write-Host "$($Config.Name) has been loaded / updated."
+			break
 		}
-	}
-	If($Config.remove -eq $false)
-	{
-		Copy-Item ".\ModConfigFiles\$($Config.Name)" -Destination $BaseServerPath\oxide\config -Force -Confirm:$false
-		Write-Host "$($Config.Name) has been loaded / updated."
 	}
 }
 
@@ -89,23 +94,26 @@ Foreach($Mod in $RustManafest.ArkoudaphobiaConfig.ModFiles.Mod)
 		Write-Host "$($Mod.Name) not set to be reloaded"
 	}
 
-
-	If($Mod.enabled -eq $true)
+	Switch ($Mod.enabled)
 	{
-		Copy-Item ".\ModSourceFiles\$($Mod.Name)" -Destination $BaseServerPath\Oxide\plugins -Force -Confirm:$false
-		Write-Host "$($Mod.Name) uas been loaded / updated."
-	}
-
-	If($Mod.enabled -eq $false)
-	{
-		If((Test-Path -Path $BaseServerPath\Oxide\plugins\$($Mod.Name)) -eq $true)
+		$true
 		{
-			Remove-Item -Path $BaseServerPath\Oxide\plugins\$($Mod.Name) -Force -Confirm:$false
-			Write-Host "$($Mod.Name) has been removed from the server."
+			Copy-Item ".\ModSourceFiles\$($Mod.Name)" -Destination $BaseServerPath\Oxide\plugins -Force -Confirm:$false
+			Write-Host "$($Mod.Name) uas been loaded / updated."
+			break
 		}
-		Else
+		$false
 		{
-			Write-Host "$($Mod.Name) does not exsist on the server.  It can be safely removed from the manafest file now."
+			If((Test-Path -Path $BaseServerPath\Oxide\plugins\$($Mod.Name)) -eq $true)
+			{
+				Remove-Item -Path $BaseServerPath\Oxide\plugins\$($Mod.Name) -Force -Confirm:$false
+				Write-Host "$($Mod.Name) has been removed from the server."
+			}
+			Else
+			{
+				Write-Host "$($Mod.Name) does not exsist on the server.  It can be safely removed from the manafest file now."
+			}
+			break
 		}
 	}
 }
