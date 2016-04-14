@@ -86,7 +86,7 @@ Foreach($Mod in $RustManafest.ArkoudaphobiaConfig.ModFiles.Mod)
 	}
 	catch [System.Management.Automation.ParameterBindingException]
 	{
-		Write-Host "$($Mod.Name) not set to be updated"
+		Write-Host "$($Mod.Name) not set to be reloaded"
 	}
 
 
