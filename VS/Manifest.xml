@@ -8,7 +8,7 @@
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
-    <Mod Name="Cornucopia.cs" Enabled="true"/>
+    <Mod Name="Cornucopia.cs" Enabled="false"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="DeadPlayersList.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
@@ -52,7 +52,7 @@
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="chatmute.json" remove="false"/>
-    <Config Name="Cornucopia.json" remove="false"/>
+    <Config Name="Cornucopia.json" remove="true"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EnhancedBanSystem.json" remove="false"/>
