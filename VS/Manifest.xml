@@ -19,7 +19,9 @@
     <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
-    <Mod Name="InfoPanel.cs" Enabled="true"/>
+    <Mod Name="InfoPanel.cs" Enabled="true">
+      <RequestReload DateTime="4/16/16 3:12 PM"/>
+    </Mod>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
     <Mod Name="LastManStanding.cs" Enabled="true"/>
