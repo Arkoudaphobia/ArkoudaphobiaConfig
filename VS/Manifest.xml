@@ -42,7 +42,9 @@
     <Mod Name="Spawns.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TearUpBP.cs" Enabled="true"/>
-    <Mod Name="TimeOfDay.cs" Enabled="true"/>
+    <Mod Name="TimeOfDay.cs" Enabled="true">
+      <RequestReload DateTime="4/16/16 1:10 PM"/>
+    </Mod>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
     <Mod Name="ZoneManager.cs" Enabled="true"/>
   </ModFiles>
