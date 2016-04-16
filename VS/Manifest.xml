@@ -19,11 +19,14 @@
     <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
-    <Mod Name="InfoPanel.cs" Enabled="true"/>
+    <Mod Name="InfoPanel.cs" Enabled="true">
+      <RequestReload DateTime="4/16/16 3:12 PM"/>
+    </Mod>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
+    <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true">
       <RequestReload DateTime="4/12/2016 1:45 AM"/>
@@ -66,6 +69,7 @@
     <Config Name="Jail.json" remove="false"/>
     <Config Name="LastManStanding.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
+    <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
