@@ -1,7 +1,7 @@
 {
   "ConfigVersion": "1.0.0",
   "Settings": {
-    "Daylength": 60,
-    "Nightlength": 30
+    "Daylength": 30,
+    "Nightlength": 10
   }
 }
