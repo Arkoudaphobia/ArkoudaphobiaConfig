@@ -1,28 +1,123 @@
 {
-  "Animals": {
-    "minBears": 10,
-    "minBoars": 25,
-    "minChickens": 5,
-    "minHorses": 60,
-    "minStags": 35,
-    "minWolves": 5
-  },
-  "Barrels": {
-    "minGoodBarrels": 25,
-    "minNormalBarrels": 15,
-    "minTrashCans": 45
-  },
-  "Crates": {
-    "minBoxCrates": 20,
-    "minWeaponCrates": 15
-  },
-  "General": {
-    "refreshIntervalSeconds": 900,
-    "fixloot": false
-  },
-  "Minerals": {
-    "minMetalNodes": 70,
-    "minStoneNodes": 70,
-    "minSulfurNodes": 70
-  }
+  "RefreshMinutes": 15,
+  "ApplyLootFix": true,
+  "RefreshOnStart": false,
+  "Animals": [
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/chicken.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/horse.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/boar.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/stag.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/wolf.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/animals/bear.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    }
+  ],
+  "Ores": [
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/resource/ores/stone-ore.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/resource/ores/metal-ore.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/resource/ores/sulfur-ore.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    }
+  ],
+  "Loots": [
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/loot_barrel_1.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/loot_barrel_2.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/oil_barrel.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/loot_trash.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/autospawn/resource/loot/trash-pile-1.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/crate_normal.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    },
+    {
+      "Prefab": "assets/bundled/prefabs/radtown/crate_normal_2.prefab",
+      "Min": -1,
+      "Max": -1,
+      "IgnoreIrridiated": true,
+      "DeleteEmtpy": false
+    }
+  ]
 }

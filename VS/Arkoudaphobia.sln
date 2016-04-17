@@ -22,6 +22,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ModConfigFiles", "ModConfig
 		..\ModConfigFiles\Jail.json = ..\ModConfigFiles\Jail.json
 		..\ModConfigFiles\LastManStanding.json = ..\ModConfigFiles\LastManStanding.json
 		..\ModConfigFiles\LimitedSuicide.json = ..\ModConfigFiles\LimitedSuicide.json
+		MonumentRadiation.json = MonumentRadiation.json
 		..\ModConfigFiles\NightLantern.json = ..\ModConfigFiles\NightLantern.json
 		..\ModConfigFiles\notifier.json = ..\ModConfigFiles\notifier.json
 		..\ModConfigFiles\PillsHere.json = ..\ModConfigFiles\PillsHere.json

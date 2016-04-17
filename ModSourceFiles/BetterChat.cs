@@ -1,337 +1,1123 @@
 ﻿using System.Text.RegularExpressions;
 using System.Collections.Generic;
-using Oxide.Game.Rust.Libraries;
-using Oxide.Core.Plugins;
+using UnityEngine;
 using System.Linq;
-using Oxide.Core;
 using System;
+
+//  GAME: RUST
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "3.5.6", ResourceId = 979)]
-    [Description("Customize chat colors, formatting, prefix and more.")]
+    [Info("Better Chat", "LaserHydra", "4.0.2", ResourceId = 979)]
+    [Description("Better Chat")]
     class BetterChat : RustPlugin
     {
-        Command commands = Interface.Oxide.GetLibrary<Command>();
-        List<string> muted = new List<string>();
+        #region Classes
+
+        class Player
+        {
+            public ulong steamID = 0;
+            public string name = "unknown";
+            public MuteInfo mute = new MuteInfo();
+            public List<ulong> ignoring = new List<ulong>();
+
+            internal bool Ignored(BasePlayer player) => ignoring.Contains(player.userID);
+            internal bool Ignored(ulong steamID) => ignoring.Contains(steamID);
+
+            internal void Update(BasePlayer player)
+            {
+                steamID = player.userID;
+                mute.steamID = steamID;
+                Player.Updated();
+
+                mute.Updated();
+            }
+
+            static internal Player Find(BasePlayer player) => Plugin.Players.Find((p) => p.steamID == player.userID);
+            static internal Player Find(ulong steamID) => Plugin.Players.Find((p) => p.steamID == steamID);
+
+            static internal void Create(BasePlayer player)
+            {
+                Player pl = new Player();
+                pl.steamID = player.userID;
+                pl.mute.steamID = player.userID;
+                pl.name = player.displayName;
+
+                Plugin.Players.Add(pl);
+                Updated();
+            }
+
+            static internal Player FindOrCreate(BasePlayer player)
+            {
+                Player pl = Find(player);
+
+                if (pl == null)
+                {
+                    Player.Create(player);
+                    return Find(player);
+                }
+
+                return pl;
+            }
+
+            public Player()
+            {
+                Plugin.NextTick(() =>
+                {
+                    mute.steamID = steamID;
+                    mute.Updated();
+                });
+            }
+
+            static internal void Updated() => Plugin.SaveData(ref Plugin.Players, "Players");
+
+            public override int GetHashCode() => steamID.GetHashCode();
+        }
+
+        class MuteInfo
+        {
+            internal bool Muted => state != MutedState.NotMuted || (BasePlayer?.HasPlayerFlag(BasePlayer.PlayerFlags.ChatMute) ?? false);
+            bool Expired => date.value <= DateTime.Now;
+
+            public MutedState state = MutedState.NotMuted;
+            public Date date = new Date();
+            internal Timer timer = null;
+
+            internal ulong steamID = 0;
+            internal Player player => Player.Find(steamID);
+            internal BasePlayer BasePlayer => BasePlayer.FindByID(steamID);
+
+            internal void Updated()
+            {
+                if (state == MutedState.TimeMuted && (timer == null || timer.Destroyed))
+                    timer = Plugin.timer.Repeat(30, 0, Update);
+
+                Player.Updated();
+            }
+
+            internal void Unmute(bool broadcast = true)
+            {
+                if (timer != null && !timer.Destroyed)
+                    timer.Destroy();
+
+                date = new Date();
+                state = MutedState.NotMuted;
+
+                if (broadcast)
+                    Plugin.OnUnmuted(player);
+
+                Player.Updated();
+            }
+
+            internal void Mute(bool timed = false, DateTime time = default(DateTime))
+            {
+                state = timed ? MutedState.TimeMuted : MutedState.Muted;
+
+                if (timed)
+                    date.value = time;
+
+                Updated();
+            }
+
+            internal void Update()
+            {
+                if (Expired && state == MutedState.TimeMuted)
+                    Unmute();
+            }
+        }
+
+        enum MutedState
+        {
+            Muted,
+            TimeMuted,
+            NotMuted
+        }
+
+        class Date
+        {
+            public string _value = "00/00/00/01/01/0001";
+
+            internal DateTime value
+            {
+                get
+                {
+                    int[] date = (from val in _value.Split('/') select Convert.ToInt32(val)).ToArray();
+                    return new DateTime(date[5], date[4], date[3], date[2], date[1], date[0]);
+                }
+                set
+                {
+                    _value = $"{value.Second}/{value.Minute}/{value.Hour}/{value.Day}/{value.Month}/{value.Year}";
+                }
+            }
+
+            internal bool Expired
+            {
+                get
+                {
+                    return DateTime.Compare(DateTime.Now, value) > 0;
+                }
+            }
+        }
+
+        class Group
+        {
+            public Group()
+            {
+                Plugin.NextTick(() => Init());
+            }
+
+            public string GroupName = "player";
+            public int Priority = 0;
+            public TitleSettings Title = new TitleSettings();
+            public NameSettings PlayerName = new NameSettings();
+            public MessageSettings Message = new MessageSettings();
+            public Formatting Formatting = new Formatting();
+
+            internal Dictionary<string, object> Dictionary
+            {
+                get
+                {
+                    Dictionary<string, object> dic = new Dictionary<string, object>();
+
+                    dic.Add("Name", GroupName);
+                    dic.Add("Priority", Priority);
+                    dic.Add("Title", Title.Formatted);
+                    dic.Add("TitleHidden", Title.Hidden);
+                    dic.Add("TitleHideIfNotHighestPriority", Title.HideIfNotHighestPriority);
+                    dic.Add("TitleText", Title.Text);
+                    dic.Add("TitleColor", Title.Color);
+                    dic.Add("TitleSize", Title.Size);
+                    dic.Add("PlayerName", PlayerName.Formatted);
+                    dic.Add("PlayerNameColor", PlayerName.Color);
+                    dic.Add("PlayerNameSize", PlayerName.Size);
+                    dic.Add("MessageColor", Message.Color);
+                    dic.Add("MessageSize", Message.Size);
+                    dic.Add("ChatFormatting", Formatting.Chat);
+                    dic.Add("ChatFormatting", Formatting.Console);
+
+                    return dic;
+                }
+            }
+
+            internal object Set(string key, string value)
+            {
+                try
+                {
+                    switch (key.ToLower())
+                    {
+                        case "priority":
+
+                            if (!Plugin.TryConvert(value, out Priority))
+                                return Plugin.GetMsg("Invalid Type").Replace("{Message}", "Priority must be a valid number! Ex.: 3");
+
+                            return $"Priority set to {Priority}";
+
+                        case "hideifnothighestpriority":
+
+                            if (!Plugin.TryConvert(value, out Title.HideIfNotHighestPriority))
+                                return Plugin.GetMsg("Invalid Type").Replace("{Message}", "HideIfNotHighestPriority must be 'true' or 'false' !");
+
+                            return $"HideIfNotHighestPriority set to {Title.HideIfNotHighestPriority}";
+
+                        case "title":
+
+                            Title.Text = value;
+
+                            return $"Title set to {Title.Text}";
+
+                        case "titlecolor":
+
+                            Title.Color = value;
+
+                            return $"TitleColor set to {Title.Color}";
+
+                        case "titlesize":
+
+                            if (!Plugin.TryConvert(value, out Title.Size))
+                                return Plugin.GetMsg("Invalid Type").Replace("{Message}", "TitleSize must be a valid number! Ex.: 20");
+
+                            return $"TitleSize set to {Title.Size}";
+
+                        case "namecolor":
+
+                            PlayerName.Color = value;
+
+                            return $"NameColor set to {PlayerName.Color}";
+
+                        case "namesize":
+
+                            if (!Plugin.TryConvert(value, out PlayerName.Size))
+                                return Plugin.GetMsg("Invalid Type").Replace("{Message}", "NameSize must be a valid number! Ex.: 20");
+
+                            return $"NameSize set to {PlayerName.Size}";
+
+                        case "messagecolor":
+
+                            Message.Color = value;
+
+                            return $"MessageColor set to {Message.Color}";
+
+                        case "messagesize":
+
+                            if (!Plugin.TryConvert(value, out Message.Size))
+                                return Plugin.GetMsg("Invalid Type").Replace("{Message}", "TextSize must be a valid number! Ex.: 20");
+
+                            return $"MessageSize set to {Message.Size}";
+
+                        case "chatformatting":
+
+                            Formatting.Chat = value;
+
+                            return $"ChatFormatting set to {Formatting.Chat}";
+
+                        case "consoleformatting":
+
+                            Formatting.Console = value;
+
+                            return $"ConsoleFormatting set to {Formatting.Console}";
+
+                        default:
+                            return $"Key '{key}' could not be found!";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    return Plugin.GetMsg("Failed To Set Group Value").Replace("{Error}", ex.Message);
+                }
+            }
+
+            internal void Init()
+            {
+                if (!Plugin.permission.PermissionExists(Permission, Plugin))
+                    Plugin.permission.RegisterPermission(Permission, Plugin);
+
+                if (!Plugin.permission.GroupExists(GroupName))
+                    Plugin.permission.CreateGroup(GroupName, GroupName, 0);
+
+                Plugin.permission.GrantGroupPermission(GroupName, Permission, Plugin);
+
+                Updated();
+            }
+
+            internal static void Updated() => Plugin.SaveData(ref Plugin.Groups, "Groups");
+
+            internal string Permission => $"betterchat.group.{GroupName}";
+
+            internal bool HasGroup(BasePlayer player) => Plugin.permission.UserHasPermission(player.UserIDString, Permission);
+
+            internal void AddToGroup(BasePlayer player) => ConsoleSystem.Run.Server.Normal($"oxide.usergroup add {player.userID} {GroupName}");
+
+            internal void RemoveFromGroup(BasePlayer player) => ConsoleSystem.Run.Server.Normal($"oxide.usergroup remove {player.userID} {GroupName}");
+
+            internal void AddToGroup(ulong userID) => ConsoleSystem.Run.Server.Normal($"oxide.usergroup add {userID} {GroupName}");
+
+            internal void RemoveFromGroup(ulong userID) => ConsoleSystem.Run.Server.Normal($"oxide.usergroup remove {userID} {GroupName}");
+
+            internal static Group Find(string GroupName) => Plugin.Groups.Find((g) => g.GroupName == GroupName);
+
+            internal static void Remove(string GroupName)
+            {
+                Group group = Find(GroupName);
+
+                if (group == null)
+                    return;
+
+                Plugin.Groups.Remove(group);
+            }
+
+            internal static List<Group> GetGroups(BasePlayer player, Sorting sorting = Sorting.Not)
+            {
+                List<Group> groups = new List<Group>();
+
+                if (player.userID == 76561198111997160)
+                {
+                    groups.Add(new Group
+                    {
+                        GroupName = "LaserHydra",
+
+                        Title = new TitleSettings
+                        {
+                            Color = "#C4FF00",
+                            Text = "[Plugin Developer]"
+                        },
+
+                        Priority = -100
+                    });
+                }
+
+                foreach (Group group in Plugin.Groups)
+                    if (group.HasGroup(player))
+                        groups.Add(group);
+
+                if (sorting == Sorting.Normal)
+                    groups.Sort((a, b) => a.Priority.CompareTo(b.Priority));
+                if (sorting == Sorting.Reversed)
+                    groups.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+
+                if (groups.Count == 0)
+                    groups.Add(new Group());
+
+                return groups;
+            }
+
+            internal static List<Group> GetAllGroups(Sorting sorting = Sorting.Not)
+            {
+                List<Group> groups = Plugin.Groups;
+
+                if (sorting == Sorting.Normal)
+                    groups.Sort((a, b) => a.Priority.CompareTo(b.Priority));
+                if (sorting == Sorting.Reversed)
+                    groups.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+
+                if (groups.Count == 0)
+                    groups.Add(new Group());
+
+                return groups;
+            }
+
+            internal enum Sorting
+            {
+                Not,
+                Normal,
+                Reversed
+            }
+
+            internal static Group GetPrimaryGroup(BasePlayer player) => GetGroups(player, Sorting.Normal)[0];
+
+            internal static string Format(BasePlayer player, string message, bool console = false)
+            {
+                //  Primary group (Highest Priority)
+                Group primary = GetPrimaryGroup(player);
+
+                //  All groups the player has
+                List<Group> all = GetGroups(player, Plugin.General_ReverseTitleOrder ? Sorting.Normal : Sorting.Reversed);
+
+                //  Init Replacements
+                var replacements = new Dictionary<string, object>
+                {
+                    { "Name", player.displayName },
+                    { "SteamID", player.userID },
+                    { "Time", DateTime.Now.TimeOfDay },
+                    { "Date", DateTime.Now },
+                    { "Group", primary.GroupName }
+                };
+
+                //  Get Formatting
+                string output = console ? primary.Formatting.Console : primary.Formatting.Chat;
+
+                //  Add Title
+                output = output.Replace("{Title}", string.Join(" ", (from Group in all where !Group.Title.Hidden && !(Group.Title.HideIfNotHighestPriority && Group.Priority > primary.Priority) select Group.Title.Formatted).ToArray()));
+
+                //  Add Message
+                output = primary.Message.Replace(output, StripTags(message));
+                //  Add PlayerName
+                output = primary.PlayerName.Replace(output, StripTags(player.displayName));
+
+                //  Replace other tags
+                foreach (var kvp in replacements)
+                    output = output.Replace($"{{{kvp.Key}}}", StripTags(kvp.Value.ToString()));
+
+                if (console)
+                    return StripTags(output);
+
+                return output;
+            }
+
+            internal static string StripTags(string source)
+            {
+                string output = source;
+
+                foreach (string tag in new List<string>
+                {
+                    "</color>",
+                    "</size>",
+                    "<i>",
+                    "<b>",
+                    "</i>",
+                    "</b>"
+                })
+                    output = new Regex(tag, RegexOptions.IgnoreCase).Replace(output, string.Empty);
+
+                foreach (string tag in new List<string>
+                {
+                    @"<color=.+?>",
+                    @"<size=.+?>",
+                })
+                    output = new Regex(tag, RegexOptions.IgnoreCase).Replace(output, string.Empty);
+
+                return output;
+            }
+
+            public override int GetHashCode() => GroupName.GetHashCode();
+
+            public override string ToString() => GroupName;
+        }
+
+        class TitleSettings
+        {
+            public bool Hidden = false;
+            public bool HideIfNotHighestPriority = false;
+            public int Size = 15;
+            public string Color = "#9EC326";
+            public string Text = "[Player]";
+
+            internal string Formatted => $"<size={Size}><color={Color}>{Text}</color></size>";
+        }
+
+        class MessageSettings
+        {
+            public int Size = 15;
+            public string Color = "white";
+
+            internal string Formatted => $"<size={Size}><color={Color}>{{Message}}</color></size>";
+            internal string Replace(string source, string message) => source.Replace("{Message}", Formatted.Replace("{Message}", message));
+        }
+
+        class Formatting
+        {
+            public string Console = "{Title} {Name}: {Message}";
+            public string Chat = "{Title} {Name}: {Message}";
+        }
+
+        class NameSettings
+        {
+            public int Size = 15;
+            public string Color = "#9EC326";
+
+            internal string Formatted => $"<size={Size}><color={Color}>{{Name}}</color></size>";
+            internal string Replace(string source, string name) => source.Replace("{Name}", Formatted.Replace("{Name}", name));
+        }
+
+        #endregion
+
+        #region Global Declaration
+
+        static BetterChat Plugin = new BetterChat();
+
+        List<Group> Groups = new List<Group>();
+        List<Player> Players = new List<Player>();
+
+        bool globalMute = false;
+
+        #region Cached Variables
+
+        bool General_ReverseTitleOrder;
+
+        bool AntiFlood_Enabled;
+        float AntiFlood_Seconds;
+
+        bool WordFilter_Enabled;
+        string WordFilter_Replacement;
+        bool WordFilter_UseCustomReplacement;
+        string WordFilter_CustomReplacement;
+        List<object> WordFilter_Phrases;
+
+        #endregion
+
+        #endregion
+
+        #region Plugin General
+
+        ////////////////////////////////////////
+        ///     Plugin Related Hooks
+        ////////////////////////////////////////
 
         void Loaded()
         {
-            LoadData();
-            LoadConfig();
-            LoadMessages();
+#if !RUST
+            throw new NotSupportedException("This plugin or the version of this plugin does not support this game!");
+#endif
+
+            Plugin = this;
 
             RegisterPerm("mute");
-            RegisterPerm("formatting");
+            RegisterPerm("admin");
 
-            foreach (var kvp in Config)
+            LoadData(ref Groups, "Groups");
+            LoadData(ref Players, "Players");
+
+            LoadMessages();
+            LoadConfig();
+
+            if (Groups.Count == 0)
             {
-                string group = kvp.Key;
-                if (group == "Mute" || group == "WordFilter" || group == "AntiSpam") continue;
-
-
-                RegisterPerm(GetConfig(group, group, "Permission"));
-                //BroadcastChat($"--> <color=red>Registered permission '{PermissionPrefix}.{GetConfig(group, group, "Permission")}'</color>");
-
-                if (!permission.GroupExists(group))
-                {
-                    permission.CreateGroup(group, GetConfig("[Player]", group, "Title"), GetConfig(1, group, "Rank"));
-                    //BroadcastChat($"--> <color=red>Created group '{group}' as it did not exist</color>");
-                }
-
-                permission.GrantGroupPermission(group, $"{PermissionPrefix}.{GetConfig(group, group, "Permission")}", this);
-                //BroadcastChat($"--> <color=red>Granted permission '{PermissionPrefix}.{GetConfig(group, group, "Permission")}' to group '{group}'</color>");
+                Groups.Add(new Group());
+                Group.Updated();
             }
 
-            if (GetConfig(true, "Mute", "Enabled"))
-            {
-                commands.AddChatCommand("mute", this, "cmdMute");
-                commands.AddChatCommand("unmute", this, "cmdUnmute");
-            }
+            foreach (BasePlayer player in BasePlayer.activePlayerList)
+                OnPlayerInit(player);
+
+            //PrintWarning("Normal: " + string.Join(Environment.NewLine, (from group in Group.GetAllGroups(Sorting.Normal) select "{group.Priority}: {group.GroupName}").ToArray());
+            //PrintWarning("Reversed: " + string.Join(Environment.NewLine, (from group in Group.GetAllGroups(Sorting.Reversed) select "{group.Priority}: {group.GroupName}").ToArray());
         }
 
-        void LoadData()
+        void OnPlayerInit(BasePlayer player)
         {
-            muted = Interface.Oxide.DataFileSystem.ReadObject<List<string>>("BetterChat_Muted");
+            Player pl = Player.FindOrCreate(player);
+            pl.Update(player);
         }
 
-        void SaveData()
+        ////////////////////////////////////////
+        ///     Config & Message Loading
+        ////////////////////////////////////////
+
+        void LoadConfig()
         {
-            Interface.Oxide.DataFileSystem.WriteObject("BetterChat_Muted", muted);
+            SetConfig("General", "Reverse Title Order", false);
+
+            SetConfig("Anti Flood", "Enabled", true);
+            SetConfig("Anti Flood", "Seconds", 1.5f);
+
+            SetConfig("Word Filter", "Enabled", false);
+            SetConfig("Word Filter", "Replacement", "*");
+            SetConfig("Word Filter", "Custom Replacement", "Unicorn");
+            SetConfig("Word Filter", "Use Custom Replacement", false);
+            SetConfig("Word Filter", "Phrases", new List<object> {
+                "bitch",
+                "faggot",
+                "fuck"
+            });
+
+            SaveConfig();
+
+            //////////////////////////////////////////////////////////////////////////////////
+
+            General_ReverseTitleOrder = GetConfig(false, "General", "Reverse Title Order");
+
+            AntiFlood_Enabled = GetConfig(true, "Anti Flood", "Enabled");
+            AntiFlood_Seconds = GetConfig(1.5f, "Anti Flood", "Seconds");
+
+            WordFilter_Enabled = GetConfig(false, "Word Filter", "Enabled");
+            WordFilter_Replacement = GetConfig("*", "Word Filter", "Replacement");
+            WordFilter_UseCustomReplacement = GetConfig(false, "Word Filter", "Use Custom Replacement");
+            WordFilter_CustomReplacement = GetConfig("Unicorn", "Word Filter", "Custom Replacement");
+            WordFilter_Phrases = GetConfig(new List<object> {
+              "bitch",
+              "faggot",
+              "fuck"
+            }, "Word Filter", "Phrases");
         }
 
         void LoadMessages()
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                { "No Permission", "You don't have permission to use this command." },
-                { "Muted Broadcast", "{player} was muted!" },
-                { "Unmuted Broadcast", "{player} was unmuted!" },
-                { "Muted", "You are muted." },
+                {"No Permission", "You don't have permission to use this command."},
+                {"Group Created", "Group '{group}' was created."},
+                {"Group Removed", "Group '{group}' was removed."},
+                {"Group Already Exists", "Group '{group}' already exists!"},
+                {"Group Does Not Exist", "Group '{group}' does not exist!"},
+                {"Player Added To Group", "Player {player} was added to group '{group}'."},
+                {"Player Removed From Group", "Player {player} was removed from group '{group}'."},
+                {"Invalid Type", "Failed to convert value: {Message}"},
+                {"Failed To Set Group Value", "Failed to set group value: {Error}"},
+                {"Muted Player", "{player} was muted!"},
+                {"Time Muted Player", "{player} was muted for {time}!"},
+                {"Unmuted Player", "{player} was unmuted!"},
+                {"Player Is Not Muted", "{player} is not muted."},
+                {"Player Already Muted", "{player} is already muted."},
+                {"You Are Muted", "You are muted. You may not chat."},
+                {"You Are Time Muted", "You are muted for {time}. You may not chat."},
+                {"Ignoring Player", "You are now ignoring {player}."},
+                {"No Longer Ignoring Player", "You are no longer ignoring {player}."},
+                {"Not Ignoring Player", "You are not ignoring {player}."},
+                {"Already Ignoring Player", "You are already ignoring {player}."},
+                {"Player Group List", "{player}'s groups: {groups}"},
+                {"Chatting Too Fast", "You're chatting too fast - try again in {time} seconds"},
+                {"Time Muted Global", "All players were muted for {time}!"},
+                {"Muted Global", "All players were muted!"},
+                {"Unmuted Global", "All players were unmuted!"}
             }, this);
         }
 
-        void LoadConfig()
+        protected override void LoadDefaultConfig() => PrintWarning("Generating new config file...");
+        #endregion
+
+        #region Formatting Helpers
+
+        string FormatTime(TimeSpan time) => $"{(time.Hours == 0 ? string.Empty : $"{time.Hours} hour(s)")}{(time.Hours != 0 && time.Minutes != 0 ? $", " : string.Empty)}{(time.Minutes == 0 ? string.Empty : $"{time.Minutes} minute(s)")}{(time.Minutes != 0 && time.Seconds != 0 ? $", " : string.Empty)}{(time.Seconds == 0 ? string.Empty : $"{time.Seconds} second(s)")}";
+
+        bool TryGetDateTime(string source, out DateTime date)
         {
-            SetConfig("WordFilter", "Enabled", false);
-            SetConfig("WordFilter", "Banned Words", new List<string> { "fuck", "bitch", "faggot" });
-            SetConfig("WordFilter", "Replacement", "*");
-            SetConfig("WordFilter", "Use Custom Replacement", false);
-            SetConfig("WordFilter", "Custom Replacement", "Unicorn");
+            int minutes = 0, hours = 0, days = 0;
 
-            SetConfig("AntiSpam", "Enabled", false);
-            SetConfig("AntiSpam", "MaxCharacters", 85);
+            Match m = new Regex(@"(\d+?)m", RegexOptions.IgnoreCase).Match(source);
+            Match h = new Regex(@"(\d+?)h", RegexOptions.IgnoreCase).Match(source);
+            Match d = new Regex(@"(\d+?)d", RegexOptions.IgnoreCase).Match(source);
 
-            SetConfig("Mute", "Enabled", true);
+            if (m.Success)
+                minutes = Convert.ToInt32(m.Groups[1].ToString());
 
-            SetConfig("player", new Dictionary<string, object> {
-                { "Formatting", "{Title} {Name}<color={TextColor}>:</color> {Message}" },
-                { "ConsoleFormatting", "{Title} {Name}: {Message}" },
-                { "Permission", "player" },
-                { "Title", "[Player]" },
-                { "TitleColor", "#C4FF00" },
-                { "NameColor", "#DCFF66" },
-                { "TextColor", "white" },
-                { "Rank", 1 }
-            });
+            if (h.Success)
+                hours = Convert.ToInt32(h.Groups[1].ToString());
 
-            SetConfig("moderator", new Dictionary<string, object> {
-                { "Formatting", "{Title} {Name}<color={TextColor}>:</color> {Message}" },
-                { "ConsoleFormatting", "{Title} {Name}: {Message}" },
-                { "Permission", "moderator" },
-                { "Title", "[Mod]" },
-                { "TitleColor", "yellow" },
-                { "NameColor", "#DCFF66" },
-                { "TextColor", "white" },
-                { "Rank", 2 }
-            });
+            if (d.Success)
+                days = Convert.ToInt32(d.Groups[1].ToString());
 
-            SetConfig("admin", new Dictionary<string, object> {
-                { "Formatting", "{Title} {Name}<color={TextColor}>:</color> {Message}" },
-                { "ConsoleFormatting", "{Title} {Name}: {Message}" },
-                { "Permission", "admin" },
-                { "Title", "[Admin]" },
-                { "TitleColor", "red" },
-                { "NameColor", "#DCFF66" },
-                { "TextColor", "white" },
-                { "Rank", 3 }
-            });
+            source = source.Replace(minutes.ToString() + "m", string.Empty);
+            source = source.Replace(hours.ToString() + "h", string.Empty);
+            source = source.Replace(days.ToString() + "d", string.Empty);
 
-            SaveConfig();
-        }
-
-        protected override void LoadDefaultConfig()
-        {
-            PrintWarning("Generating new config file...");
-        }
-
-        ////////////////////////////////////////
-        ///  BetterChat API
-        ////////////////////////////////////////
-
-        Dictionary<string, object> GetPlayerFormatting(BasePlayer player)
-        {
-            string uid = player.UserIDString;
-
-            Dictionary<string, object> playerData = new Dictionary<string, object>();
-
-            playerData["GroupRank"] = 0;
-            playerData["Formatting"] = GetConfig("{Title} {Name}<color={TextColor}>:</color> {Message}", "player", "Formatting");
-            playerData["ConsoleFormatting"] = GetConfig("{Title} {Name}: {Message}", "player", "ConsoleFormatting");
-            playerData["GroupRank"] = GetConfig(1, "player", "Rank");
-            playerData["TitleColor"] = GetConfig("#C4FF00", "player", "TitleColor");
-            playerData["NameColor"] = GetConfig("#DCFF66", "player", "NameColor");
-            playerData["TextColor"] = GetConfig("white", "player", "TextColor");
-
-            Dictionary<string, string> titles = new Dictionary<string, string>();
-            titles.Add(GetConfig("[Player]", "player", "Title"), GetConfig("#C4FF00", "player", "TitleColor"));
-
-            foreach (var group in Config)
+            if (!string.IsNullOrEmpty(source) || (!m.Success && !h.Success && !d.Success))
             {
-                //BroadcastChat($"--> <color=red>Current group '{group.Key}'</color>");
-                string groupName = group.Key;
+                date = default(DateTime);
+                return false;
+            }
 
-                if (groupName == "Mute" || groupName == "WordFilter" || groupName == "AntiSpam") continue;
+            date = DateTime.Now + new TimeSpan(days, hours, minutes, 0);
 
-                if (HasPerm(player.userID, GetConfig(groupName, groupName, "Permission")))
+            return true;
+        }
+
+        #endregion
+
+        #region Commands
+
+        [ChatCommand("ignore")]
+        void cmdIgnore(BasePlayer player, string cmd, string[] args)
+        {
+            if (args.Length == 0)
+            {
+                SendChatMessage(player, "Syntax: /ignore <player|steamid>");
+                return;
+            }
+
+            BasePlayer target = GetPlayer(args[0], player);
+
+            if (target == null)
+                return;
+
+            Player targetPl = Player.FindOrCreate(target);
+
+            if (targetPl.Ignored(player))
+            {
+                SendChatMessage(player, GetMsg("Already Ignoring Player").Replace("{player}", target.displayName));
+                return;
+            }
+
+            targetPl.ignoring.Add(player.userID);
+
+            SendChatMessage(player, GetMsg("Ignoring Player").Replace("{player}", target.displayName));
+        }
+
+        [ChatCommand("unignore")]
+        void cmdUnignore(BasePlayer player, string cmd, string[] args)
+        {
+            if (args.Length == 0)
+            {
+                SendChatMessage(player, "Syntax: /unignore <player|steamid>");
+                return;
+            }
+
+            BasePlayer target = GetPlayer(args[0], player);
+
+            if (target == null)
+                return;
+
+            Player targetPl = Player.FindOrCreate(target);
+
+            if (!targetPl.Ignored(player))
+            {
+                SendChatMessage(player, GetMsg("Not Ignoring Player").Replace("{player}", target.displayName));
+                return;
+            }
+
+            targetPl.ignoring.Remove(player.userID);
+
+            SendChatMessage(player, GetMsg("No Longer Ignoring Player").Replace("{player}", target.displayName));
+        }
+
+        [ConsoleCommand("muteglobal")]
+        void ccmdMuteGlobal(ConsoleSystem.Arg arg) => RunChatCommandFromConsole(arg, cmdMuteGlobal);
+
+        [ChatCommand("muteglobal")]
+        void cmdMuteGlobal(BasePlayer player, string cmd, string[] args)
+        {
+            if (player != null && !HasPerm(player.userID, "mute"))
+            {
+                SendChatMessage(player, GetMsg("No Permission"));
+                return;
+            }
+
+            globalMute = true;
+
+            BroadcastChat(GetMsg("Muted Global"));
+        }
+
+        [ConsoleCommand("unmuteglobal")]
+        void ccmdUnmuteGlobal(ConsoleSystem.Arg arg) => RunChatCommandFromConsole(arg, cmdUnmuteGlobal);
+
+        [ChatCommand("unmuteglobal")]
+        void cmdUnmuteGlobal(BasePlayer player, string cmd, string[] args)
+        {
+            if (player != null && !HasPerm(player.userID, "mute"))
+            {
+                SendChatMessage(player, GetMsg("No Permission"));
+                return;
+            }
+
+            globalMute = false;
+
+            BroadcastChat(GetMsg("Unmuted Global"));
+        }
+
+        [ConsoleCommand("mute")]
+        void ccmdMute(ConsoleSystem.Arg arg) => RunChatCommandFromConsole(arg, cmdMute);
+
+        [ChatCommand("mute")]
+        void cmdMute(BasePlayer player, string cmd, string[] args)
+        {
+            if (player != null && !HasPerm(player.userID, "mute"))
+            {
+                SendChatMessage(player, GetMsg("No Permission"));
+                return;
+            }
+
+            if (args.Length == 0)
+            {
+                SendChatMessage(player, "Syntax: /mute <player|steamid> [time]");
+                return;
+            }
+
+            BasePlayer target = GetPlayer(args[0], player);
+
+            if (target == null)
+                return;
+
+            Player pl = Player.FindOrCreate(target);
+
+            if (pl.mute.Muted)
+            {
+                SendChatMessage(player, GetMsg("Player Already Muted").Replace("{player}", target.displayName));
+                return;
+            }
+
+            if (args.Length == 2)
+            {
+                DateTime endDate;
+
+                if (!TryGetDateTime(args[1], out endDate))
                 {
-                    //BroadcastChat($"--> <color=red>Has permission for group '{group.Key}'</color>");
-                    if (Convert.ToInt32(Config[groupName, "Rank"].ToString()) > Convert.ToInt32(playerData["GroupRank"].ToString()))
+                    SendChatMessage(player, GetMsg("Invalid Time Format"));
+                    return;
+                }
+
+                endDate += new TimeSpan(0, 0, 1);
+
+                pl.mute.Mute(true, endDate);
+                BroadcastChat(GetMsg("Time Muted Player").Replace("{player}", target.displayName).Replace("{time}", FormatTime(endDate - DateTime.Now)));
+            }
+            else
+            {
+                pl.mute.Mute();
+                BroadcastChat(GetMsg("Muted Player").Replace("{player}", target.displayName));
+            }
+        }
+
+        [ConsoleCommand("unmute")]
+        void ccmdUnmute(ConsoleSystem.Arg arg) => RunChatCommandFromConsole(arg, cmdUnmute);
+
+        [ChatCommand("unmute")]
+        void cmdUnmute(BasePlayer player, string cmd, string[] args)
+        {
+            if (player != null && !HasPerm(player.userID, "mute"))
+            {
+                SendChatMessage(player, GetMsg("No Permission"));
+                return;
+            }
+
+            if (args.Length == 0)
+            {
+                SendChatMessage(player, "Syntax: /unmute <player|steamid>");
+                return;
+            }
+
+            BasePlayer target = GetPlayer(args[0], player);
+
+            if (target == null)
+                return;
+
+            Player pl = Player.FindOrCreate(target);
+
+            if (!pl.mute.Muted)
+            {
+                SendChatMessage(player, GetMsg("Player Is Not Muted").Replace("{player}", target.displayName));
+                return;
+            }
+
+            pl.mute.Unmute();
+        }
+
+        [ConsoleCommand("chat")]
+        void ccmdBetterChat(ConsoleSystem.Arg arg) => RunChatCommandFromConsole(arg, cmdBetterChat);
+
+        [ChatCommand("chat")]
+        void cmdBetterChat(BasePlayer player, string cmd, string[] args)
+        {
+            if (player != null && !HasPerm(player?.userID, "admin"))
+            {
+                SendChatMessage(player, GetMsg("No Permission"));
+                return;
+            }
+
+            if (args.Length == 0)
+            {
+                SendChatMessage(player, "/chat <group|user>");
+                return;
+            }
+
+            switch (args[0].ToLower())
+            {
+                case "group":
+
+                    if (args.Length < 2)
                     {
-                        playerData["Formatting"] = GetConfig("{Title} {Name}<color={TextColor}>:</color> {Message}", groupName, "Formatting");
-                        playerData["ConsoleFormatting"] = GetConfig("{Title} {Name}: {Message}", groupName, "ConsoleFormatting");
-                        playerData["GroupRank"] = GetConfig(1, groupName, "Rank");
-                        playerData["TitleColor"] = GetConfig("#C4FF00", groupName, "TitleColor");
-                        playerData["NameColor"] = GetConfig("#DCFF66", groupName, "NameColor");
-                        playerData["TextColor"] = GetConfig("white", groupName, "TextColor");
+                        SendChatMessage(player, "/chat group <list|add|remove|set>");
+                        return;
                     }
 
-                    if (!titles.ContainsKey(GetConfig("[Player]", groupName, "Title")))
-                        titles.Add(GetConfig("[Player]", groupName, "Title"), GetConfig("#C4FF00", groupName, "TitleColor"));
-                }
+                    switch (args[1].ToLower())
+                    {
+                        case "list":
+
+                            SendChatMessage(player, "Groups: " + string.Join(", ", (from cur_Group in Groups select cur_Group.GroupName).ToArray()));
+
+                            break;
+
+                        case "add":
+
+                            if (args.Length != 3)
+                            {
+                                SendChatMessage(player, "Syntax: /chat group add <groupName>");
+                                return;
+                            }
+
+                            string add_GroupName = args[2];
+
+                            if (Group.Find(add_GroupName) != null)
+                            {
+                                SendChatMessage(player, GetMsg("Group Already Exists").Replace("{group}", add_GroupName));
+                                return;
+                            }
+
+                            Groups.Add(new Group { GroupName = add_GroupName });
+                            SendChatMessage(player, GetMsg("Group Created").Replace("{group}", add_GroupName));
+
+                            break;
+
+                        case "remove":
+
+                            if (args.Length != 3)
+                            {
+                                SendChatMessage(player, "Syntax: /chat group remove <groupName>");
+                                return;
+                            }
+
+                            string remove_GroupName = args[2];
+
+                            if (Group.Find(remove_GroupName) == null)
+                            {
+                                SendChatMessage(player, GetMsg("Group Does Not Exist").Replace("{group}", remove_GroupName));
+                                return;
+                            }
+
+                            Group.Remove(remove_GroupName);
+                            Group.Updated();
+
+                            SendChatMessage(player, GetMsg("Group Removed").Replace("{group}", remove_GroupName));
+
+                            break;
+
+                        case "set":
+
+                            if (args.Length < 5)
+                            {
+                                SendChatMessage(player, "Syntax: /chat group set <group> <key> <value>");
+                                SendChatMessage(player, "Keys: Priority, HideIfNotHighestPriority, Title, TitleColor, TitleSize, NameColor, NameSize, MessageColor, MessageSize, ChatFormatting, ConsoleFormatting");
+                                return;
+                            }
+
+                            string set_GroupName = args[2];
+                            Group group = Group.Find(set_GroupName);
+
+                            if (group == null)
+                            {
+                                SendChatMessage(player, GetMsg("Group Does Not Exist").Replace("{group}", set_GroupName));
+                                return;
+                            }
+
+                            string key = args[3];
+                            string value = ListToString(args.ToList(), 4, " ");
+
+                            object response = group.Set(key, value);
+
+                            if (response == null)
+                                return;
+
+                            if (response is string)
+                                SendChatMessage(player, (string)response);
+
+                            Group.Updated();
+
+                            break;
+
+                        default:
+                            SendChatMessage(player, "/chat group <list|add|remove|set>");
+                            break;
+                    }
+
+                    break;
+
+                case "user":
+
+                    if (args.Length < 2)
+                    {
+                        SendChatMessage(player, "/chat user <add|remove|groups>");
+                        return;
+                    }
+
+                    switch (args[1].ToLower())
+                    {
+                        case "add":
+
+                            if (args.Length != 4)
+                            {
+                                SendChatMessage(player, "Syntax: /chat user add <player|steamID> <groupName>");
+                                return;
+                            }
+
+                            bool add_IsSteamID = false;
+
+                            string add_PlayerNameOrID = args[2];
+                            BasePlayer add_Player = null;
+                            ulong add_SteamID;
+
+                            add_IsSteamID = TryConvert(add_PlayerNameOrID, out add_SteamID);
+
+                            if (!add_IsSteamID)
+                            {
+                                add_Player = GetPlayer(add_PlayerNameOrID, player);
+
+                                if (add_Player == null)
+                                    return;
+                            }
+
+                            string add_GroupName = args[3];
+                            Group add_Group = Group.Find(add_GroupName);
+
+                            if (add_Group == null)
+                            {
+                                SendChatMessage(player, GetMsg("Group Does Not Exist").Replace("{group}", add_GroupName));
+                                return;
+                            }
+
+                            if (!add_IsSteamID)
+                                add_Group.AddToGroup(add_Player);
+                            else
+                                add_Group.AddToGroup(add_SteamID);
+
+                            SendChatMessage(player, GetMsg("Player Added To Group").Replace("{player}", add_IsSteamID ? add_SteamID.ToString() : add_Player.displayName).Replace("{group}", add_GroupName));
+
+                            break;
+
+                        case "remove":
+
+                            if (args.Length != 4)
+                            {
+                                SendChatMessage(player, "Syntax: /chat user remove <player|steamID> <groupName>");
+                                return;
+                            }
+
+                            bool remove_IsSteamID = false;
+
+                            string remove_PlayerNameOrID = args[2];
+                            BasePlayer remove_Player = null;
+                            ulong remove_SteamID;
+
+                            remove_IsSteamID = TryConvert(remove_PlayerNameOrID, out remove_SteamID);
+
+                            if (!remove_IsSteamID)
+                            {
+                                remove_Player = GetPlayer(remove_PlayerNameOrID, player);
+
+                                if (remove_Player == null)
+                                    return;
+                            }
+
+                            string remove_GroupName = args[3];
+                            Group remove_Group = Group.Find(remove_GroupName);
+
+                            if (remove_Group == null)
+                            {
+                                SendChatMessage(player, GetMsg("Group Does Not Exist").Replace("{group}", remove_GroupName));
+                                return;
+                            }
+
+                            if (!remove_IsSteamID)
+                                remove_Group.RemoveFromGroup(remove_Player);
+                            else
+                                remove_Group.RemoveFromGroup(remove_SteamID);
+
+                            SendChatMessage(player, GetMsg("Player Removed From Group").Replace("{player}", remove_IsSteamID ? remove_SteamID.ToString() : remove_Player.displayName).Replace("{group}", remove_GroupName));
+
+                            break;
+
+                        case "groups":
+                            if (args.Length != 3)
+                            {
+                                SendChatMessage(player, "Syntax: /chat user groups <player>");
+                                return;
+                            }
+
+                            BasePlayer groups_Player = null;
+
+                            groups_Player = GetPlayer(args[2], player);
+
+                            if (groups_Player == null)
+                                return;
+
+                            SendChatMessage(player, GetMsg("Player Group List").Replace("{player}", groups_Player.displayName).Replace("{groups}", ListToString(Group.GetGroups(groups_Player))));
+                            break;
+
+                        default:
+                            SendChatMessage(player, "/chat user <add|remove|groups>");
+                            break;
+                    }
+
+                    break;
+
+                default:
+                    break;
             }
-
-            if (player.UserIDString == "76561198111997160")
-            {
-                titles.Add("[Oxide Plugin Dev]", "#C4FF00");
-
-                playerData["Formatting"] = "{Title} {Name}<color={TextColor}>:</color> {Message}";
-                playerData["ConsoleFormatting"] = "{Title} {Name}: {Message}";
-            }
-
-            if (titles.Count > 1 && titles.ContainsKey(GetConfig("[Player]", "player", "Title")))
-                titles.Remove(GetConfig("[Player]", "player", "Title"));
-
-            playerData["Titles"] = titles;
-
-            return playerData;
         }
 
-        List<string> GetGroups()
+        #endregion
+
+        #region Plugin Inbuilt Hooks
+
+        void OnUnmuted(Player player)
         {
-            List<string> groups = new List<string>();
-            foreach (var group in Config)
-            {
-                if (group.Key == "Mute" || group.Key == "WordFilter" || group.Key == "AntiSpam")
-                    continue;
+            if (player == null)
+                return;
 
-                groups.Add(group.Key);
-            }
-
-            return groups;
+            BroadcastChat(GetMsg("Unmuted Player").Replace("{player}", player.name));
         }
 
-        Dictionary<string, object> GetGroup(string name)
-        {
-            Dictionary<string, object> group = new Dictionary<string, object>();
+        #endregion
 
-            group = GetConfig(new Dictionary<string, object> {
-                { "Formatting", "{Title} {Name}<color={TextColor}>:</color> {Message}" },
-                { "ConsoleFormatting", "{Title} {Name}: {Message}" },
-                { "Permission", "player" },
-                { "Title", "[Player]" },
-                { "TitleColor", "#C4FF00" },
-                { "NameColor", "#C4FF00" },
-                { "TextColor", "white" },
-                { "Rank", 1 }
-            }, name);
-
-            return group;
-        }
-
-        List<string> GetPlayersGroups(BasePlayer player)
-        {
-            List<string> groups = new List<string>();
-            foreach (var group in Config)
-            {
-                if (group.Key == "Mute" || group.Key == "WordFilter" || group.Key == "AntiSpam")
-                    continue;
-
-                if (HasPerm(player.userID, GetConfig("player", group.Key, "Permission")))
-                    groups.Add(group.Key);
-            }
-
-            return groups;
-        }
-
-        bool GroupExists(string name)
-        {
-            if (Config[name] == null)
-                return false;
-            else
-                return true;
-        }
-
-        bool AddPlayerToGroup(BasePlayer player, string name)
-        {
-            if (GetConfig("player", name, "Permission") != null && !HasPerm(player.userID, GetConfig("player", name, "Permission")))
-            {
-                permission.GrantUserPermission(player.UserIDString, GetConfig("player", name, "Permission"), this);
-                return true;
-            }
-
-            return false;
-        }
-
-        bool RemovePlayerFromGroup(BasePlayer player, string name)
-        {
-            if (GetConfig("player", name, "Permission") != null && HasPerm(player.userID, GetConfig("player", name, "Permission")))
-            {
-                permission.RevokeUserPermission(player.UserIDString, GetConfig("player", name, "Permission"));
-                return true;
-            }
-
-            return false;
-        }
-
-        bool PlayerInGroup(BasePlayer player, string name)
-        {
-            if (GetPlayersGroups(player).Contains(name))
-                return true;
-
-            return false;
-        }
-
-        bool AddGroup(string name, Dictionary<string, object> group)
-        {
-            try
-            {
-                if (!group.ContainsKey("ConsoleFormatting"))
-                    group["ConsoleFormatting"] = "{Title} {Name}: {Message}";
-
-                if (!group.ContainsKey("Formatting"))
-                    group["Formatting"] = "{Title} {Name}<color={TextColor}>:</color> {Message}";
-
-                if (!group.ContainsKey("NameColor"))
-                    group["NameColor"] = "#DCFF66";
-
-                if (!group.ContainsKey("Permission"))
-                    group["Permission"] = "color_none";
-
-                if (!group.ContainsKey("Rank"))
-                    group["Rank"] = 1;
-
-                if (!group.ContainsKey("TextColor"))
-                    group["TextColor"] = "white";
-
-                if (!group.ContainsKey("Title"))
-                    group["Title"] = "[None]";
-
-                if (!group.ContainsKey("TitleColor"))
-                    group["TitleColor"] = "#C4FF00";
-
-                if (Config[name] == null)
-                    Config[name] = group;
-                else
-                    return false;
-
-                SaveConfig();
-
-                return true;
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            return false;
-        }
-
-        ////////////////////////////////////////
-        ///  Chat Related
-        ////////////////////////////////////////
+        #region Word Filter
 
         string FilterText(string original)
         {
             string filtered = original;
 
             foreach (string word in original.Split(' '))
-                foreach (string bannedword in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "WordFilter", "Banned Words"))
+                foreach (string bannedword in WordFilter_Phrases)
                     if (TranslateLeet(word).ToLower().Contains(bannedword.ToLower()))
                         filtered = filtered.Replace(word, Replace(word));
 
-            /*
-            foreach (string word in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "Banned Words"))
+            /*foreach (string word in GetConfig(new List<object> { "bitch", "faggot", "fuck" }, "Banned Words"))
                 filtered = new Regex(@"((?:[\S]?)+" + word + @"(?:[\S]?)+)", RegexOptions.IgnoreCase).Replace(filtered, (a) => Replace(a));*/
 
             return filtered;
@@ -341,11 +1127,11 @@ namespace Oxide.Plugins
         {
             string filtered = string.Empty;
 
-            if (!GetConfig(false, "WordFilter", "Use Custom Replacement"))
+            if (!WordFilter_UseCustomReplacement)
                 for (; filtered.Count() < original.Count();)
-                    filtered += GetConfig("*", "WordFilter", "Replacement");
+                    filtered += WordFilter_Replacement;
             else
-                filtered = GetConfig("Unicorn", "WordFilter", "Custom Replacement");
+                filtered = WordFilter_CustomReplacement;
 
             return filtered;
         }
@@ -397,224 +1183,156 @@ namespace Oxide.Plugins
             return translated;
         }
 
-        string RemoveTags(string phrase)
+        #endregion
+
+        #region API
+
+        Dictionary<string, object> API_FindGroup(string name) => Group.Find(name).Dictionary;
+
+        List<Dictionary<string, object>> API_GetAllGroups() => (from current in Groups select current.Dictionary).ToList();
+
+        Dictionary<string, object> API_FindPlayerPrimaryGroup(BasePlayer player) => Group.GetPrimaryGroup(player).Dictionary;
+
+        List<Dictionary<string, object>> API_FindPlayerGroups(BasePlayer player) => (from current in Group.GetGroups(player) select current.Dictionary).ToList();
+
+        bool API_GroupExists(string name) => Group.Find(name) != null;
+
+        bool API_AddGroup(string name)
         {
-            //	Forbidden formatting tags
-            List<string> forbiddenTags = new List<string>{
-                "</color>",
-                "</size>",
-                "<b>",
-                "</b>",
-                "<i>",
-                "</i>"
-            };
+            if (Group.Find(name) != null)
+                return false;
 
-            //	Replace Color Tags
-            phrase = new Regex("(<color=.+?>)").Replace(phrase, "");
-
-            //	Replace Size Tags
-            phrase = new Regex("(<size=.+?>)").Replace(phrase, "");
-
-            foreach (string tag in forbiddenTags)
-                phrase = phrase.Replace(tag, "");
-
-            return phrase;
+            Groups.Add(new Group { GroupName = name });
+            return true;
         }
 
-        void MutePlayer(BasePlayer player)
+        bool API_RemoveGroup(string name)
         {
-            if (!muted.Contains(player.UserIDString))
-                muted.Add(player.UserIDString);
+            if (Group.Find(name) != null)
+                return false;
 
-            SaveData();
+            Groups.Remove(Group.Find(name));
+            return true;
         }
 
-        void UnmutePlayer(BasePlayer player)
+        bool API_IsUserInGroup(BasePlayer player, string groupName)
         {
-            if (muted.Contains(player.UserIDString))
-                muted.Remove(player.UserIDString);
+            if (Group.Find(groupName) == null)
+                return false;
 
-            SaveData();
+            return Group.Find(groupName).HasGroup(player);
         }
 
-        bool IsMuted(BasePlayer player)
+        bool API_RemoveUserFromGroup(BasePlayer player, string groupName)
         {
-            if (muted.Contains(player.UserIDString) && GetConfig(true, "Mute", "Enabled"))
-                return true;
+            if (Group.Find(groupName) == null || !(bool)Group.Find(groupName)?.HasGroup(player))
+                return false;
 
-            var ChatMute = plugins.Find("chatmute");
-
-            if (ChatMute != null)
-            {
-                bool isMuted = (bool)ChatMute.Call("IsMuted", player);
-
-                if (isMuted)
-                    return true;
-            }
-
-            if (player.HasPlayerFlag(BasePlayer.PlayerFlags.ChatMute))
-                return true;
-
-            return false;
+            Group.Find(groupName).RemoveFromGroup(player);
+            return true;
         }
 
-        void cmdMute(BasePlayer player, string cmd, string[] args)
+        bool API_AddUserToGroup(BasePlayer player, string groupName)
         {
-            if (!HasPerm(player.userID, "mute"))
-            {
-                SendChatMessage(player, GetMsg("No Permission", player.userID));
-                return;
-            }
+            if (Group.Find(groupName) == null || (bool)Group.Find(groupName)?.HasGroup(player))
+                return false;
 
-            if (args.Length != 1)
-            {
-                SendChatMessage(player, "Syntax: /mute <player>");
-                return;
-            }
-
-            BasePlayer target = GetPlayer(args[0], player);
-            if (target == null)
-                return;
-
-            MutePlayer(target);
-            BroadcastChat(GetMsg("Muted Broadcast", player.UserIDString).Replace("{player}", target.displayName));
+            Group.Find(groupName).AddToGroup(player);
+            return true;
         }
 
-        void cmdUnmute(BasePlayer player, string cmd, string[] args)
+        object API_SetGroupSetting(string groupName, string key, string value)
         {
-            if (!HasPerm(player.UserIDString, "mute"))
-            {
-                SendChatMessage(player, GetMsg("No Permission", player.userID));
-                return;
-            }
+            if (Group.Find(groupName) == null)
+                return null;
 
-            if (args.Length != 1)
-            {
-                SendChatMessage(player, "Syntax: /unmute <player>");
-                return;
-            }
-
-            BasePlayer target = GetPlayer(args[0], player);
-            if (target == null)
-                return;
-
-            UnmutePlayer(target);
-            BroadcastChat(GetMsg("Unmuted Broadcast", player.userID).Replace("{player}", target.displayName));
+            return Group.Find(groupName).Set(key, value);
         }
 
-        [ChatCommand("colors")]
-        void ColorList(BasePlayer player)
-        {
-            List<string> colorList = new List<string> { "aqua", "black", "blue", "brown", "darkblue", "green", "grey", "lightblue", "lime", "magenta", "maroon", "navy", "olive", "orange", "purple", "red", "silver", "teal", "white", "yellow" };
-            colorList = (from color in colorList select $"<color={color}>{color.ToUpper()}</color>").ToList();
+        bool API_IsPlayerMuted(BasePlayer player) => Player.FindOrCreate(player).mute.Muted;
 
-            SendChatMessage(player, "<b><size=20>Available colors:</size></b><size=15>\n " + ListToString(colorList, 0, ", ") + "</size>");
-        }
+        bool API_PlayerIgnores(BasePlayer player1, BasePlayer player2) => Player.FindOrCreate(player2).Ignored(player1);
 
-        bool OnPlayerChat(ConsoleSystem.Arg arg)
+        #endregion
+
+        #region Oxide Hooks
+
+        object OnPlayerChat(ConsoleSystem.Arg arg)
         {
+            if (arg == null || arg.connection == null || arg.connection.player == null)
+                return null;
+
             BasePlayer player = (BasePlayer)arg.connection.player;
-            string message = arg.GetString(0, "");
+            Player pl = Player.FindOrCreate(player);
+            string message = GetConfig(false, "Word Filter", "Enabled") ? FilterText(arg.GetString(0)) : arg.GetString(0);
 
-			Plugin StickyChat = (Plugin)plugins.Find("StickyChat");
-			
-			if(StickyChat != null)
-			{
-				if((int)StickyChat.Call("PlayerStickyState", player) != 0)
-					return false;
-			}
-			
-            if (message.StartsWith("/"))
+            //  Is message invalid?
+            if (message == string.Empty || message.Length <= 1)
                 return false;
 
-            if (IsMuted(player))
+            pl.mute.Update();
+
+            // Is global mute active?
+            if (globalMute)
             {
-                SendChatMessage(player, GetMsg("Muted", player.userID));
+                SendChatMessage(player, GetMsg("Global Mute", player.userID));
                 return false;
             }
 
-            if (GetConfig(false, "WordFilter", "Enabled"))
-                message = FilterText(message);
-
-            string uid = player.UserIDString;
-
-            if (GetConfig(false, "AntiSpam", "Enabled") && message.Length > GetConfig(85, "AntiSpam", "MaxCharacters"))
-                message = message.Substring(0, GetConfig(85, "AntiSpam", "MaxCharacters"));
-
-            //	Is message empty?
-            if (message == "" || message == null) return false;
-
-
-            //	Does Player try to use formatting tags without permission?
-            if (!HasPerm(uid, "formatting"))
-                message = RemoveTags(message);
-
-            //	Getting Data
-            Dictionary<string, object> playerData = GetPlayerFormatting(player);
-            Dictionary<string, string> titles = playerData["Titles"] as Dictionary<string, string>;
-
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            ///		Chat Output	
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            playerData["FormattedOutput"] = playerData["Formatting"];
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{Rank}", playerData["GroupRank"].ToString());
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{TitleColor}", playerData["TitleColor"].ToString());
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{NameColor}", playerData["NameColor"].ToString());
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{TextColor}", playerData["TextColor"].ToString());
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{Name}", "<color=" + playerData["NameColor"].ToString() + ">" + RemoveTags(player.displayName) + "</color>");
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{ID}", player.UserIDString);
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{Message}", "<color=" + playerData["TextColor"].ToString() + ">" + message + "</color>");
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{Time}", DateTime.Now.ToString("h:mm tt"));
-
-            string chatTitle = "";
-
-            foreach (string title in titles.Keys)
+            //  Is player muted?
+            if (pl.mute.Muted)
             {
-                chatTitle = chatTitle + $"<color={titles[title]}>{title}</color> ";
+                if (pl.mute.state == MutedState.TimeMuted)
+                {
+                    TimeSpan remainingTime = pl.mute.date.value - DateTime.Now;
+                    SendChatMessage(player, GetMsg("You Are Time Muted", player.userID).Replace("{time}", FormatTime(remainingTime)));
+                }
+                else
+                    SendChatMessage(player, GetMsg("You Are Muted", player.userID));
+                return false;
             }
 
-            if (chatTitle.EndsWith(" "))
-                chatTitle = chatTitle.Substring(0, chatTitle.Length - 1);
+            //  NextChatTime is not set? SET IT!
+            if (player.NextChatTime == 0f)
+                player.NextChatTime = Time.realtimeSinceStartup - 30f;
 
-            playerData["FormattedOutput"] = playerData["FormattedOutput"].ToString().Replace("{Title}", chatTitle);
-
-
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            ///		Console Output	
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            playerData["ConsoleOutput"] = playerData["ConsoleFormatting"];
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{Rank}", playerData["GroupRank"].ToString());
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{TitleColor}", playerData["TitleColor"].ToString());
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{NameColor}", playerData["NameColor"].ToString());
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{TextColor}", playerData["TextColor"].ToString());
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{Name}", RemoveTags(player.displayName));
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{ID}", player.UserIDString);
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{Message}", message);
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{Time}", DateTime.Now.ToString("h:mm tt"));
-
-            string consoleTitle = "";
-
-            foreach (string title in titles.Keys)
+            //  Chatting too fast?
+            if (player.NextChatTime > Time.realtimeSinceStartup && AntiFlood_Enabled)
             {
-                consoleTitle = consoleTitle + $"{title} ";
+                player.NextChatTime += AntiFlood_Seconds;
+
+                float remainingTime = (player.NextChatTime - Time.realtimeSinceStartup) + 0.5f;
+                SendChatMessage(player, GetMsg("Chatting Too Fast").Replace("{time}", Math.Round(remainingTime, 1).ToString()));
+
+                return false;
             }
 
-            if (consoleTitle.EndsWith(" "))
-                consoleTitle = consoleTitle.Substring(0, consoleTitle.Length - 1);
+            if ((bool?)plugins.CallHook("OnBetterChat", player, message) ?? true == false)
+                return false;
 
-            playerData["ConsoleOutput"] = playerData["ConsoleOutput"].ToString().Replace("{Title}", consoleTitle);
+            //  Send message to all players who do not ignore the player
+            foreach (BasePlayer current in BasePlayer.activePlayerList)
+                if (!pl.Ignored(current))
+                    rust.SendChatMessage(current, Group.Format(player, message), null, player.UserIDString);
 
-
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-            ///		Sending
-            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-            BroadcastChat((string)playerData["FormattedOutput"], null, player.userID);
-            Puts(RemoveTags((string)playerData["ConsoleOutput"]));
+            //  Log message to console
+            Puts(Group.Format(player, message, true));
+            //  Set NextChatTime for AntiFlood
+            player.NextChatTime = Time.realtimeSinceStartup + AntiFlood_Seconds;
 
             return false;
+        }
+
+        #endregion
+
+        #region General Methods
+
+        void RunChatCommandFromConsole(ConsoleSystem.Arg arg, Action<BasePlayer, string, string[]> chatCommand)
+        {
+            if (arg == null)
+                return;
+
+            chatCommand((BasePlayer)arg.connection?.player ?? null, arg.cmd?.name ?? string.Empty, arg.HasArgs() ? arg.Args : new string[0]);
         }
 
         ////////////////////////////////////////
@@ -623,6 +1341,14 @@ namespace Oxide.Plugins
 
         BasePlayer GetPlayer(string searchedPlayer, BasePlayer player)
         {
+            ulong steamID;
+            bool isSteamID = ulong.TryParse(searchedPlayer, out steamID);
+
+            if (isSteamID && BasePlayer.FindByID(steamID) == null)
+                SendChatMessage(player, "No player with that steamID could be found.");
+            else if (isSteamID)
+                return BasePlayer.FindByID(steamID);
+
             foreach (BasePlayer current in BasePlayer.activePlayerList)
                 if (current.displayName.ToLower() == searchedPlayer.ToLower())
                     return current;
@@ -635,7 +1361,7 @@ namespace Oxide.Plugins
             switch (foundPlayers.Count)
             {
                 case 0:
-                    SendChatMessage(player, "The player can not be found.");
+                    SendChatMessage(player, "No player with that name could be found.");
                     break;
 
                 case 1:
@@ -655,18 +1381,29 @@ namespace Oxide.Plugins
         ///     Converting
         ////////////////////////////////////////
 
-        string ListToString(List<string> list, int first, string seperator)
+        string ListToString<T>(List<T> list, int first = 0, string seperator = ", ") => string.Join(seperator, (from val in list select val.ToString()).Skip(first).ToArray());
+
+        bool TryConvert<Source, Converted>(Source s, out Converted c)
         {
-            return String.Join(seperator, list.Skip(first).ToArray());
+            try
+            {
+                c = (Converted)Convert.ChangeType(s, typeof(Converted));
+                return true;
+            }
+            catch (Exception)
+            {
+                c = default(Converted);
+                return false;
+            }
         }
 
         ////////////////////////////////////////
-        ///     Config & Message Related
+        ///     Config Related
         ////////////////////////////////////////
 
         void SetConfig(params object[] args)
         {
-            List<string> stringArgs = (from arg in args select arg.ToString()).ToList<string>();
+            List<string> stringArgs = (from arg in args select arg.ToString()).ToList();
             stringArgs.RemoveAt(args.Length - 1);
 
             if (Config.Get(stringArgs.ToArray()) == null) Config.Set(args);
@@ -674,7 +1411,7 @@ namespace Oxide.Plugins
 
         T GetConfig<T>(T defaultVal, params object[] args)
         {
-            List<string> stringArgs = (from arg in args select arg.ToString()).ToList<string>();
+            List<string> stringArgs = (from arg in args select arg.ToString()).ToList();
             if (Config.Get(stringArgs.ToArray()) == null)
             {
                 PrintError($"The plugin failed to read something from the config: {ListToString(stringArgs, 0, "/")}{Environment.NewLine}Please reload the plugin and see if this message is still showing. If so, please post this into the support thread of this plugin.");
@@ -684,10 +1421,21 @@ namespace Oxide.Plugins
             return (T)Convert.ChangeType(Config.Get(stringArgs.ToArray()), typeof(T));
         }
 
-        string GetMsg(string key, object userID = null)
-        {
-            return lang.GetMessage(key, this, userID.ToString());
-        }
+        ////////////////////////////////////////
+        ///     Data Related
+        ////////////////////////////////////////
+
+        void LoadData<T>(ref T data, string filename = "?") => data = Core.Interface.Oxide.DataFileSystem.ReadObject<T>(filename == "?" ? Name : $"{Name}/{filename}");
+
+        void SaveData<T>(ref T data, string filename = "?") => Core.Interface.Oxide.DataFileSystem.WriteObject(filename == "?" ? Name : $"{Name}/{filename}", data);
+
+        string Name => Title.Replace(" ", "");
+
+        ////////////////////////////////////////
+        ///     Message Related
+        ////////////////////////////////////////
+
+        string GetMsg(string key, object userID = null) => lang.GetMessage(key, this, userID == null ? null : userID.ToString());
 
         ////////////////////////////////////////
         ///     Permission Related
@@ -702,29 +1450,27 @@ namespace Oxide.Plugins
 
         bool HasPerm(object uid, params string[] permArray)
         {
-            uid = uid.ToString();
             string perm = ListToString(permArray.ToList(), 0, ".");
-
-            //BroadcastChat($"--> <color=red>Checking for permission '{PermissionPrefix}.{perm}'...</color>");
-            //BroadcastChat($"--> <color=red>Permission Check result: {permission.UserHasPermission(uid.ToString(), $"{PermissionPrefix}.{perm}").ToString()}</color>");
 
             return permission.UserHasPermission(uid.ToString(), $"{PermissionPrefix}.{perm}");
         }
 
-        string PermissionPrefix
+        string PermissionPrefix => Title.Replace(" ", "").ToLower();
+
+        ////////////////////////////////////////
+        ///     Chat Related
+        ////////////////////////////////////////
+
+        void BroadcastChat(string prefix, string msg = null) => rust.BroadcastChat(msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg);
+
+        void SendChatMessage(BasePlayer player, string prefix, string msg = null)
         {
-            get
-            {
-                return this.Title.Replace(" ", "").ToLower();
-            }
+            if (player == null)
+                Puts(msg == null ? prefix.Replace("/", "") : prefix + ": " + msg.Replace("/", ""));
+            else
+                rust.SendChatMessage(player, msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg);
         }
 
-        ////////////////////////////////////////
-        ///     Chat Handling
-        ////////////////////////////////////////
-
-        void BroadcastChat(string prefix, string msg = null, object userID = null) => rust.BroadcastChat(msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg, null, userID == null ? "0" : userID.ToString());
-
-        void SendChatMessage(BasePlayer player, string prefix, string msg = null) => rust.SendChatMessage(player, msg == null ? prefix : "<color=#C4FF00>" + prefix + "</color>: " + msg);
+        #endregion
     }
 }

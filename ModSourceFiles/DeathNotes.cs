@@ -9,14 +9,15 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.1", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.5", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
         #region Global Declaration
+
         bool debug = false;
         bool killReproducing = false;
-        
+
         Dictionary<ulong, HitInfo> LastWounded = new Dictionary<ulong, HitInfo>();
 
         Dictionary<string, string> reproduceableKills = new Dictionary<string, string>();
@@ -26,29 +27,130 @@ namespace Oxide.Plugins
         Dictionary<ulong, PlayerSettings> playerSettings = new Dictionary<ulong, PlayerSettings>();
 
         Plugin PopupNotifications;
+        static DeathNotes dn;
+
+        #region Cached Variables
+
+        UIColor deathNoticeShadowColor = new UIColor(0.1, 0.1, 0.1, 0.8);
+        UIColor deathNoticeColor = new UIColor(0.85, 0.85, 0.85, 0.1);
+
+        List<string> selfInflictedDeaths = new List<string> { "Cold", "Drowned", "Heat", "Suicide", "Generic", "Posion", "Radiation", "Thirst", "Hunger", "Fall" };
+
+        List<DeathReason> SleepingDeaths = new List<DeathReason>
+        {
+            DeathReason.Animal,
+            DeathReason.Blunt,
+            DeathReason.Bullet,
+            DeathReason.Explosion,
+            DeathReason.Generic,
+            DeathReason.Helicopter,
+            DeathReason.Slash,
+            DeathReason.Stab,
+            DeathReason.Unknown
+        };
+
+        List<Regex> regexTags = new List<Regex>
+        {
+            new Regex(@"<color=.+?>", RegexOptions.Compiled),
+            new Regex(@"<size=.+?>", RegexOptions.Compiled)
+        };
+
+        List<string> tags = new List<string>
+        {
+            "</color>",
+            "</size>",
+            "<i>",
+            "</i>",
+            "<b>",
+            "</b>"
+        };
+
+        // ------------------->  Config Values
+
+            // ------->   General
+
+                //  Needs Permission to see messages?
+                    bool NeedsPermission;
+
+                //  Chat Icon (Steam Profile - SteamID)
+                    string ChatIcon;
+
+                //  Message Radius
+                    bool MessageRadiusEnabled;
+                    float MessageRadius;
+
+                //  Where Should the message appear?
+                    bool LogToFile;
+                    bool WriteToConsole;
+                    bool WriteToChat;
+                    bool UsePopupNotifications;
+                    bool UseSimpleUI;
+
+                //  Attachments
+                    string AttachmentSplit;
+                    string AttachmentFormatting;
+
+                //  Other
+                    string ChatTitle;
+                    string ChatFormatting;
+                    string ConsoleFormatting;
+
+            // ------->   Colors
+            
+                    string TitleColor;
+                    string VictimColor;
+                    string AttackerColor;
+                    string WeaponColor;
+                    string AttachmentColor;
+                    string DistanceColor;
+                    string BodypartColor;
+                    string MessageColor;
+
+            // ------->   Localization
+
+                    Dictionary<string, object> Names;
+                    Dictionary<string, object> Bodyparts;
+                    Dictionary<string, object> Weapons;
+                    Dictionary<string, object> Attachments;
+
+            // ------->   Messages
+
+                    Dictionary<string, List<string>> Messages;
+
+            // ------->   Simple UI
+
+                //  Other
+                    bool SimpleUI_StripColors;
+
+                //  Scaling & Positioning
+                    int SimpleUI_FontSize;
+
+                    float SimpleUI_Top;
+                    float SimpleUI_Left;
+                    float SimpleUI_MaxWidth;
+                    float SimpleUI_MaxHeight;
+
+                //  Timer
+                    float SimpleUI_HideTimer;
+        
+        // ----------------------------------------------------
+
+        #endregion
+
         #endregion
 
         #region Classes
 
         class UIColor
         {
-            double red;
-            double green;
-            double blue;
-            double alpha;
+            string color;
 
             public UIColor(double red, double green, double blue, double alpha)
             {
-                this.red = red;
-                this.green = green;
-                this.blue = blue;
-                this.alpha = alpha;
+                color = $"{red} {green} {blue} {alpha}";
             }
 
-            public override string ToString()
-            {
-                return $"{red.ToString()} {green.ToString()} {blue.ToString()} {alpha.ToString()}";
-            }
+            public override string ToString() => color;
         }
 
         class UIObject
@@ -62,7 +164,7 @@ namespace Oxide.Plugins
 
             string RandomString()
             {
-                string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+                const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
                 List<char> charList = chars.ToList();
 
                 string random = "";
@@ -119,8 +221,8 @@ namespace Oxide.Plugins
                             },
                             new Dictionary<string, string> {
                                 {"type", "RectTransform"},
-                                {"anchormin", $"{left.ToString()} {((1 - top) - height).ToString()}"},
-                                {"anchormax", $"{(left + width).ToString()} {(1 - top).ToString()}"}
+                                {"anchormin", $"{left} {((1 - top) - height)}"},
+                                {"anchormax", $"{(left + width)} {(1 - top)}"}
                             }
                         }
                     }
@@ -142,8 +244,8 @@ namespace Oxide.Plugins
 
             internal PlayerSettings(DeathNotes deathnotes)
             {
-                ui = deathnotes.GetConfig(false, "Settings", "Use Simple UI");
-                chat = deathnotes.GetConfig(true, "Settings", "Write to Chat");
+                ui = dn.UseSimpleUI;
+                chat = dn.WriteToChat;
             }
         }
 
@@ -151,58 +253,61 @@ namespace Oxide.Plugins
         {
             public string name = string.Empty;
             [JsonIgnore]
-            public BaseCombatEntity entity = new BaseCombatEntity();
+            public BaseCombatEntity entity;
             public AttackerType type = AttackerType.Invalid;
 
             public string TryGetName()
             {
+                if (entity == null)
+                    return "No Attacker";
+
                 if (type == AttackerType.Player)
-                    return entity?.ToPlayer().displayName;
-                else if (type == AttackerType.Helicopter)
+                    return entity.ToPlayer().displayName;
+                if (type == AttackerType.Helicopter)
                     return "Patrol Helicopter";
-                else if (type == AttackerType.Turret)
+                if (type == AttackerType.Turret)
                     return "Auto Turret";
-                else if (type == AttackerType.Self)
+                if (type == AttackerType.Self)
                     return "himself";
-                else if (type == AttackerType.Animal)
+                if (type == AttackerType.Animal)
                 {
-                    if ((bool)entity?.name?.Contains("boar"))
+                    if (entity.name.Contains("boar"))
                         return "Boar";
-                    else if ((bool)entity?.name?.Contains("horse"))
+                    if (entity.name.Contains("horse"))
                         return "Horse";
-                    else if ((bool)entity?.name?.Contains("wolf"))
+                    if (entity.name.Contains("wolf"))
                         return "Wolf";
-                    else if ((bool)entity?.name?.Contains("stag"))
+                    if (entity.name.Contains("stag"))
                         return "Stag";
-                    else if ((bool)entity?.name?.Contains("chicken"))
+                    if (entity.name.Contains("chicken"))
                         return "Chicken";
-                    else if ((bool)entity?.name?.Contains("bear"))
+                    if (entity.name.Contains("bear"))
                         return "Bear";
                 }
                 else if (type == AttackerType.Structure)
                 {
-                    if ((bool)entity?.name?.Contains("barricade.wood.prefab"))
+                    if (entity.name.Contains("barricade.wood.prefab"))
                         return "Wooden Barricade";
-                    else if ((bool)entity?.name?.Contains("barricade.woodwire.prefab"))
+                    if (entity.name.Contains("barricade.woodwire.prefab"))
                         return "Barbed Wooden Barricade";
-                    else if ((bool)entity?.name?.Contains("barricade.metal.prefab"))
+                    if (entity.name.Contains("barricade.metal.prefab"))
                         return "Metal Barricade";
-                    else if ((bool)entity?.name?.Contains("wall.external.high.wood.prefab"))
+                    if (entity.name.Contains("wall.external.high.wood.prefab"))
                         return "High External Wooden Wall";
-                    else if ((bool)entity?.name?.Contains("wall.external.high.stone.prefab"))
+                    if (entity.name.Contains("wall.external.high.stone.prefab"))
                         return "High External Stone Wall";
-                    else if ((bool)entity?.name?.Contains("gate.external.high.wood.prefab"))
+                    if (entity.name.Contains("gate.external.high.wood.prefab"))
                         return "High External Wooden Gate";
-                    else if ((bool)entity?.name?.Contains("gate.external.high.wood.prefab"))
+                    if (entity.name.Contains("gate.external.high.wood.prefab"))
                         return "High External Stone Gate";
                 }
                 else if (type == AttackerType.Trap)
                 {
-                    if ((bool)entity?.name?.Contains("beartrap.prefab"))
+                    if (entity.name.Contains("beartrap.prefab"))
                         return "Snap Trap";
-                    else if ((bool)entity?.name?.Contains("landmine.prefab"))
+                    if (entity.name.Contains("landmine.prefab"))
                         return "Land Mine";
-                    else if ((bool)entity?.name?.Contains("spikes.floor.prefab"))
+                    if (entity.name.Contains("spikes.floor.prefab"))
                         return "Wooden Floor Spikes";
                 }
 
@@ -213,17 +318,17 @@ namespace Oxide.Plugins
             {
                 if (entity == null)
                     return AttackerType.Invalid;
-                else if (entity?.ToPlayer() != null)
+                if (entity.ToPlayer() != null)
                     return AttackerType.Player;
-                else if ((bool)entity?.name?.Contains("patrolhelicopter.prefab"))
+                if (entity.name.Contains("patrolhelicopter.prefab") && !entity.name.Contains("gibs"))
                     return AttackerType.Helicopter;
-                else if ((bool)entity?.name?.Contains("animals/"))
+                if (entity.name.Contains("animals/"))
                     return AttackerType.Animal;
-                else if ((bool)entity?.name?.Contains("barricades/") || (bool)entity?.name?.Contains("wall.external.high"))
+                if (entity.name.Contains("barricades/") || entity.name.Contains("wall.external.high"))
                     return AttackerType.Structure;
-                else if ((bool)entity?.name?.Contains("beartrap.prefab") || (bool)entity?.name?.Contains("landmine.prefab") || (bool)entity?.name?.Contains("spikes.floor.prefab"))
+                if (entity.name.Contains("beartrap.prefab") || entity.name.Contains("landmine.prefab") || entity.name.Contains("spikes.floor.prefab"))
                     return AttackerType.Trap;
-                else if ((bool)entity?.name?.Contains("autoturret_deployed.prefab"))
+                if (entity.name.Contains("autoturret_deployed.prefab"))
                     return AttackerType.Turret;
 
                 return AttackerType.Invalid;
@@ -234,30 +339,29 @@ namespace Oxide.Plugins
         {
             public string name = string.Empty;
             [JsonIgnore]
-            public BaseCombatEntity entity = new BaseCombatEntity();
+            public BaseCombatEntity entity;
             public VictimType type = VictimType.Invalid;
 
             public string TryGetName()
             {
                 if (type == VictimType.Player)
-                    return entity?.ToPlayer().displayName;
-                else if (type == VictimType.Helicopter)
+                    return entity.ToPlayer().displayName;
+                if (type == VictimType.Helicopter)
                     return "Patrol Helicopter";
-                else if (type == VictimType.Animal)
+                if (type == VictimType.Animal)
                 {
-                    if ((bool)entity?.name?.Contains("boar"))
+                    if (entity.name.Contains("boar"))
                         return "Boar";
-                    else if ((bool)entity?.name?.Contains("horse"))
+                    if (entity.name.Contains("horse"))
                         return "Horse";
-                    else if ((bool)entity?.name?.Contains("wolf"))
+                    if (entity.name.Contains("wolf"))
                         return "Wolf";
-                    else if ((bool)entity?.name?.Contains("stag"))
+                    if (entity.name.Contains("stag"))
                         return "Stag";
-                    else if ((bool)entity?.name?.Contains("chicken"))
+                    if (entity.name.Contains("chicken"))
                         return "Chicken";
-                    else if ((bool)entity?.name?.Contains("bear"))
+                    if (entity.name.Contains("bear"))
                         return "Bear";
-
                 }
 
                 return "No Victim";
@@ -265,11 +369,13 @@ namespace Oxide.Plugins
 
             public VictimType TryGetType()
             {
-                if (entity?.ToPlayer() != null)
+                if (entity == null)
+                    return VictimType.Invalid;
+                if (entity.ToPlayer() != null)
                     return VictimType.Player;
-                else if ((bool)entity?.name?.Contains("patrolhelicopter.prefab"))
+                if (entity.name.Contains("patrolhelicopter.prefab") && entity.name.Contains("gibs"))
                     return VictimType.Helicopter;
-                else if ((bool)entity?.name?.Contains("animals/"))
+                if ((bool)entity?.name?.Contains("animals/"))
                     return VictimType.Animal;
 
                 return VictimType.Invalid;
@@ -296,7 +402,7 @@ namespace Oxide.Plugins
                         if (_distance != -1)
                             return _distance;
 
-                        foreach (string death in new List<string> { "Cold", "Drowned", "Heat", "Suicide", "Generic", "Posion", "Radiation", "Thirst", "Hunger", "Fall" })
+                        foreach (string death in dn.selfInflictedDeaths)
                         {
                             if (reason == GetDeathReason(death))
                                 attacker.entity = victim.entity;
@@ -473,6 +579,9 @@ namespace Oxide.Plugins
 #if !RUST
             throw new NotSupportedException("This plugin or the version of this plugin does not support this game!");
 #endif
+
+            dn = this;
+
             if (killReproducing)
                 RegisterPerm("reproduce");
 
@@ -493,7 +602,7 @@ namespace Oxide.Plugins
 
             PopupNotifications = (Plugin)plugins.Find("PopupNotifications");
 
-            if (PopupNotifications == null && GetConfig(false, "Settings", "Use Popup Notifications"))
+            if (PopupNotifications == null && UsePopupNotifications)
                 PrintWarning("You have set 'Use Popup Notifications' to true, but the Popup Notifications plugin is not installed. Popups will not work without it. Get it here: http://oxidemod.org/plugins/1252/");
         }
 
@@ -513,7 +622,7 @@ namespace Oxide.Plugins
 
         void OnPluginLoaded(object plugin)
         {
-            if (plugin is Plugin && ((Plugin)plugin)?.Title == "Popup Notifications")
+            if (plugin is Plugin && ((Plugin)plugin).Title == "Popup Notifications")
                 PopupNotifications = (Plugin)plugin;
         }
 
@@ -562,8 +671,6 @@ namespace Oxide.Plugins
 
             SetConfig("Settings", "Simple UI Hide Timer", 5f);
 
-            SetConfig("Settings", "Enable Showdeaths Command", true);
-
             SetConfig("Settings", "Needs Permission", false);
 
             SetConfig("Settings", "Title", "Death Notes");
@@ -587,42 +694,125 @@ namespace Oxide.Plugins
             SetConfig("Weapons", new Dictionary<string, object> { });
             SetConfig("Attachments", new Dictionary<string, object> { });
 
-            SetConfig("Messages", "Bleeding", new List<string> { "{victim} bled out." });
-            SetConfig("Messages", "Blunt", new List<string> { "{attacker} used a {weapon} to knock {victim} out." });
-            SetConfig("Messages", "Bullet", new List<string> { "{victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." });
-            SetConfig("Messages", "Cold", new List<string> { "{victim} became an iceblock." });
-            SetConfig("Messages", "Drowned", new List<string> { "{victim} tried to swim." });
-            SetConfig("Messages", "Explosion", new List<string> { "{victim} was shredded by {attacker}'s {weapon}" });
-            SetConfig("Messages", "Fall", new List<string> { "{victim} did a header into the ground." });
-            SetConfig("Messages", "Generic", new List<string> { "The death took {victim} with him." });
-            SetConfig("Messages", "Heat", new List<string> { "{victim} burned to ashes." });
-            SetConfig("Messages", "Helicopter", new List<string> { "{victim} was shot to pieces by a {attacker}." });
-            SetConfig("Messages", "HelicopterDeath", new List<string> { "The {victim} was taken down." });
-            SetConfig("Messages", "Animal", new List<string> { "A {attacker} followed {victim} until it finally caught him." });
-            SetConfig("Messages", "AnimalDeath", new List<string> { "{attacker} killed a {victim} with a {weapon}{attachments} from {distance}m." });
-            SetConfig("Messages", "Hunger", new List<string> { "{victim} forgot to eat." });
-            SetConfig("Messages", "Poison", new List<string> { "{victim} died after being poisoned." });
-            SetConfig("Messages", "Radiation", new List<string> { "{victim} became a bit too radioactive." });
-            SetConfig("Messages", "Slash", new List<string> { "{attacker} slashed {victim} in half." });
-            SetConfig("Messages", "Stab", new List<string> { "{victim} was stabbed to death by {attacker} using a {weapon}." });
-            SetConfig("Messages", "Structure", new List<string> { "A {attacker} impaled {victim}." });
-            SetConfig("Messages", "Suicide", new List<string> { "{victim} had enough of life." });
-            SetConfig("Messages", "Thirst", new List<string> { "{victim} dried internally." });
-            SetConfig("Messages", "Trap", new List<string> { "{victim} ran into a {attacker}" });
-            SetConfig("Messages", "Turret", new List<string> { "A {attacker} defended its home against {victim}." });
-            SetConfig("Messages", "Unknown", new List<string> { "{victim} died. Nobody knows why, it just happened." });
+            SetConfig("Messages", "Bleeding", new List<object> { "{victim} bled out." });
+            SetConfig("Messages", "Blunt", new List<object> { "{attacker} used a {weapon} to knock {victim} out." });
+            SetConfig("Messages", "Bullet", new List<object> { "{victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." });
+            SetConfig("Messages", "Cold", new List<object> { "{victim} became an iceblock." });
+            SetConfig("Messages", "Drowned", new List<object> { "{victim} tried to swim." });
+            SetConfig("Messages", "Explosion", new List<object> { "{victim} was shredded by {attacker}'s {weapon}" });
+            SetConfig("Messages", "Fall", new List<object> { "{victim} did a header into the ground." });
+            SetConfig("Messages", "Generic", new List<object> { "The death took {victim} with him." });
+            SetConfig("Messages", "Heat", new List<object> { "{victim} burned to ashes." });
+            SetConfig("Messages", "Helicopter", new List<object> { "{victim} was shot to pieces by a {attacker}." });
+            SetConfig("Messages", "HelicopterDeath", new List<object> { "The {victim} was taken down." });
+            SetConfig("Messages", "Animal", new List<object> { "A {attacker} followed {victim} until it finally caught him." });
+            SetConfig("Messages", "AnimalDeath", new List<object> { "{attacker} killed a {victim} with a {weapon}{attachments} from {distance}m." });
+            SetConfig("Messages", "Hunger", new List<object> { "{victim} forgot to eat." });
+            SetConfig("Messages", "Poison", new List<object> { "{victim} died after being poisoned." });
+            SetConfig("Messages", "Radiation", new List<object> { "{victim} became a bit too radioactive." });
+            SetConfig("Messages", "Slash", new List<object> { "{attacker} slashed {victim} in half." });
+            SetConfig("Messages", "Stab", new List<object> { "{victim} was stabbed to death by {attacker} using a {weapon}." });
+            SetConfig("Messages", "Structure", new List<object> { "A {attacker} impaled {victim}." });
+            SetConfig("Messages", "Suicide", new List<object> { "{victim} had enough of life." });
+            SetConfig("Messages", "Thirst", new List<object> { "{victim} dried internally." });
+            SetConfig("Messages", "Trap", new List<object> { "{victim} ran into a {attacker}" });
+            SetConfig("Messages", "Turret", new List<object> { "A {attacker} defended its home against {victim}." });
+            SetConfig("Messages", "Unknown", new List<object> { "{victim} died. Nobody knows why, it just happened." });
             
-            SetConfig("Messages", "Blunt Sleeping", new List<string> { "{attacker} used a {weapon} to turn {victim}'s dream into a nightmare." });
-            SetConfig("Messages", "Bullet Sleeping", new List<string> { "Sleeping {victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." });
-            SetConfig("Messages", "Explosion Sleeping", new List<string> { "{victim} was shredded by {attacker}'s {weapon} while sleeping." });
-            SetConfig("Messages", "Generic Sleeping", new List<string> { "The death took sleeping {victim} with him." });
-            SetConfig("Messages", "Helicopter Sleeping", new List<string> { "{victim} was sleeping when he was shot to pieces by a {attacker}." });
-            SetConfig("Messages", "Animal Sleeping", new List<string> { "{victim} was killed by a {attacker} while having a sleep." });
-            SetConfig("Messages", "Slash Sleeping", new List<string> { "{attacker} slashed sleeping {victim} in half." });
-            SetConfig("Messages", "Stab Sleeping", new List<string> { "{victim} was stabbed to death by {attacker} using a {weapon} before he could even awake." });
-            SetConfig("Messages", "Unknown Sleeping", new List<string> { "{victim} was sleeping when he died. Nobody knows why, it just happened." });
+            SetConfig("Messages", "Blunt Sleeping", new List<object> { "{attacker} used a {weapon} to turn {victim}'s dream into a nightmare." });
+            SetConfig("Messages", "Bullet Sleeping", new List<object> { "Sleeping {victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." });
+            SetConfig("Messages", "Explosion Sleeping", new List<object> { "{victim} was shredded by {attacker}'s {weapon} while sleeping." });
+            SetConfig("Messages", "Generic Sleeping", new List<object> { "The death took sleeping {victim} with him." });
+            SetConfig("Messages", "Helicopter Sleeping", new List<object> { "{victim} was sleeping when he was shot to pieces by a {attacker}." });
+            SetConfig("Messages", "Animal Sleeping", new List<object> { "{victim} was killed by a {attacker} while having a sleep." });
+            SetConfig("Messages", "Slash Sleeping", new List<object> { "{attacker} slashed sleeping {victim} in half." });
+            SetConfig("Messages", "Stab Sleeping", new List<object> { "{victim} was stabbed to death by {attacker} using a {weapon} before he could even awake." });
+            SetConfig("Messages", "Unknown Sleeping", new List<object> { "{victim} was sleeping when he died. Nobody knows why, it just happened." });
 
             SaveConfig();
+
+            //  Cache Config Variables
+            ChatIcon = GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)");
+
+            MessageRadiusEnabled = GetConfig(false, "Settings", "Message Radius Enabled");
+            MessageRadius = GetConfig(300f, "Settings", "Message Radius");
+
+            LogToFile = GetConfig(false, "Settings", "Log to File");
+            WriteToConsole = GetConfig(true, "Settings", "Write to Console");
+            WriteToChat = GetConfig(true, "Settings", "Write to Chat");
+            UsePopupNotifications = GetConfig(false, "Settings", "Use Popup Notifications");
+            UseSimpleUI = GetConfig(false, "Settings", "Use Simple UI");
+            SimpleUI_StripColors = GetConfig(false, "Settings", "Strip Colors from Simple UI");
+            SimpleUI_FontSize = GetConfig(20, "Settings", "Simple UI - Font Size");
+            SimpleUI_Top = GetConfig(0.1f, "Settings", "Simple UI - Top");
+            SimpleUI_Left = GetConfig(0.1f, "Settings", "Simple UI - Left");
+            SimpleUI_MaxWidth = GetConfig(0.8f, "Settings", "Simple UI - Max Width");
+            SimpleUI_MaxHeight = GetConfig(0.05f, "Settings", "Simple UI - Max Height");
+
+            SimpleUI_HideTimer = GetConfig(5f, "Settings", "Simple UI Hide Timer");
+
+            NeedsPermission = GetConfig(false, "Settings", "Needs Permission");
+
+            ChatTitle = GetConfig("Death Notes", "Settings", "Title");
+            ChatFormatting = GetConfig("[{Title}]: {Message}", "Settings", "Formatting");
+            ConsoleFormatting = GetConfig("{Message}", "Settings", "Console Formatting");
+
+            AttachmentSplit = GetConfig(" | ", "Settings", "Attachments Split");
+            AttachmentFormatting = GetConfig(" ({attachments})", "Settings", "Attachments Formatting");
+
+            TitleColor = GetConfig("#80D000", "Settings", "Title Color");
+            VictimColor = GetConfig("#C4FF00", "Settings", "Victim Color");
+            AttackerColor = GetConfig("#C4FF00", "Settings", "Attacker Color");
+            WeaponColor = GetConfig("#C4FF00", "Settings", "Weapon Color");
+            AttachmentColor = GetConfig("#C4FF00", "Settings", "Attachments Color");
+            DistanceColor = GetConfig("#C4FF00", "Settings", "Distance Color");
+            BodypartColor = GetConfig("#C4FF00", "Settings", "Bodypart Color");
+            MessageColor = GetConfig("#696969", "Settings", "Message Color");
+
+            Names = GetConfig(new Dictionary<string, object> { }, "Names");
+            Bodyparts = GetConfig(new Dictionary<string, object> { }, "Bodyparts");
+            Weapons = GetConfig(new Dictionary<string, object> { }, "Weapons");
+            Attachments = GetConfig(new Dictionary<string, object> { }, "Attachments");
+
+            Messages = GetConfig(new Dictionary<string, object>
+            {
+                //  Normal
+                { "Bleeding", new List<object> { "{victim} bled out." }},
+                { "Blunt", new List<object> { "{attacker} used a {weapon} to knock {victim} out." }},
+                { "Bullet", new List<object> { "{victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." }},
+                { "Cold", new List<object> { "{victim} became an iceblock." }},
+                { "Drowned", new List<object> { "{victim} tried to swim." }},
+                { "Explosion", new List<object> { "{victim} was shredded by {attacker}'s {weapon}" }},
+                { "Fall", new List<object> { "{victim} did a header into the ground." }},
+                { "Generic", new List<object> { "The death took {victim} with him." }},
+                { "Heat", new List<object> { "{victim} burned to ashes." }},
+                { "Helicopter", new List<object> { "{victim} was shot to pieces by a {attacker}." }},
+                { "HelicopterDeath", new List<object> { "The {victim} was taken down." }},
+                { "Animal", new List<object> { "A {attacker} followed {victim} until it finally caught him." }},
+                { "AnimalDeath", new List<object> { "{attacker} killed a {victim} with a {weapon}{attachments} from {distance}m." }},
+                { "Hunger", new List<object> { "{victim} forgot to eat." }},
+                { "Poison", new List<object> { "{victim} died after being poisoned." }},
+                { "Radiation", new List<object> { "{victim} became a bit too radioactive." }},
+                { "Slash", new List<object> { "{attacker} slashed {victim} in half." }},
+                { "Stab", new List<object> { "{victim} was stabbed to death by {attacker} using a {weapon}." }},
+                { "Structure", new List<object> { "A {attacker} impaled {victim}." }},
+                { "Suicide", new List<object> { "{victim} had enough of life." }},
+                { "Thirst", new List<object> { "{victim} dried internally." }},
+                { "Trap", new List<object> { "{victim} ran into a {attacker}" }},
+                { "Turret", new List<object> { "A {attacker} defended its home against {victim}." }},
+                { "Unknown", new List<object> { "{victim} died. Nobody knows why, it just happened." }},
+
+                //  Sleeping
+                { "Blunt Sleeping", new List<object> { "{attacker} used a {weapon} to turn {victim}'s dream into a nightmare." }},
+                { "Bullet Sleeping", new List<object> { "Sleeping {victim} was shot in the {bodypart} by {attacker} with a {weapon}{attachments} from {distance}m." }},
+                { "Explosion Sleeping", new List<object> { "{victim} was shredded by {attacker}'s {weapon} while sleeping." }},
+                { "Generic Sleeping", new List<object> { "The death took sleeping {victim} with him." }},
+                { "Helicopter Sleeping", new List<object> { "{victim} was sleeping when he was shot to pieces by a {attacker}." }},
+                { "Animal Sleeping", new List<object> { "{victim} was killed by a {attacker} while having a sleep." }},
+                { "Slash Sleeping", new List<object> { "{attacker} slashed sleeping {victim} in half." }},
+                { "Stab Sleeping", new List<object> { "{victim} was stabbed to death by {attacker} using a {weapon} before he could even awake." }},
+                { "Unknown Sleeping", new List<object> { "{victim} was sleeping when he died. Nobody knows why, it just happened." }}
+            }, "Messages").ToDictionary(l => l.Key, l => ((List<object>)l.Value).ConvertAll(m => m.ToString()));
         }
 
         void LoadMessages()
@@ -788,7 +978,7 @@ namespace Oxide.Plugins
 
         void OnEntityTakeDamage(BaseCombatEntity victim, HitInfo info)
         {
-            if(victim != null && victim.ToPlayer() != null && info != null && info?.Initiator != null && info?.Initiator?.ToPlayer() != null)
+            if(victim?.ToPlayer() != null && info?.Initiator?.ToPlayer() != null)
             {
                 NextTick(() => 
                 {
@@ -809,7 +999,7 @@ namespace Oxide.Plugins
                     info = TryGetLastWounded(victim.ToPlayer().userID, info);
             }
 
-            if (info?.Initiator?.ToPlayer() == null && (bool)victim?.name?.Contains("autospawn"))
+            if (info?.Initiator?.ToPlayer() == null && victim.name.Contains("autospawn"))
                 return;
 
             DeathData data = new DeathData();
@@ -839,11 +1029,14 @@ namespace Oxide.Plugins
             }
 
             if (info?.HitBone != null)
-                data.bodypart = FirstUpper(GetBoneName(victim, ((uint)info?.HitBone)) ?? string.Empty);
+                data.bodypart = FirstUpper(GetBoneName(victim, info.HitBone) ?? string.Empty);
             else
                 data.bodypart = FirstUpper("Body") ?? string.Empty;
 
             data.reason = data.TryGetReason();
+
+            if (!(bool)(plugins.CallHook("OnDeathNotice", JObject.FromObject(data)) ?? true))
+                return;
 
             NoticeDeath(data);
         }
@@ -860,20 +1053,20 @@ namespace Oxide.Plugins
                 if (InRadius(player, data.attacker.entity))
                 {
                     if (CanSee(player, "chat"))
-                        SendChatMessage(player, GetDeathMessage(newData, false), null, GetConfig("76561198077847390", "Settings", "Chat Icon (SteamID)"));
+                        SendChatMessage(player, GetDeathMessage(newData, false), null, ChatIcon);
 
                     if (CanSee(player, "ui"))
-                        UIMessage(player, GetConfig(false, "Settings", "Strip Colors from Simple UI") ? StripTags(GetDeathMessage(newData, true)) : GetDeathMessage(newData, true));
+                        UIMessage(player, SimpleUI_StripColors ? StripTags(GetDeathMessage(newData, true)) : GetDeathMessage(newData, true));
                 }
             }
 
-            if (GetConfig(true, "Settings", "Write to Console"))
+            if (WriteToConsole)
                 Puts(StripTags(GetDeathMessage(newData, true)));
 
-            if (GetConfig(false, "Settings", "Log to File"))
+            if (LogToFile)
                 ConVar.Server.Log("oxide/logs/Kills.txt", StripTags(GetDeathMessage(newData, true)));
 
-            if (GetConfig(false, "Settings", "Use Popup Notifications") && PopupNotifications != null)
+            if (UsePopupNotifications)
                 PopupMessage(GetDeathMessage(newData, false));
 
             if (debug)
@@ -898,7 +1091,7 @@ namespace Oxide.Plugins
             if (unformatted == string.Empty)
                 return string.Empty;
 
-            string formatted = FirstUpper(unformatted.Split('/').Last().Replace(".prefab", "").Replace(".entity", "").Replace(".weapon", "").Replace("_", " "));
+            string formatted = FirstUpper(unformatted.Split('/').Last().Replace(".prefab", "").Replace(".entity", "").Replace(".weapon", "").Replace(".deployed", "").Replace("_", " ").Replace(".", ""));
 
             if (formatted == "Stonehatchet")
                 formatted = "Stone Hatchet";
@@ -914,33 +1107,21 @@ namespace Oxide.Plugins
                 formatted = "Salvaged Axe";
             else if (formatted == "Hammer Salvaged")
                 formatted = "Salvaged Hammer";
+            else if (formatted == "Grenadef1")
+                formatted = "F1 Grenade";
+            else if (formatted == "Grenadebeancan")
+                formatted = "Beancan Grenade";
 
             return formatted;
         }
 
         string StripTags(string original)
         {
-            List<string> regexTags = new List<string>
-            {
-                @"<color=.+?>",
-                @"<size=.+?>"
-            };
-
-            List<string> tags = new List<string>
-            {
-                "</color>",
-                "</size>",
-                "<i>",
-                "</i>",
-                "<b>",
-                "</b>"
-            };
-
             foreach (string tag in tags)
                 original = original.Replace(tag, "");
 
-            foreach (string regexTag in regexTags)
-                original = new Regex(regexTag).Replace(original, "");
+            foreach (Regex regexTag in regexTags)
+                original = regexTag.Replace(original, "");
 
             return original;
         }
@@ -961,13 +1142,15 @@ namespace Oxide.Plugins
 
         #region Death Variables Methods
 
+        List<string> GetMessages(string reason) => Messages.ContainsKey(reason) ? Messages[reason] : new List<string>();
+        
         List<string> GetAttachments(HitInfo info)
         {
             List<string> attachments = new List<string>();
 
             if (info?.Weapon?.GetItem()?.contents?.itemList != null)
             {
-                foreach (var content in info?.Weapon?.GetItem().contents?.itemList as List<Item>)
+                foreach (var content in info.Weapon.GetItem().contents.itemList)
                 {
                     attachments.Add(content?.info?.displayName?.english);
                 }
@@ -980,11 +1163,11 @@ namespace Oxide.Plugins
 
         bool InRadius(BasePlayer player, BaseCombatEntity attacker)
         {
-            if (GetConfig(false, "Settings", "Message Radius Enabled"))
+            if (MessageRadiusEnabled)
             {
                 try
                 {
-                    if (player.Distance(attacker) <= GetConfig(300f, "Settings", "Message Radius"))
+                    if (player.Distance(attacker) <= MessageRadius)
                         return true;
                     else
                         return false;
@@ -1000,28 +1183,15 @@ namespace Oxide.Plugins
 
         string GetDeathMessage(DeathData data, bool console)
         {
-            List<DeathReason> SleepingDeaths = new List<DeathReason>
-            {
-                DeathReason.Animal,
-                DeathReason.Blunt,
-                DeathReason.Bullet,
-                DeathReason.Explosion,
-                DeathReason.Generic,
-                DeathReason.Helicopter,
-                DeathReason.Slash,
-                DeathReason.Stab,
-                DeathReason.Unknown
-            };
-
             string message = string.Empty;
             string reason = string.Empty;
             List<string> messages = new List<string>();
 
-            if (data.victim.type == VictimType.Player && data.victim.entity != null && data.victim.entity.ToPlayer() != null && data.victim.entity.ToPlayer().IsSleeping())
+            if (data.victim.type == VictimType.Player && data.victim.entity?.ToPlayer() != null && data.victim.entity.ToPlayer().IsSleeping())
             {
                 if(SleepingDeaths.Contains(data.reason))
                 {
-                    reason = data.reason.ToString() + " Sleeping";
+                    reason = data.reason + " Sleeping";
                 }
                 else
                     reason = data.reason.ToString();
@@ -1031,29 +1201,28 @@ namespace Oxide.Plugins
 
             try
             {
-                messages = GetConfig(new List<string>(), "Messages", reason);
+                messages = GetMessages(reason);
             }
             catch (InvalidCastException)
             {
-                messages = (from msg in GetConfig(new List<object>(), "Messages", reason) select msg.ToString()).ToList();
             }
 
             if (messages.Count == 0)
                 return message;
 
-            string attachmentsString = data.attachments.Count == 0 ? string.Empty : GetConfig(" ({attachments})", "Settings", "Attachments Formatting").Replace("{attachments}", ListToString(data.attachments, 0, GetConfig(" | ", "Settings", "Attachments Split")));
+            string attachmentsString = data.attachments.Count == 0 ? string.Empty : AttachmentFormatting.Replace("{attachments}", ListToString(data.attachments, 0, AttachmentSplit));
 
             if (console)
-                message = GetConfig("{Message}", "Settings", "Console Formatting").Replace("{Title}", $"<color={GetConfig("#80D000", "Settings", "Title Color")}>{GetConfig("Death Notes", "Settings", "Title")}</color>").Replace("{Message}", $"<color={GetConfig("#696969", "Settings", "Message Color")}>{messages[UnityEngine.Random.Range(0, messages.Count - 1)].ToString()}</color>");
+                message = ConsoleFormatting.Replace("{Title}", $"<color={TitleColor}>{ChatTitle}</color>").Replace("{Message}", $"<color={MessageColor}>{messages.GetRandom()}</color>");
             else
-                message = GetConfig("[{Title}]: {Message}", "Settings", "Formatting").Replace("{Title}", $"<color={GetConfig("#80D000", "Settings", "Title Color")}>{GetConfig("Death Notes", "Settings", "Title")}</color>").Replace("{Message}", $"<color={GetConfig("#696969", "Settings", "Message Color")}>{messages[UnityEngine.Random.Range(0, messages.Count - 1)].ToString()}</color>");
+                message = ChatFormatting.Replace("{Title}", $"<color={TitleColor}>{ChatTitle}</color>").Replace("{Message}", $"<color={MessageColor}>{messages.GetRandom()}</color>");
             
-            message = message.Replace("{attacker}", $"<color={GetConfig("#C4FF00", "Settings", "Attacker Color")}>{data.attacker.name}</color>");
-            message = message.Replace("{victim}", $"<color={GetConfig("#C4FF00", "Settings", "Victim Color")}>{data.victim.name}</color>");
-            message = message.Replace("{distance}", $"<color={GetConfig("#C4FF00", "Settings", "Distance Color")}>{Math.Round(data.distance, 2).ToString()}</color>");
-            message = message.Replace("{weapon}", $"<color={GetConfig("#C4FF00", "Settings", "Weapon Color")}>{data.weapon}</color>");
-            message = message.Replace("{bodypart}", $"<color={GetConfig("#C4FF00", "Settings", "Bodypart Color")}>{data.bodypart}</color>");
-            message = message.Replace("{attachments}", $"<color={GetConfig("#C4FF00", "Settings", "Attachments Color")}>{attachmentsString}</color>");
+            message = message.Replace("{attacker}", $"<color={AttackerColor}>{data.attacker.name}</color>");
+            message = message.Replace("{victim}", $"<color={VictimColor}>{data.victim.name}</color>");
+            message = message.Replace("{distance}", $"<color={DistanceColor}>{Math.Round(data.distance, 2)}</color>");
+            message = message.Replace("{weapon}", $"<color={WeaponColor}>{data.weapon}</color>");
+            message = message.Replace("{bodypart}", $"<color={BodypartColor}>{data.bodypart}</color>");
+            message = message.Replace("{attachments}", $"<color={AttachmentColor}>{attachmentsString}</color>");
 
             return message;
         }
@@ -1125,31 +1294,21 @@ namespace Oxide.Plugins
 
         bool CanSee(BasePlayer player, string type)
         {
-            if (!GetConfig(false, "Settings", "Needs Permission"))
+            if (!NeedsPermission)
             {
-                if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
-                    return true;
-                else
-                {
-                    if(type == "ui")
-                        return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
+                if(type == "ui")
+                    return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
                     
-                    return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
-                }
+                return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
             }
             else
             {
                 if(HasPerm(player.userID, "see"))
                 {
-                    if (!GetConfig(true, "Settings", "Enable Showdeaths Command"))
-                        return true;
-                    else
-                    {
-                        if (type == "ui")
-                            return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
+                    if (type == "ui")
+                        return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].ui : true;
 
-                        return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
-                    }
+                    return playerSettings.ContainsKey(player.userID) ? playerSettings[player.userID].chat : true;
                 }
             }
 
@@ -1233,16 +1392,13 @@ namespace Oxide.Plugins
             bool replaced = false;
             float fadeIn = 0.2f;
 
-            int fontSize = GetConfig(20, "Settings", "Simple UI - Font Size");
+            Timer playerTimer;
 
-            float left = GetConfig(0.1f, "Settings", "Simple UI - Left");
-            float top = GetConfig(0.1f, "Settings", "Simple UI - Top");
-            float width = GetConfig(0.8f, "Settings", "Simple UI - Max Width");
-            float height = GetConfig(0.05f, "Settings", "Simple UI - Max Height");
+            timers.TryGetValue(player, out playerTimer);
 
-            if (timers.ContainsKey(player) && timers[player] != null && !timers[player].Destroyed)
+            if (playerTimer != null && !playerTimer.Destroyed)
             {
-                timers[player].Destroy();
+                playerTimer.Destroy();
                 fadeIn = 0.1f;
 
                 replaced = true;
@@ -1250,8 +1406,8 @@ namespace Oxide.Plugins
 
             UIObject ui = new UIObject();
 
-            ui.AddText("DeathNotice_DropShadow", left + 0.001, top + 0.001, width, height, new UIColor(0.1, 0.1, 0.1, 0.8), $"{StripTags(message)}", fontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
-            ui.AddText("DeathNotice", left, top, width, height, new UIColor(0.85, 0.85, 0.85, 1), $"{message}", fontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice_DropShadow", SimpleUI_Left + 0.001, SimpleUI_Top + 0.001, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeShadowColor, StripTags(message), SimpleUI_FontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice", SimpleUI_Left, SimpleUI_Top, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeColor, message, SimpleUI_FontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
 
             ui.Destroy(player);
 
@@ -1261,14 +1417,14 @@ namespace Oxide.Plugins
                 {
                     ui.Draw(player);
 
-                    timers[player] = timer.Once(GetConfig(5f, "Settings", "Simple UI Hide Timer"), () => ui.Destroy(player));
+                    timers[player] = timer.Once(SimpleUI_HideTimer, () => ui.Destroy(player));
                 });
             }
             else
             {
                 ui.Draw(player);
 
-                timers[player] = timer.Once(GetConfig(5f, "Settings", "Simple UI Hide Timer"), () => ui.Destroy(player));
+                timers[player] = timer.Once(SimpleUI_HideTimer, () => ui.Destroy(player));
             }
         }
 

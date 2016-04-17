@@ -1,70 +1,74 @@
 {
-  "ADVERTS": [
+  "Advert Messages": [
     "Want to know the available commands? Type <orange>/help<end>.",
     "Respect the server <orange>/rules<end>.",
     "<red>Cheating is strictly prohibited.<end>",
-    "Type <orange>/map<end> for the server map link.",
+    "To view the server map browse to https://utmo.link/rustmap",
     "You are playing on: <lime>{server.hostname}<end>",
-    "Take advantage of our convenient transit system.  With five points on the map including the central hub by the satalites and power plant (N12) it's easy to fast travel without spending all that time.",
     "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
   ],
-  "COLORS": {
-    "ADVERTS": "silver",
-    "BOARDS TITLE": "silver",
-    "JOIN MESSAGE": "silver",
-    "LEAVE MESSAGE": "silver",
-    "MOTD": "silver",
-    "PREFIX": "#00EEEE",
-    "SCHEDULED MESSAGES": "silver",
-    "SYSTEM": "white",
-    "WELCOME MESSAGE": "silver"
+  "Commands": {
+    "Settings": {
+      "Admins List": false,
+      "Players Count": true,
+      "Players List": true,
+      "Plugins List": false,
+      "Server Map": false,
+      "Server MOTD": false,
+      "Server Rules": true
+    },
+    "Triggers": {
+      "Admins List": [
+        "/admins"
+      ],
+      "Players Count": [
+        "/online"
+      ],
+      "Players List": [
+        "/players"
+      ],
+      "Plugins List": [
+        "/plugins"
+      ],
+      "Server Map": [
+        "/map"
+      ],
+      "Server MOTD": [
+        "/motd"
+      ],
+      "Server Rules": [
+        "/rules"
+      ]
+    }
   },
-  "COMMANDS": {
-    "ADMINS LIST": "admins",
-    "ADVERTS COMMAND": "adverts",
-    "MAP LINK": "map",
-    "MOTD": "motd",
-    "PLAYERS LIST": "players",
-    "PLAYERS ONLINE": "online",
-    "PLUGINS LIST": "plugins",
-    "RULES": [
-      "rules",
-      "regras",
-      "regles"
-    ]
+  "General Settings": {
+    "Adverts Interval (In Minutes)": 12,
+    "Broadcast To Console": true,
+    "Date Format": "{day}/{month}/{year}",
+    "Enable Advert Messages": true,
+    "Enable Chat Separators": true,
+    "Enable Icon Profile": false,
+    "Enable Join Message": true,
+    "Enable Leave Message": true,
+    "Enable Plugin Prefix": true,
+    "Enable Scheduled Messages": false,
+    "Enable Welcome Message": true,
+    "Hide Admins": false,
+    "Icon Profile": "76561198235146288",
+    "Notify Incoming Airdrop": false,
+    "Notify Incoming Helicopter": true,
+    "Prefix": "<white>[ <cyan>NOTIFIER<end> ]<end>",
+    "Rules Default Language": "auto",
+    "Time Format": "{hour}:{minute}:{second}"
   },
-  "MESSAGES": {
-    "ADMINS JOIN MESSAGE": "<#ADFF64>{username}<end> joined the server.",
-    "ADMINS LEAVE MESSAGE": "<#ADFF64>{username}<end> left the server. (Reason: <white>{reason}<end>)",
-    "ADMINS LIST DESC": "<orange>/admins<end> <grey>-<end> List of online <cyan>Admins<end> in the server.",
-    "ADMINS LIST TITLE": "ADMINS ONLINE",
-    "ADMINS ONLINE": "There are <cyan>{admins} Admins<end> online.",
-    "ADVERTS DESC": "<orange>/adverts<end> <grey>-<end> Allows <cyan>Admins<end> to change the adverts interval ( i.g: /adverts 5 )",
-    "ADVERTS INTERVAL CHANGED": "Adverts interval changed to <lime>{minutes}<end> minutes",
-    "AIRDROP CALLED": "An <yellow>Airdrop<end> is coming, will drop at <lime>{location}<end> coordinates.",
-    "CHECK CONSOLE": "Check the console (press F1) for more info.",
-    "HELI CALLED": "A <yellow>Patrol Helicopter<end> is coming!",
-    "JOIN MESSAGE": "<lime>{username}<end> joined the server.",
-    "LEAVE MESSAGE": "<lime>{username}<end> left the server. (Reason: <white>{reason}<end>)",
-    "MAP LINK": "See where you are on the server map at: <lime>http://utmo.link/rustmap<end>",
-    "MAP LINK DESC": "<orange>/map<end> <grey>-<end> Server map url.",
-    "NO ADMINS": "There are no <cyan>Admins<end> online.",
-    "NO LANG": "Error, <lime>{args}<end> language not supported or does not exist.",
-    "NO RULES": "Error, no rules found, contact the <cyan>Admins<end>.",
-    "PLAYERS LIST DESC": "<orange>/players<end> <grey>-<end> List of all players in the server.",
-    "PLAYERS LIST TITLE": "PLAYERS LIST",
-    "PLAYERS ONLINE": "There are <lime>{active}<end>/<lime>{maxplayers}<end> players online.",
-    "PLAYERS ONLINE DESC": "<orange>/online<end> <grey>-<end> Shows the number of players and <cyan>Admins<end> online, plus a few server stats.",
-    "PLAYERS ONLINE TITLE": "PLAYERS ONLINE",
-    "PLAYERS STATS": "Sleepers: <lime>{sleepers}<end> Alltime Players: <lime>{alltime}<end>",
-    "PLUGINS LIST DESC": "<orange>/plugins<end> <grey>-<end> List of plugins installed in the server.",
-    "PLUGINS LIST TITLE": "SERVER PLUGINS",
-    "RULES DESC": "<orange>/rules<end> <grey>-<end> List of server rules.",
-    "RULES TITLE": "SERVER RULES",
-    "SYNTAX ERROR": "Syntax Error: {syntax}"
-  },
-  "MOTD": "This server now has the new <yellow>Message Of The Day<end> feature provided by <cyan>Notifier<end>. Use <orange>/motd<end> to know server's daily news!",
-  "RULES": {
+  "Message Of The Day": "We are using <cyan>Notifier<end> <grey>v3.0<end>, type <orange>/notifier help<end> for all its available commands.",
+  "Rules": {
+    "CZ": [
+      "Cheatování je přísně zakázáno.",
+      "Respektuj a neurážej ostatní hráče.",
+      "Nespamuj chat zbytečně.",
+      "Hraj fair play a nezneužívej bugy/exploity."
+    ],
     "DE": [
       "Cheaten ist verboten!",
       "Respektiere alle Spieler",
@@ -109,6 +113,12 @@
       "Evitare lo spam in chat.",
       "Fair Play e non abusare di bug / exploit."
     ],
+    "JP": [
+      "チート行為は固く禁じております。",
+      "全てのプレイヤーに敬意を払って下さい。",
+      "チャットでスパム行為はしないで下さい。",
+      "バグの悪用行為や公平なプレイはしないで下さい"
+    ],
     "NL": [
       "Vals spelen is ten strengste verboden.",
       "Respecteer alle spelers",
@@ -146,37 +156,7 @@
       "Грати чесно і не зловживати помилки / подвиги."
     ]
   },
-  "SCHEDULED MESSAGES": { },
-  "SETTINGS": {
-    "ADVERTS INTERVAL": 12,
-    "ANNOUNCE AIRDROPS": false,
-    "ANNOUNCE PATROL HELICOPTERS": true,
-    "BROADCAST TO CONSOLE": true,
-    "DIFFER ADMINS JOIN/LEAVE MESSAGE": false,
-    "ENABLE ADMINS LIST": false,
-    "ENABLE ADVERTS": true,
-    "ENABLE ADVERTS COMMAND": true,
-    "ENABLE JOIN MESSAGE": true,
-    "ENABLE LEAVE MESSAGE": true,
-    "ENABLE MAP LINK": true,
-    "ENABLE MOTD": false,
-    "ENABLE PLAYERS DEFAULT COLORS": false,
-    "ENABLE PLAYERS LIST": true,
-    "ENABLE PLAYERS ONLINE": true,
-    "ENABLE PLUGIN ICON": false,
-    "ENABLE PLUGINS LIST": true,
-    "ENABLE RULES": true,
-    "ENABLE SCHEDULED MESSAGES": false,
-    "ENABLE WELCOME MESSAGE": true,
-    "HIDE ADMINS": false,
-    "ICON PROFILE": "76561198235146288",
-    "MOTD INTERVAL": 120,
-    "MOTD PREFIX": "[ <yellow>MOTD<end> ]",
-    "PLAYERS LIST ON CHAT": true,
-    "PLAYERS LIST ON CONSOLE": false,
-    "PREFIX": "<white>[<end> <cyan>NOTIFIER<end> <white>]<end>",
-    "RULES LANGUAGE": "AUTO"
-  },
+  "Schedule Messages": { },
   "WELCOME MESSAGE": [
     "<size=17>Welcome <lime>{username}<end></size>",
     "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
