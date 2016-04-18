@@ -27,7 +27,7 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true">
-      <RequestReload DateTime="4/16/16 4:23 PM"/>
+      <RequestReload DateTime="4/18/16 2:34 AM"/>
     </Mod>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true">
