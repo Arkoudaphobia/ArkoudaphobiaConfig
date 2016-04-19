@@ -1,6 +1,7 @@
 {
   "Settings": {
     "AutoTurnLanterns": true,
+    "includeCeilinglight": true,
     "includeCampfires": false,
     "includeJackOLanterns": true,
     "sunriseHour": "6",

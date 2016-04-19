@@ -13,7 +13,7 @@
   "Options - Radiation amount - Water Treatment Plant": 50.0,
   "Options - Radiation Zones - Airfield": false,
   "Options - Radiation Zones - Lighthouses": false,
-  "Options - Radiation Zones - Military Tunnels": false,
+  "Options - Radiation Zones - Military Tunnels": true,
   "Options - Radiation Zones - Powerplant": false,
   "Options - Radiation Zones - Rad-towns": false,
   "Options - Radiation Zones - Satellite": false,
