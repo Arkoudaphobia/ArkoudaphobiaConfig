@@ -10,12 +10,12 @@ namespace Oxide.Plugins
     [Description("Turns ON and OFF lanterns automatically after sunrise and sunset")]
     class NightLantern : RustPlugin
     {
-        
-        
+
+
         /******************************************/
         /*  VARIABLES DECLARATION                 */
         /******************************************/
-       
+
         private bool isLanternFirstEveningCheck = true;
         private bool isLanternFirstMorningCheck = true;
         private bool isLanternFirstNightCheck = true;
@@ -24,16 +24,17 @@ namespace Oxide.Plugins
         public bool isAutoTurnLanternsEnabled;
         public bool includeJackOLanterns;
         public bool includeCampfires;
+        public bool includeCeilinglight;
         protected string pluginPrefix;
         protected bool configChanged;
-        
+
 
 
         /******************************************/
         /*  OXIDE HOOKS (Plugin Life)             */
         /******************************************/
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void Init():
         //-------------------------------------------------------------------------------
@@ -43,13 +44,13 @@ namespace Oxide.Plugins
         void Init()
         {
             pluginPrefix = (this.Title + " v" + this.Version).ToString();
-            
+
             loadPermissions();
             HandleConfigs();
         }
-        
-        
-        
+
+
+
         //-------------------------------------------------------------------------------
         // void LoadDefaultConfig():
         //-------------------------------------------------------------------------------
@@ -61,13 +62,13 @@ namespace Oxide.Plugins
             Config.Clear();
             HandleConfigs();
         }
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void OnTick():
         //-------------------------------------------------------------------------------
-        // If automatic control of lanterns is enabled in config file 
-        // (AutoTurnLanterns: true by default) rules the Day/Night cycle to control 
+        // If automatic control of lanterns is enabled in config file
+        // (AutoTurnLanterns: true by default) rules the Day/Night cycle to control
         // lanterns every server tick.
         //-------------------------------------------------------------------------------
         void OnTick()
@@ -77,8 +78,8 @@ namespace Oxide.Plugins
                 dayNightCycle();
             }
         }
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void OnItemDeployed():
         //-------------------------------------------------------------------------------
@@ -90,99 +91,102 @@ namespace Oxide.Plugins
         {
             bool status = false;
             double currentTime = TOD_Sky.Instance.Cycle.Hour;
-            
+
             if (deployedEntity.LookupShortPrefabName() == "lantern.deployed.prefab"
-               || ( (deployedEntity.LookupShortPrefabName() == "jackolantern.happy.prefab") && includeJackOLanterns) 
-               || ( (deployedEntity.LookupShortPrefabName() == "jackolantern.angry.prefab") && includeJackOLanterns)
-               || ( (deployedEntity.LookupShortPrefabName() == "campfire.prefab") && includeCampfires)
-               ) 
+               || ((deployedEntity.LookupShortPrefabName() == "jackolantern.happy.prefab") && includeJackOLanterns)
+               || ((deployedEntity.LookupShortPrefabName() == "jackolantern.angry.prefab") && includeJackOLanterns)
+               || ((deployedEntity.LookupShortPrefabName() == "campfire.prefab") && includeCampfires)
+               || ((deployedEntity.LookupShortPrefabName() == "ceilinglight.deployed.prefab") && includeCeilinglight)
+               )
             {
-                
-                if ( currentTime < sunriseHour && isAutoTurnLanternsEnabled || currentTime >= sunsetHour && isAutoTurnLanternsEnabled )
-                    {
-                        status = true;
-                    }
-                
+
+                if (currentTime < sunriseHour && isAutoTurnLanternsEnabled || currentTime >= sunsetHour && isAutoTurnLanternsEnabled)
+                {
+                    status = true;
+                }
+
                 deployedEntity.SetFlag(BaseEntity.Flags.On, status);
 
             }
         }
-        
-        
-        
+
+
+
         /******************************************/
         /*  METHODS DECLARATION                   */
         /******************************************/
-        
+
         //-------------------------------------------------------------------------------
         // void turnLanterns(bool status):
         //-------------------------------------------------------------------------------
         // Create a list of all server Baseovens, cycles through it and each lantern
         // it's turned ON or OFF based on boolean status variable passed to the function.
         //-------------------------------------------------------------------------------
-        private void turnLanterns(bool status) {
-            
+        private void turnLanterns(bool status)
+        {
+
             List<BaseOven> ovens = Component.FindObjectsOfType<BaseOven>().ToList();
             foreach (BaseOven oven in ovens)
             {
                 if (oven.LookupShortPrefabName() == "lantern.deployed.prefab"
-                   || ( (oven.LookupShortPrefabName() == "jackolantern.happy.prefab") && includeJackOLanterns)
-                   || ( (oven.LookupShortPrefabName() == "jackolantern.angry.prefab") && includeJackOLanterns)
-                   || ( (oven.LookupShortPrefabName() == "campfire.prefab") && includeCampfires)
+                   || ((oven.LookupShortPrefabName() == "jackolantern.happy.prefab") && includeJackOLanterns)
+                   || ((oven.LookupShortPrefabName() == "jackolantern.angry.prefab") && includeJackOLanterns)
+                   || ((oven.LookupShortPrefabName() == "campfire.prefab") && includeCampfires)
+                   || ((oven.LookupShortPrefabName() == "ceilinglight.deployed.prefab") && includeCeilinglight)
                    )
                 {
                     oven.SetFlag(BaseEntity.Flags.On, status);
 
                 }
             }
-            
+
         }
-        
+
         //-------------------------------------------------------------------------------
         // void dayNightCycle():
         //-------------------------------------------------------------------------------
         // Plugin Core Function: Checks in-game hour and calls turnLanterns() function
         // to turn lanterns ON or OFF based on it.
         // Sunset and sunrise hours are taken from config file.
-        // turnLanterns() functions is called only once for (first tick of) morning, 
+        // turnLanterns() functions is called only once for (first tick of) morning,
         // evening and night changing the value of variables:
         // isLanternFirstMorningCheck, isLanternFirstEveningCheck and isLanternFirstNightCheck
         //-------------------------------------------------------------------------------
-        private void dayNightCycle() 
+        private void dayNightCycle()
         {
-            
+
             double currentTime = TOD_Sky.Instance.Cycle.Hour;
-            
-            if ( currentTime >= sunsetHour && isLanternFirstEveningCheck )
+
+            if (currentTime >= sunsetHour && isLanternFirstEveningCheck)
             {
                 turnLanterns(true);
                 isLanternFirstMorningCheck = true;
                 isLanternFirstEveningCheck = false;
                 isLanternFirstNightCheck = true;
-                
+
                 myPuts("All lanterns turned ON");
             }
-            else if ( currentTime >= sunriseHour && currentTime < sunsetHour && isLanternFirstMorningCheck )
+            else if (currentTime >= sunriseHour && currentTime < sunsetHour && isLanternFirstMorningCheck)
             {
                 turnLanterns(false);
                 isLanternFirstMorningCheck = false;
                 isLanternFirstEveningCheck = true;
                 isLanternFirstNightCheck = true;
-                
+
                 myPuts("All lanterns turned OFF");
             }
-            else if (  currentTime < sunriseHour && isLanternFirstNightCheck )
+            else if (currentTime < sunriseHour && isLanternFirstNightCheck)
             {
                 turnLanterns(true);
                 isLanternFirstMorningCheck = true;
                 isLanternFirstEveningCheck = true;
                 isLanternFirstNightCheck = false;
-                
+
             }
-        
+
         }
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // object GetConfig(string menu, string datavalue, object defaultValue)
         //-------------------------------------------------------------------------------
@@ -210,8 +214,8 @@ namespace Oxide.Plugins
             }
             return value;
         }
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void HandleConfigs():
         //-------------------------------------------------------------------------------
@@ -226,45 +230,46 @@ namespace Oxide.Plugins
             isAutoTurnLanternsEnabled = Convert.ToBoolean(GetConfig("Settings", "AutoTurnLanterns", true));
             includeJackOLanterns = Convert.ToBoolean(GetConfig("Settings", "includeJackOLanterns", true));
             includeCampfires = Convert.ToBoolean(GetConfig("Settings", "includeCampfires", false));
-            
+            includeCeilinglight = Convert.ToBoolean(GetConfig("Settings", "includeCeilinglight", true));
+
             if (configChanged)
             {
                 SaveConfig();
             }
-            
+
         }
-        
-        
-        
-        
+
+
+
+
         /******************************************/
         /*  CHAT COMMANDS                         */
         /******************************************/
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void chatCommand_LantON(BasePlayer player, string command, string[] args)
         //-------------------------------------------------------------------------------
-        // Chat command lantON: turn ON all lanterns if user has "CanControlLanterns" 
+        // Chat command lantON: turn ON all lanterns if user has "nightlantern.Lanterns"
         // permission.
-        //-------------------------------------------------------------------------------  
+        //-------------------------------------------------------------------------------
         [ChatCommand("lant")]
         void chatCommand_Lant(BasePlayer player, string command, string[] args)
         {
-            if (!IsAllowed(player, "CanControlLanterns"))
+            if (!IsAllowed(player, "nightlantern.Lanterns"))
             {
                 return;
             }
-            
-            if (args.Length == 0) 
+
+            if (args.Length == 0)
             {
                 PrintToChat(player, "Invalid command: you have to type /lant <ON|OFF>");
             }
-            
-            else 
+
+            else
             {
                 string parametro = args[0].ToLower();
-                
+
                 if (parametro == "on")
                 {
                     turnLanterns(true);
@@ -275,51 +280,52 @@ namespace Oxide.Plugins
                     turnLanterns(false);
                     myPuts("All lanterns turned OFF");
                 }
-                else 
+                else
                 {
                     PrintToChat(player, "Invalid command: you have to type /lant <ON|OFF>");
                 }
             }
-            
-            
-            
+
+
+
         }
-        
-            
-        
+
+
+
         /******************************************/
         /* PERMISSIONS: Checkings and Registering */
         /******************************************/
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // void loadPermissions()
         //-------------------------------------------------------------------------------
-        // Checks if "CanControlLanterns" custom permission is already registered, if not
+        // Checks if "nightlantern.Lanterns" custom permission is already registered, if not
         // it registers it.
         // The permission is then assigned to admin group by default.
-        //------------------------------------------------------------------------------- 
-        private void loadPermissions() {
-            
-            if (!permission.PermissionExists("CanControlLanterns"))
+        //-------------------------------------------------------------------------------
+        private void loadPermissions()
+        {
+
+            if (!permission.PermissionExists("nightlantern.Lanterns"))
             {
-                permission.RegisterPermission("CanControlLanterns", this);
-                
+                permission.RegisterPermission("nightlantern.Lanterns", this);
+
             }
-            
-            permission.GrantGroupPermission("admin", "CanControlLanterns", this);
-            
-            
+
+            permission.GrantGroupPermission("admin", "nightlantern.Lanterns", this);
+
+
 
         }
-        
-        
+
+
         //-------------------------------------------------------------------------------
         // bool IsAllowed(BasePlayer player, string perm)
         //-------------------------------------------------------------------------------
         // Checks if current user has the passed permission, if true return true, else it
         // returns false and send a chat alert to the player.
-        //------------------------------------------------------------------------------- 
+        //-------------------------------------------------------------------------------
         private bool IsAllowed(BasePlayer player, string perm)
         {
             if (permission.UserHasPermission(player.userID.ToString(), perm)) return true;
@@ -327,22 +333,22 @@ namespace Oxide.Plugins
             return false;
         }
 
-        
+
         /******************************************/
         /*  TOOLBOX PART                          */
         /******************************************/
-        
+
         //-------------------------------------------------------------------------------
         // void myPuts(string message)
         //-------------------------------------------------------------------------------
         // A customized version of oxide Puts, it returns in console the passed string
         // with a prefix containing plugin title and version number.
-        //------------------------------------------------------------------------------- 
+        //-------------------------------------------------------------------------------
         protected void myPuts(string message)
         {
             Interface.Oxide.LogInfo(String.Format("[{0}] {1}", pluginPrefix, message));
         }
-        
+
 
 
     }
