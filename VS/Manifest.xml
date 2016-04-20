@@ -48,7 +48,7 @@
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TearUpBP.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true">
-      <RequestReload DateTime="4/16/16 1:10 PM"/>
+      <RequestReload DateTime="4/20/16 10:55 AM"/>
     </Mod>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
     <Mod Name="ZoneManager.cs" Enabled="true"/>
