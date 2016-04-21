@@ -9,7 +9,9 @@
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
     <Mod Name="Cornucopia.cs" Enabled="false"/>
-    <Mod Name="CorpseDuration.cs" Enabled="true"/>
+    <Mod Name="CorpseDuration.cs" Enabled="true">
+      <RequestReload DateTime="4/21/16 2:34 AM"/>
+    </Mod>
     <Mod Name="DeadPlayersList.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="DemolishRefund.coffee" Enabled="true"/>
@@ -27,7 +29,7 @@
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true">
-      <RequestReload DateTime="4/18/16 2:34 AM"/>
+      <RequestReload DateTime="4/21/16 2:34 AM"/>
     </Mod>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true">
