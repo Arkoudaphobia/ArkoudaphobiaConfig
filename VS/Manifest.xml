@@ -1,17 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ArkoudaphobiaConfig xmlns="http://xmlschema.utmonline.net/2016/RustModuleManafest">
   <ModFiles>
-    <Mod Name="AFK.CS" Enabled="true">
-      <RequestReload DateTime="2/20/2016 6:17 PM"/>
-    </Mod>
+    <Mod Name="AFK.CS" Enabled="true"/>
     <Mod Name="AntiAdminAbuse.cs" Enabled="true" />
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
     <Mod Name="Cornucopia.cs" Enabled="false"/>
-    <Mod Name="CorpseDuration.cs" Enabled="true">
-      <RequestReload DateTime="4/21/16 2:34 AM"/>
-    </Mod>
+    <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="DeadPlayersList.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="DemolishRefund.coffee" Enabled="true"/>
@@ -21,20 +17,14 @@
     <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
-    <Mod Name="InfoPanel.cs" Enabled="true">
-      <RequestReload DateTime="4/16/16 3:12 PM"/>
-    </Mod>
+    <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
     <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
-    <Mod Name="MonumentRadiation.cs" Enabled="true">
-      <RequestReload DateTime="4/21/16 2:34 AM"/>
-    </Mod>
+    <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.cs" Enabled="true">
-      <RequestReload DateTime="4/12/2016 1:45 AM"/>
-    </Mod>
+    <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PillsHere.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
@@ -49,9 +39,7 @@
     <Mod Name="Spawns.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TearUpBP.cs" Enabled="true"/>
-    <Mod Name="TimeOfDay.cs" Enabled="true">
-      <RequestReload DateTime="4/20/16 10:55 AM"/>
-    </Mod>
+    <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
     <Mod Name="ZoneManager.cs" Enabled="true"/>
   </ModFiles>
