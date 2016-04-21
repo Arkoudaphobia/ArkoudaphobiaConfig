@@ -32,7 +32,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ModConfigFiles", "ModConfig
 		..\ModConfigFiles\PopupNotifications.json = ..\ModConfigFiles\PopupNotifications.json
 		..\ModConfigFiles\QuickSmelt.json = ..\ModConfigFiles\QuickSmelt.json
 		..\ModConfigFiles\RainOfFire.json = ..\ModConfigFiles\RainOfFire.json
-		..\ModConfigFiles\Reserved.json = ..\ModConfigFiles\Reserved.json
 		..\ModConfigFiles\RustIO.json = ..\ModConfigFiles\RustIO.json
 		..\ModConfigFiles\SignArtist.json = ..\ModConfigFiles\SignArtist.json
 		..\ModConfigFiles\StackSizeController.json = ..\ModConfigFiles\StackSizeController.json
