@@ -16,6 +16,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ModConfigFiles", "ModConfig
 		..\ModConfigFiles\EntityOwner.json = ..\ModConfigFiles\EntityOwner.json
 		..\ModConfigFiles\EventManager.json = ..\ModConfigFiles\EventManager.json
 		..\ModConfigFiles\GatherManager.json = ..\ModConfigFiles\GatherManager.json
+		HammerTime.json = HammerTime.json
 		..\ModConfigFiles\helptext.json = ..\ModConfigFiles\helptext.json
 		..\ModConfigFiles\InfoPanel.json = ..\ModConfigFiles\InfoPanel.json
 		..\ModConfigFiles\Jail.json = ..\ModConfigFiles\Jail.json
