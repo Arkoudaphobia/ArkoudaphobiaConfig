@@ -1,0 +1,10 @@
+{
+  "AllowDemolishAfterServerRestart": true,
+  "AllowRotateAfterServerRestart": true,
+  "AuthLevelOverrideDemolish": true,
+  "DemolishTime": -1,
+  "MustOwnToDemolish": false,
+  "MustOwnToRotate": false,
+  "RepairDamageCooldown": 8.0,
+  "RotateTime": 900
+}
