@@ -46,6 +46,8 @@ If($QuarterlyClean)
 If($MonthlyClean)
 {
 	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json"
+	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsCraftDetails.json"
+	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsRemastered.db"
 	Write-Verbose -Message "Removed Last wipes portal config file"
 }
 
