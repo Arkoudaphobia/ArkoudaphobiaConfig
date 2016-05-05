@@ -15,6 +15,7 @@
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
+    <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="Jail.cs" Enabled="true"/>
@@ -53,6 +54,7 @@
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="eventmanager.json" remove="false"/>
     <Config Name="GatherManager.json" remove="false"/>
+    <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="Jail.json" remove="false"/>
