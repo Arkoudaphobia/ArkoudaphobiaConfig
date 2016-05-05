@@ -67,7 +67,6 @@
     <Config Name="PillsHere.json" remove="false"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
-    <Config Name="Polling.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
