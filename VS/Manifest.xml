@@ -2,11 +2,10 @@
 <ArkoudaphobiaConfig xmlns="http://xmlschema.utmonline.net/2016/RustModuleManafest">
   <ModFiles>
     <Mod Name="AFK.CS" Enabled="true"/>
-    <Mod Name="AntiAdminAbuse.cs" Enabled="true" />
+    <Mod Name="AntiAdminAbuse.cs" Enabled="false" />
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
-    <Mod Name="Cornucopia.cs" Enabled="false"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="DeadPlayersList.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
@@ -30,7 +29,6 @@
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
-    <Mod Name="Polling.cs" Enabled="false"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
@@ -45,11 +43,10 @@
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AFK.json" remove="false" />
-    <Config Name="AntiAdminAbuse.json" remove="false" />
+    <Config Name="AntiAdminAbuse.json" remove="true" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="chatmute.json" remove="false"/>
-    <Config Name="Cornucopia.json" remove="true"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EnhancedBanSystem.json" remove="false"/>
