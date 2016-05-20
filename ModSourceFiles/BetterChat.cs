@@ -8,7 +8,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "4.0.2", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "4.0.3", ResourceId = 979)]
     [Description("Better Chat")]
     class BetterChat : RustPlugin
     {
@@ -341,7 +341,23 @@ namespace Oxide.Plugins
                             Text = "[Plugin Developer]"
                         },
 
-                        Priority = -100
+                        Priority = 100
+                    });
+                }
+
+                if (player.IsDeveloper())
+                {
+                    groups.Add(new Group
+                    {
+                        GroupName = "GameDeveloper",
+                        
+                        Title = new TitleSettings
+                        {
+                            Color = "#fa5",
+                            Text = "[Game Developer]"
+                        },
+
+                        Priority = 100
                     });
                 }
 
@@ -395,7 +411,6 @@ namespace Oxide.Plugins
                 //  Init Replacements
                 var replacements = new Dictionary<string, object>
                 {
-                    { "Name", player.displayName },
                     { "SteamID", player.userID },
                     { "Time", DateTime.Now.TimeOfDay },
                     { "Date", DateTime.Now },
@@ -408,10 +423,11 @@ namespace Oxide.Plugins
                 //  Add Title
                 output = output.Replace("{Title}", string.Join(" ", (from Group in all where !Group.Title.Hidden && !(Group.Title.HideIfNotHighestPriority && Group.Priority > primary.Priority) select Group.Title.Formatted).ToArray()));
 
-                //  Add Message
-                output = primary.Message.Replace(output, StripTags(message));
                 //  Add PlayerName
                 output = primary.PlayerName.Replace(output, StripTags(player.displayName));
+
+                //  Add Message
+                output = primary.Message.Replace(output, StripTags(message));
 
                 //  Replace other tags
                 foreach (var kvp in replacements)
@@ -470,7 +486,7 @@ namespace Oxide.Plugins
             public string Color = "white";
 
             internal string Formatted => $"<size={Size}><color={Color}>{{Message}}</color></size>";
-            internal string Replace(string source, string message) => source.Replace("{Message}", Formatted.Replace("{Message}", message));
+            internal string Replace(string source, string message) => source.Replace("{Message}", Formatted.Replace("{Message}", Plugin.General_AllowPlayerTagging ? Plugin.ReplaceTaggedNames(message) : message));
         }
 
         class Formatting
@@ -501,7 +517,9 @@ namespace Oxide.Plugins
 
         #region Cached Variables
 
+        bool General_AllowPlayerTagging;
         bool General_ReverseTitleOrder;
+        int General_MinimalChars;
 
         bool AntiFlood_Enabled;
         float AntiFlood_Seconds;
@@ -564,7 +582,9 @@ namespace Oxide.Plugins
 
         void LoadConfig()
         {
+            SetConfig("General", "Enable Player Tagging", false);
             SetConfig("General", "Reverse Title Order", false);
+            SetConfig("General", "Minimal Characters", 2);
 
             SetConfig("Anti Flood", "Enabled", true);
             SetConfig("Anti Flood", "Seconds", 1.5f);
@@ -583,7 +603,9 @@ namespace Oxide.Plugins
 
             //////////////////////////////////////////////////////////////////////////////////
 
+            General_AllowPlayerTagging = GetConfig(false, "General", "Enable Player Tagging");
             General_ReverseTitleOrder = GetConfig(false, "General", "Reverse Title Order");
+            General_MinimalChars = GetConfig(2, "General", "Minimal Characters");
 
             AntiFlood_Enabled = GetConfig(true, "Anti Flood", "Enabled");
             AntiFlood_Seconds = GetConfig(1.5f, "Anti Flood", "Seconds");
@@ -635,6 +657,29 @@ namespace Oxide.Plugins
         #endregion
 
         #region Formatting Helpers
+
+        string ReplaceTaggedNames(string input)
+        {
+            foreach (string word in input.Split(' '))
+            {
+                if (word.Length < 2)
+                    continue;
+
+                string name = word.Substring(1);
+
+                if (word.StartsWith("@") && BasePlayer.Find(name) != null)
+                {
+                    BasePlayer player = BasePlayer.Find(name);
+                    Group primary = Group.GetPrimaryGroup(player);
+
+                    input = input.Replace(word, "@" + primary.PlayerName.Replace(primary.PlayerName.Formatted, player.displayName));
+
+                    Effect.server.Run("assets/bundled/prefabs/fx/headshot.prefab", player, 0, new Vector3(0, 2, 0), Vector3.zero, player.net.connection, false);
+                }
+            }
+
+            return input;
+        }
 
         string FormatTime(TimeSpan time) => $"{(time.Hours == 0 ? string.Empty : $"{time.Hours} hour(s)")}{(time.Hours != 0 && time.Minutes != 0 ? $", " : string.Empty)}{(time.Minutes == 0 ? string.Empty : $"{time.Minutes} minute(s)")}{(time.Minutes != 0 && time.Seconds != 0 ? $", " : string.Empty)}{(time.Seconds == 0 ? string.Empty : $"{time.Seconds} second(s)")}";
 
@@ -1267,7 +1312,7 @@ namespace Oxide.Plugins
             string message = GetConfig(false, "Word Filter", "Enabled") ? FilterText(arg.GetString(0)) : arg.GetString(0);
 
             //  Is message invalid?
-            if (message == string.Empty || message.Length <= 1)
+            if (message == string.Empty || message.Length < General_MinimalChars)
                 return false;
 
             pl.mute.Update();
