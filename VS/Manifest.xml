@@ -16,7 +16,8 @@
     <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
-    <Mod Name="helptext.lua" Enabled="true"/>
+    <Mod Name="helptext.lua" Enabled="false"/>
+    <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
