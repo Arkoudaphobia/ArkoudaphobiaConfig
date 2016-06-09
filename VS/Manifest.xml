@@ -13,7 +13,7 @@
     <Mod Name="EnhancedBanSystem.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
-    <Mod Name="EventManager.cs" Enabled="true"/>
+    <Mod Name="EventManager.cs" Enabled="false"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="helptext.lua" Enabled="false"/>
@@ -21,7 +21,7 @@
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
-    <Mod Name="LastManStanding.cs" Enabled="true"/>
+    <Mod Name="LastManStanding.cs" Enabled="false"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
