@@ -37,6 +37,7 @@
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="Spawns.cs" Enabled="false"/>
+    <Mod Name="SpawnConfig.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TearUpBP.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
