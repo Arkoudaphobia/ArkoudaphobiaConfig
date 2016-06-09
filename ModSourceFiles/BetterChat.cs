@@ -1,13 +1,14 @@
 ﻿using Oxide.Core.Libraries.Covalence;
 using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using Oxide.Core.Plugins;
 using UnityEngine;
 using System.Linq;
 using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "4.1.10", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "4.1.11", ResourceId = 979)]
     [Description("BetterChat")]
     class BetterChat : CovalencePlugin
     {
@@ -363,18 +364,7 @@ namespace Oxide.Plugins
 
                 if (bPlayer.IsDeveloper())
                 {
-                    groups.Add(new Group
-                    {
-                        GroupName = "GameDeveloper",
-
-                        Title = new TitleSettings
-                        {
-                            Color = "#fa5",
-                            Text = "[Game Developer]"
-                        },
-
-                        Priority = 100
-                    });
+                    groups.Add(Plugin.GameDeveloperGroup);
                 }
 #endif
 
@@ -443,9 +433,13 @@ namespace Oxide.Plugins
                 //  Add Title
                 output = output.Replace("{Title}", string.Join(" ", (from Group in all where !Group.Title.Hidden && !(Group.Title.HideIfNotHighestPriority && Group.Priority > primary.Priority) select Group.Title.Formatted).ToArray()));
 
+#if RUST
+                //  Add PlayerName
+                output = primary.PlayerName.Replace(output, StripTags(player.GetBasePlayer()?.displayName ?? pl.name));
+#else
                 //  Add PlayerName
                 output = primary.PlayerName.Replace(output, StripTags(pl.name));
-
+#endif
                 //  Add Message
                 output = primary.Message.Replace(output, StripTags(message));
 
@@ -524,11 +518,21 @@ namespace Oxide.Plugins
             internal string Replace(string source, string name) => source.Replace("{Name}", Formatted.Replace("{Name}", name));
         }
 
-#endregion
+        #endregion
 
         #region Global Declaration
 
+#if RUST
         Oxide.Game.Rust.Libraries.Rust rust = GetLibrary<Oxide.Game.Rust.Libraries.Rust>();
+
+        [PluginReference("Clans")]
+        Plugin Clans;
+#elif HURTWORLD
+        [PluginReference("HWClans")]
+        Plugin Clans;
+#else
+        Plugin Clans;
+#endif
 
         bool fixedDefaultGroup = false;
 
@@ -553,6 +557,19 @@ namespace Oxide.Plugins
 
             Priority = 100,
             dontSave = true
+        };
+
+        Group GameDeveloperGroup = new Group
+        {
+            GroupName = "GameDeveloper",
+
+            Title = new TitleSettings
+            {
+                Color = "#fa5",
+                Text = "[Game Developer]"
+            },
+
+            Priority = 100
         };
 
         bool General_AllowPlayerTagging;
@@ -1382,6 +1399,21 @@ namespace Oxide.Plugins
         #endregion
 
         #region General
+
+        #region Clan Helper
+
+        string GetClanTag(string id)
+        {
+#if RUST
+            return (string)Clans?.Call("GetClanOf", id) ?? string.Empty;
+#elif HURTWORLD && false
+            return (string)Clans?.Call("getClanTag", id) ?? string.Empty;
+#else
+            return string.Empty;
+#endif
+        }
+
+        #endregion
 
         #region Finding Helper
 
