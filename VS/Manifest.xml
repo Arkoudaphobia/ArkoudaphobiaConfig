@@ -2,7 +2,6 @@
 <ArkoudaphobiaConfig xmlns="http://xmlschema.utmonline.net/2016/RustModuleManafest">
   <ModFiles>
     <Mod Name="AFK.CS" Enabled="true"/>
-    <Mod Name="AntiAdminAbuse.cs" Enabled="false" />
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
@@ -13,15 +12,12 @@
     <Mod Name="EnhancedBanSystem.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
-    <Mod Name="EventManager.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
-    <Mod Name="helptext.lua" Enabled="false"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="Jail.cs" Enabled="true"/>
     <Mod Name="Kits.cs" Enabled="true"/>
-    <Mod Name="LastManStanding.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
@@ -36,7 +32,7 @@
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
-    <Mod Name="Spawns.cs" Enabled="true"/>
+    <Mod Name="SpawnConfig.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TearUpBP.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
@@ -45,7 +41,6 @@
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AFK.json" remove="false" />
-    <Config Name="AntiAdminAbuse.json" remove="true" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="chatmute.json" remove="false"/>

@@ -11,7 +11,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Notifier", "SkinN", "3.0.8", ResourceId = 797)]
+    [Info("Notifier", "SkinN", "3.0.9", ResourceId = 797)]
     [Description("Server administration tool with chat based notifications")]
 
     class Notifier : RustPlugin
@@ -903,7 +903,7 @@ namespace Oxide.Plugins
 
         private string Pads(string target, int number = 2) { return target.PadLeft(number, '0'); }
 
-        void SendHelpText(BasePlayer player) { Tell(player, GetMsg("Help Text Message")); }
+        void SendHelpText(BasePlayer player) { Plugin_Command(player, "/notifier", new string[] {"help"}); }
 
         #endregion
     }

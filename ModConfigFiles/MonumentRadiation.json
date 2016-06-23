@@ -1,44 +1,82 @@
 {
-  "Options - Message - Use enter message": true,
-  "Options - Message - Use leave message": true,
-  "Options - Radiation amount - Airfield": 50.0,
-  "Options - Radiation amount - Lighthouses": 25.0,
-  "Options - Radiation amount - Military Tunnels": 100.0,
-  "Options - Radiation amount - Powerplant": 100.0,
-  "Options - Radiation amount - Rad-towns": 100.0,
-  "Options - Radiation amount - Satellite": 50.0,
-  "Options - Radiation amount - Sphere Tank": 50.0,
-  "Options - Radiation amount - Trainyard": 50.0,
-  "Options - Radiation amount - Warehouses": 25.0,
-  "Options - Radiation amount - Water Treatment Plant": 50.0,
-  "Options - Radiation Zones - Airfield": false,
-  "Options - Radiation Zones - Lighthouses": true,
-  "Options - Radiation Zones - Military Tunnels": true,
-  "Options - Radiation Zones - Powerplant": true,
-  "Options - Radiation Zones - Rad-towns": true,
-  "Options - Radiation Zones - Satellite": true,
-  "Options - Radiation Zones - Sphere Tank": true,
-  "Options - Radiation Zones - Trainyard": true,
-  "Options - Radiation Zones - Warehouses": false,
-  "Options - Radiation Zones - Water Treatment Plant": true,
-  "Options - Timers - Amount of time activated (mins)": 45,
-  "Options - Timers - Amount of time deactivated (mins)": 15,
-  "Options - Timers - Broadcast radiation status": true,
-  "Options - Timers - Random - Off maximum (mins)": 60,
-  "Options - Timers - Random - Off minimum (mins)": 25,
-  "Options - Timers - Random - On maximum (mins)": 5,
-  "Options - Timers - Random - On minimum (mins)": 30,
-  "Options - Timers - Use radiation activation/deactivation timers": false,
-  "Options - Timers - Use random timers": true,
-  "Options - Using Hapis Island": false,
-  "Options - Zone Size - Airfield": "85",
-  "Options - Zone Size - Lighthouses": "15",
-  "Options - Zone Size - Military Tunnels": "90",
-  "Options - Zone Size - Powerplant": "120",
-  "Options - Zone Size - Rad-towns": "60",
-  "Options - Zone Size - Satellite": "60",
-  "Options - Zone Size - Sphere Tank": "50",
-  "Options - Zone Size - Trainyard": "100",
-  "Options - Zone Size - Warehouses": "15",
-  "Options - Zone Size - Water Treatment Plant": "120"
+  "Messaging": {
+    "Display_EnterMessage": true,
+    "Display_LeaveMessage": true
+  },
+  "Options": {
+    "Broadcast_Timers": true, // Print when radiation is deactivated/reactivate to chat
+    "Use_RandomTimers": true, // Use random radiation timers
+    "Use_Timers": false, // Use active/inactive radiation timers
+    "Using_HapisIsland": false // For use with Hapis island
+  },
+  "Timers": {
+    "Random_OffMax": 60, // Random timer off max time
+    "Random_OffMin": 25, // Random timer off min time
+    "Random_OnMax": 30, // Random timer on max time
+    "Random_OnMin": 5, // Random timer on min time
+    "Static_Off": 15, // Time radiation will be disabled (when not using random timers)
+    "Static_On": 45 // Same as above for active zones
+  },
+  "Zones": {
+    "Airfield": {
+      "Activate": false, // Enable/Disable the zone
+      "Name": "Airfield", // Zone name (internal use)
+      "Radiation": 100.0, // Radiation amount
+      "Radius": 85.0 // Radius of the zone
+    },
+    "Dome": {
+      "Activate": true,
+      "Name": "Dome",
+      "Radiation": 100.0,
+      "Radius": 50.0
+    },
+    "Lighthouse": {
+      "Activate": true,
+      "Name": "Lighthouse",
+      "Radiation": 100.0,
+      "Radius": 15.0
+    },
+    "Powerplant": {
+      "Activate": true,
+      "Name": "Powerplant",
+      "Radiation": 100.0,
+      "Radius": 120.0
+    },
+    "Radtown": {
+      "Activate": true,
+      "Name": "Radtown",
+      "Radiation": 100.0,
+      "Radius": 85.0
+    },
+    "Satellite": {
+      "Activate": true,
+      "Name": "Satellite",
+      "Radiation": 100.0,
+      "Radius": 60.0
+    },
+    "Trainyard": {
+      "Activate": true,
+      "Name": "Trainyard",
+      "Radiation": 100.0,
+      "Radius": 100.0
+    },
+    "Tunnels": {
+      "Activate": true,
+      "Name": "Tunnels",
+      "Radiation": 100.0,
+      "Radius": 90.0
+    },
+    "Warehouse": {
+      "Activate": false,
+      "Name": "Warehouse",
+      "Radiation": 100.0,
+      "Radius": 15.0
+    },
+    "WaterTreatment": {
+      "Activate": true,
+      "Name": "WaterTreatment",
+      "Radiation": 100.0,
+      "Radius": 120.0
+    }
+  }
 }
