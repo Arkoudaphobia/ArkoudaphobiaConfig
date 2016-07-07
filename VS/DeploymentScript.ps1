@@ -27,19 +27,19 @@ If($QuarterlyClean)
 		}
 	}
 
-	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json"
+	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json" -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed Last wipes portal config file"
 
-	Get-ChildItem -Path "$BaseServerPath\cfg" | Remove-Item -Recurse -Force -Confirm:$false
+	Get-ChildItem -Path "$BaseServerPath\cfg" | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed config items in the cfg directory"
 
-	Get-ChildItem -Path "$BaseServerPath\save" | Remove-Item -Recurse -Force -Confirm:$false
+	Get-ChildItem -Path "$BaseServerPath\save" | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed saves from the save directory"
 
-	Remove-Item -Path "$BaseServerPath\Storage.db" -Confirm:$false -Force
+	Remove-Item -Path "$BaseServerPath\Storage.db" -Confirm:$false -Force -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed the storage database"
 
-	Remove-Item -Path "$BaseServerPath\UserPersistence.db" -Confirm:$false -Force:$true
+	Remove-Item -Path "$BaseServerPath\UserPersistence.db" -Confirm:$false -Force:$true -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed the User Persistence Database"
 }
 
