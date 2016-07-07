@@ -8,7 +8,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "4.1.11", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "4.1.14", ResourceId = 979)]
     [Description("BetterChat")]
     class BetterChat : CovalencePlugin
     {
@@ -21,6 +21,8 @@ namespace Oxide.Plugins
             public MuteInfo mute = new MuteInfo();
             public List<string> ignoring = new List<string>();
 
+            internal string nameWithClanTag => Group.GetPrimaryGroup(steamID).PlayerName.ClanTagFormat.Replace("{Clan}", Plugin.GetClanTag(steamID)).Replace("{Name}", name);
+
             internal float NextChatTime = 0f;
 
             internal bool Ignored(IPlayer player) => ignoring.Contains(player.Id);
@@ -28,15 +30,10 @@ namespace Oxide.Plugins
 
             internal void Update(IPlayer player)
             {
-#if RUST
-                if (steamID != player.Id || name != (player.GetBasePlayer()?.displayName ?? player.Name))
-                {
-                    name = player.GetBasePlayer()?.displayName ?? player.Name;
-#else
                 if (steamID != player.Id || name != player.Name)
                 {
                     name = player.Name;
-#endif
+
                     steamID = player.Id;
                     Updated();
                 }
@@ -51,16 +48,34 @@ namespace Oxide.Plugins
             static internal Player Find(IPlayer player) => Plugin.Players.Find((p) => p.steamID == player.Id);
             static internal Player Find(string steamID) => Plugin.Players.Find((p) => p.steamID == steamID);
 
-            static internal void Create(IPlayer player)
+            static internal Player Create(IPlayer player) => Create(player.Id, player.Name);
+            
+            static internal Player Create(string id, string name = "unknown")
             {
                 Player pl = new Player();
 
-                pl.steamID = player.Id;
-                pl.mute.steamID = player.Id;
-                pl.name = player.Name;
+                pl.steamID = id;
+                pl.mute.steamID = id;
+                pl.name = name;
 
+                pl.Updated();
+
+                return pl;
+            }
+
+            static internal Player LoadOrCreate(IPlayer player) => LoadOrCreate(player.Id, player.Name);
+
+            static internal Player LoadOrCreate(string id, string name = "unknown")
+            {
+                Player pl = null;
+                Plugin.LoadData(ref pl, $"BetterChat/Players/{id}");
+
+                if (pl == null)
+                    return Create(id, name);
+                
                 Plugin.Players.Add(pl);
-                Updated();
+
+                return pl;
             }
 
             static internal Player FindOrCreate(IPlayer player)
@@ -68,10 +83,17 @@ namespace Oxide.Plugins
                 Player pl = Find(player);
 
                 if (pl == null)
-                {
-                    Create(player);
-                    return Find(player);
-                }
+                    return LoadOrCreate(player);
+
+                return pl;
+            }
+
+            static internal Player FindOrCreate(string id)
+            {
+                Player pl = Find(id);
+
+                if (pl == null)
+                    return LoadOrCreate(id);
 
                 return pl;
             }
@@ -80,6 +102,9 @@ namespace Oxide.Plugins
             {
                 Plugin.NextTick(() =>
                 {
+                    if (mute == null)
+                        mute = new MuteInfo();
+
                     if (mute.steamID != steamID)
                     {
                         mute.steamID = steamID;
@@ -88,7 +113,7 @@ namespace Oxide.Plugins
                 });
             }
 
-            static internal void Updated() => Plugin.SaveData(ref Plugin.Players, "BetterChat/Players");
+            internal void Updated() => Plugin.SaveData(this, $"BetterChat/Players/{steamID}");
 
             public override int GetHashCode() => steamID.GetHashCode();
         }
@@ -111,7 +136,7 @@ namespace Oxide.Plugins
                 if (state == MutedState.TimeMuted && (timer == null || timer.Destroyed))
                     timer = Plugin.timer.Repeat(30, 0, Update);
 
-                Player.Updated();
+                player?.Updated();
             }
 
             internal void Unmute(bool broadcast = true)
@@ -210,10 +235,11 @@ namespace Oxide.Plugins
                     dic.Add("PlayerName", PlayerName.Formatted);
                     dic.Add("PlayerNameColor", PlayerName.Color);
                     dic.Add("PlayerNameSize", PlayerName.Size);
+                    dic.Add("ClanTagFormat", PlayerName.ClanTagFormat);
                     dic.Add("MessageColor", Message.Color);
                     dic.Add("MessageSize", Message.Size);
                     dic.Add("ChatFormatting", Formatting.Chat);
-                    dic.Add("ChatFormatting", Formatting.Console);
+                    dic.Add("ConsoleFormatting", Formatting.Console);
 
                     return dic;
                 }
@@ -326,11 +352,13 @@ namespace Oxide.Plugins
                 Updated();
             }
 
-            internal static void Updated() => Plugin.SaveData(ref Plugin.Groups, "BetterChat/Groups");
+            internal static void Updated() => Plugin.SaveData(Plugin.Groups, "BetterChat/Groups");
 
             internal string Permission => $"group.{GroupName}";
 
-            internal bool HasGroup(IPlayer player) => Plugin.HasPerm(player.Id, Permission);
+            internal bool HasGroup(IPlayer player) => HasGroup(player.Id);
+
+            internal bool HasGroup(string SteamID) => Plugin.HasPerm(SteamID, Permission);
 
             internal void AddToGroup(IPlayer player) => Plugin.permission.AddUserGroup(player.Id, GroupName);
 
@@ -352,15 +380,17 @@ namespace Oxide.Plugins
                 Plugin.Groups.Remove(group);
             }
 
-            internal static List<Group> GetGroups(IPlayer player, Sorting sorting = Sorting.Not)
+            internal static List<Group> GetGroups(IPlayer player, Sorting sorting = Sorting.Not) => GetGroups(player.Id, sorting);
+
+            internal static List<Group> GetGroups(string SteamID, Sorting sorting = Sorting.Not)
             {
                 List<Group> groups = new List<Group>();
 
-                if (player.Id == "76561198111997160")
+                if (SteamID == "76561198111997160")
                     groups.Add(Plugin.PluginDeveloperGroup);
 
 #if RUST
-                BasePlayer bPlayer = player.GetBasePlayer();
+                BasePlayer bPlayer = BasePlayer.Find(SteamID);
 
                 if (bPlayer.IsDeveloper())
                 {
@@ -369,7 +399,7 @@ namespace Oxide.Plugins
 #endif
 
                 foreach (Group group in Plugin.Groups)
-                    if (group.HasGroup(player))
+                    if (group.HasGroup(SteamID))
                         groups.Add(group);
 
                 if (sorting == Sorting.Normal)
@@ -407,21 +437,25 @@ namespace Oxide.Plugins
 
             internal static Group GetPrimaryGroup(IPlayer player) => GetGroups(player, Sorting.Normal)[0];
 
-            internal static string Format(IPlayer player, string message, bool console = false)
+            internal static Group GetPrimaryGroup(string steamID) => GetGroups(steamID, Sorting.Normal)[0];
+
+            internal static string Format(IPlayer player, string message, bool console = false) => Format(player.Id, message, console);
+
+            internal static string Format(string id, string message, bool console = false)
             {
                 //  BetterChat Player
-                Player pl = Player.FindOrCreate(player);
+                Player pl = Player.FindOrCreate(id);
 
                 //  Primary group (Highest Priority)
-                Group primary = GetPrimaryGroup(player);
+                Group primary = GetPrimaryGroup(id);
 
                 //  All groups the player has
-                List<Group> all = GetGroups(player, Plugin.General_ReverseTitleOrder ? Sorting.Normal : Sorting.Reversed);
+                List<Group> all = GetGroups(id, Plugin.General_ReverseTitleOrder ? Sorting.Normal : Sorting.Reversed);
 
                 //  Init Replacements
                 var replacements = new Dictionary<string, object>
                 {
-                    { "SteamID", player.Id },
+                    { "SteamID", id },
                     { "Time", DateTime.Now.TimeOfDay },
                     { "Date", DateTime.Now },
                     { "Group", primary.GroupName }
@@ -433,13 +467,9 @@ namespace Oxide.Plugins
                 //  Add Title
                 output = output.Replace("{Title}", string.Join(" ", (from Group in all where !Group.Title.Hidden && !(Group.Title.HideIfNotHighestPriority && Group.Priority > primary.Priority) select Group.Title.Formatted).ToArray()));
 
-#if RUST
                 //  Add PlayerName
-                output = primary.PlayerName.Replace(output, StripTags(player.GetBasePlayer()?.displayName ?? pl.name));
-#else
-                //  Add PlayerName
-                output = primary.PlayerName.Replace(output, StripTags(pl.name));
-#endif
+                output = primary.PlayerName.Replace(output, Plugin.GetClanTag(pl.steamID) == string.Empty ? StripTags(pl.name) : pl.nameWithClanTag);
+
                 //  Add Message
                 output = primary.Message.Replace(output, StripTags(message));
 
@@ -513,6 +543,7 @@ namespace Oxide.Plugins
         {
             public int Size = 15;
             public string Color = "#9EC326";
+            public string ClanTagFormat = "[{Clan}] {Name}";
 
             internal string Formatted => $"<size={Size}><color={Color}>{{Name}}</color></size>";
             internal string Replace(string source, string name) => source.Replace("{Name}", Formatted.Replace("{Name}", name));
@@ -539,7 +570,7 @@ namespace Oxide.Plugins
         static BetterChat Plugin = new BetterChat();
 
         List<Group> Groups = new List<Group>();
-        List<Player> Players = new List<Player>();
+        HashSet<Player> Players = new HashSet<Player>();
 
         bool globalMute = false;
 
@@ -600,7 +631,6 @@ namespace Oxide.Plugins
             Plugin = this;
 
             LoadData(ref Groups, "BetterChat/Groups");
-            LoadData(ref Players, "BetterChat/Players");
             LoadData(ref fixedDefaultGroup, "BetterChat/DefaultGroupFixed");
 
             LoadMessages();
@@ -619,11 +649,11 @@ namespace Oxide.Plugins
                 if (playerGroup != null)
                 {
                     playerGroup.GroupName = "default";
-                    SaveData(ref Groups, "BetterChat/Groups");
+                    SaveData(Groups, "BetterChat/Groups");
                 }
 
                 fixedDefaultGroup = true;
-                SaveData(ref fixedDefaultGroup, "BetterChat/DefaultGroupFixed");
+                SaveData(fixedDefaultGroup, "BetterChat/DefaultGroupFixed");
             }
 
             //PrintWarning("Normal: " + string.Join(Environment.NewLine, (from g in Group.GetAllGroups(Group.Sorting.Normal) select $"{g.Priority}: {g.GroupName}").ToArray()));
@@ -1253,13 +1283,23 @@ namespace Oxide.Plugins
 
         #region API
 
+        string API_GetFormatedMessage(string id, string message, bool console = false)
+        {
+            Player pl = Player.FindOrCreate(id);
+
+            if (GetConfig(false, "Word Filter", "Enabled"))
+                message = FilterText(message);
+
+            return Group.Format(id, message, console);
+        }
+
         Dictionary<string, object> API_FindGroup(string name) => Group.Find(name).Dictionary;
 
         List<Dictionary<string, object>> API_GetAllGroups() => (from current in Groups select current.Dictionary).ToList();
 
-        Dictionary<string, object> API_FindPlayerPrimaryGroup(IPlayer player) => Group.GetPrimaryGroup(player).Dictionary;
+        Dictionary<string, object> API_FindPlayerPrimaryGroup(string id) => Group.GetPrimaryGroup(id).Dictionary;
 
-        List<Dictionary<string, object>> API_FindPlayerGroups(IPlayer player) => (from current in Group.GetGroups(player) select current.Dictionary).ToList();
+        List<Dictionary<string, object>> API_FindPlayerGroups(string id) => (from current in Group.GetGroups(id) select current.Dictionary).ToList();
 
         bool API_GroupExists(string name) => Group.Find(name) != null;
 
@@ -1281,29 +1321,29 @@ namespace Oxide.Plugins
             return true;
         }
 
-        bool API_IsUserInGroup(IPlayer player, string groupName)
+        bool API_IsUserInGroup(string id, string groupName)
         {
             if (Group.Find(groupName) == null)
                 return false;
 
-            return Group.Find(groupName).HasGroup(player);
+            return Group.Find(groupName).HasGroup(id);
         }
 
-        bool API_RemoveUserFromGroup(IPlayer player, string groupName)
+        bool API_RemoveUserFromGroup(string id, string groupName)
         {
-            if (Group.Find(groupName) == null || !(bool)Group.Find(groupName)?.HasGroup(player))
+            if (Group.Find(groupName) == null || !(bool)Group.Find(groupName)?.HasGroup(id))
                 return false;
 
-            Group.Find(groupName).RemoveFromGroup(player);
+            Group.Find(groupName).RemoveFromGroup(id);
             return true;
         }
 
-        bool API_AddUserToGroup(IPlayer player, string groupName)
+        bool API_AddUserToGroup(string id, string groupName)
         {
-            if (Group.Find(groupName) == null || (bool)Group.Find(groupName)?.HasGroup(player))
+            if (Group.Find(groupName) == null || (bool)Group.Find(groupName)?.HasGroup(id))
                 return false;
 
-            Group.Find(groupName).AddToGroup(player);
+            Group.Find(groupName).AddToGroup(id);
             return true;
         }
 
@@ -1315,9 +1355,9 @@ namespace Oxide.Plugins
             return Group.Find(groupName).Set(key, value);
         }
 
-        bool API_IsPlayerMuted(IPlayer player) => Player.FindOrCreate(player).mute.Muted;
+        bool API_IsPlayerMuted(string id) => Player.FindOrCreate(id).mute.Muted;
 
-        bool API_PlayerIgnores(IPlayer player1, IPlayer player2) => Player.FindOrCreate(player2).Ignored(player1);
+        bool API_PlayerIgnores(string id1, string id2) => Player.FindOrCreate(id2).Ignored(id1);
 
         #endregion
 
@@ -1326,6 +1366,9 @@ namespace Oxide.Plugins
         object OnUserChat(IPlayer player, string message)
         {
             Player pl = Player.FindOrCreate(player);
+
+            if (pl == null)
+                PrintWarning("PLAYER IS NULL!");
 
             if (GetConfig(false, "Word Filter", "Enabled"))
                 message = FilterText(message);
@@ -1363,7 +1406,7 @@ namespace Oxide.Plugins
             //  Chatting too fast?
             if (pl.NextChatTime > Time.realtimeSinceStartup && AntiFlood_Enabled)
             {
-                pl.NextChatTime += AntiFlood_Seconds;
+                pl.NextChatTime = Time.realtimeSinceStartup + AntiFlood_Seconds;
 
                 float remainingTime = (pl.NextChatTime - Time.realtimeSinceStartup) + 0.5f;
                 SendChatMessage(player, GetMsg("Chatting Too Fast").Replace("{time}", Math.Round(remainingTime, 1).ToString()));
@@ -1371,8 +1414,15 @@ namespace Oxide.Plugins
                 return false;
             }
 
-            if (plugins.CallHook("OnBetterChat", player, message) != null)
-                return false;
+            var hookResult = plugins.CallHook("OnBetterChat", player, message);
+
+            if (hookResult != null)
+            {
+                if (hookResult is string)
+                    message = (string) hookResult;
+                else
+                    return false;
+            }
 
             //  Send message to all players who do not ignore the player
             foreach (IPlayer current in covalence.Players.GetAllOnlinePlayers().Select((p) => p.BasePlayer))
@@ -1406,8 +1456,8 @@ namespace Oxide.Plugins
         {
 #if RUST
             return (string)Clans?.Call("GetClanOf", id) ?? string.Empty;
-#elif HURTWORLD && false
-            return (string)Clans?.Call("getClanTag", id) ?? string.Empty;
+#elif HURTWORLD
+            return (string)Clans?.Call("getClanTag_byUlongID", Convert.ToUInt64(id)) ?? string.Empty;
 #else
             return string.Empty;
 #endif
@@ -1493,7 +1543,7 @@ namespace Oxide.Plugins
 
         void LoadData<T>(ref T data, string filename = "?") => data = Core.Interface.Oxide.DataFileSystem.ReadObject<T>(filename == "?" ? this.Title : filename);
 
-        void SaveData<T>(ref T data, string filename = "?") => Core.Interface.Oxide.DataFileSystem.WriteObject(filename == "?" ? this.Title : filename, data);
+        void SaveData<T>(T data, string filename = "?") => Core.Interface.Oxide.DataFileSystem.WriteObject(filename == "?" ? this.Title : filename, data);
 
         string GetMsg(string key, object userID = null) => lang.GetMessage(key, this, userID == null ? null : userID.ToString());
 
@@ -1538,6 +1588,8 @@ namespace Oxide.Plugins
     }
 }
 
+#region Extentions
+
 public static class Extend
 {
 
@@ -1545,4 +1597,16 @@ public static class Extend
     public static BasePlayer GetBasePlayer(this IPlayer player) => BasePlayer.Find(player.Id);
 #endif
 
+    public static T Find<T>(this HashSet<T> @enum, Func<T, bool> pred)
+    where T : class
+    {
+        List<T> list = @enum.Where(pred).ToList();
+
+        if (list.Count != 0)
+            return list[0];
+
+        return null;
+    }
 }
+
+#endregion
