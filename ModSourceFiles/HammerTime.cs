@@ -1,69 +1,60 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Hammer Time", "Shady", "1.0.6", ResourceId = 1711)]
+    [Info("Hammer Time", "Shady", "1.0.7", ResourceId = 1711)]
     [Description("Tweak settings for building blocks like demolish time, and rotate time.")]
     class HammerTime : RustPlugin
     {
-        bool configWasChanged = false;
+        #region Config/Init
+        float DemolishTime => GetConfig("DemolishTime", 600f);
+        float RotateTime => GetConfig("RotateTime", 600f);
+        float RepairCooldown => GetConfig("RepairDamageCooldown", 8f);
 
+        bool DemolishAfterRestart => GetConfig("AllowDemolishAfterServerRestart", false);
+        bool RotateAfterServerRestart => GetConfig("AllowRotateAfterServerRestart", false);
+        bool MustOwnDemolish => GetConfig("MustOwnToDemolish", false);
+        bool MustOwnRotate => GetConfig("MustOwnToRotate", false);
+        bool AuthLevelOverride => GetConfig("AuthLevelOverrideDemolish", true);
+
+        
         /*--------------------------------------------------------------//
 		//			Load up the default config on first use				//
 		//--------------------------------------------------------------*/
         protected override void LoadDefaultConfig()
         {
             Config.Clear();
-            Config["DemolishTime"] = 600f;
-            Config["RotateTime"] = 600f;
-            Config["MustOwnToDemolish"] = false;
-            Config["MustOwnToRotate"] = false;
-            Config["AllowDemolishAfterServerRestart"] = false;
-            Config["AllowRotateAfterServerRestart"] = true;
-            Config["AuthLevelOverrideDemolish"] = true;
-            Config["RepairDamageCooldown"] = 8f;
+            Config["DemolishTime"] = DemolishTime;
+            Config["RotateTime"] = RotateTime;
+            Config["MustOwnToDemolish"] = MustOwnDemolish;
+            Config["MustOwnToRotate"] = MustOwnRotate;
+            Config["AllowDemolishAfterServerRestart"] = DemolishAfterRestart;
+            Config["AllowRotateAfterServerRestart"] = RotateAfterServerRestart;
+            Config["AuthLevelOverrideDemolish"] = AuthLevelOverride;
+            Config["RepairDamageCooldown"] = RepairCooldown;
             SaveConfig();
         }
 
-        void CheckConfigEntry<T>(string key, T value)
-        {
-            if (Config[key] == null)
-            {
-                Config[key] = value;
-                configWasChanged = true;
-            }
-        }
-        private void Init()
-        {
-            LoadDefaultMessages();
-            CheckConfigEntry("DemolishTime", 600f);
-            CheckConfigEntry("RotateTime", 600f);
-            CheckConfigEntry("MustOwnToDemolish", false);
-            CheckConfigEntry("MustOwnToRotate", false);
-            CheckConfigEntry("AllowDemolishAfterServerRestart", false);
-            CheckConfigEntry("AllowRotateAfterServerRestart", true);
-            CheckConfigEntry("AuthLevelOverrideDemolish", true);
-            CheckConfigEntry("RepairDamageCooldown", 8f);
-            if (configWasChanged) SaveConfig();
-        }
+        private void Init() => LoadDefaultMessages();
 
         void OnServerInitialized()
         {
-            var doDemo = (bool)Config["AllowDemolishAfterServerRestart"];
-            var doRotate = (bool)Config["AllowRotateAfterServerRestart"];
-            if (!doDemo && !doRotate) return;
+            if (!DemolishAfterRestart && !RotateAfterServerRestart) return;
+            var doRotate = RotateAfterServerRestart;
             var blocks = GameObject.FindObjectsOfType<BuildingBlock>();
-            foreach(var block in blocks)
+            for(int i = 0; i < blocks.Length; i++)
             {
+                var block = blocks[i];
                 var name = block?.LookupShortPrefabName() ?? string.Empty;
                 if (string.IsNullOrEmpty(name)) continue;
-                var grade = block.grade.ToString();
+                var grade = block?.grade.ToString() ?? string.Empty;
                 if (grade.ToLower().Contains("twig")) continue; //ignore twigs (performance)
                 if (block.Health() <= block.MaxHealth() / 2.75f) continue; //ignore blocks that are weak (performance)
-                   
+
                 if (name.Contains("foundation") || name.Contains("pillar") || name.Contains("roof") || name.Contains("floor")) doRotate = false;
-                DoInvokes(block, doDemo, doRotate, false);
+                DoInvokes(block, DemolishAfterRestart, doRotate, false);
             }
         }
 
@@ -81,67 +72,54 @@ namespace Oxide.Plugins
             };
             lang.RegisterMessages(messages, this);
         }
-
-        private string GetMessage(string key, string steamId = null) => lang.GetMessage(key, this, steamId);
-
+        #endregion;
+        #region InvokeBlocks
         void DoInvokes(BuildingBlock block, bool demo, bool rotate, bool justCreated)
         {
-            var demoTime = 600f;
-            var rotateTime = 600f;
-            TryParseFloat(Config["DemolishTime"].ToString(), ref demoTime);
-            TryParseFloat(Config["RotateTime"].ToString(), ref rotateTime);
             if (demo)
             {
-                if (demoTime < 0)
+                if (DemolishTime < 0)
                 {
                     block.CancelInvoke("StopBeingDemolishable");
                     block.SetFlag(BaseEntity.Flags.Reserved2, true); //reserved2 is demolishable
                     block.SendNetworkUpdateImmediate(justCreated);
                 }
-                if (demoTime == 0) block.Invoke("StopBeingDemolishable", 0.01f);
-                if (demoTime >= 1 && demoTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
+                if (DemolishTime == 0) block.Invoke("StopBeingDemolishable", 0.01f);
+                if (DemolishTime >= 1 && DemolishTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
                 {
                     block.CancelInvoke("StopBeingDemolishable");
                     block.SetFlag(BaseEntity.Flags.Reserved2, true); //reserved2 is demolishable
-                    block.Invoke("StopBeingDemolishable", demoTime);
+                    block.Invoke("StopBeingDemolishable", DemolishTime);
                     block.SendNetworkUpdateImmediate(justCreated);
                 }
             }
             if (rotate)
             {
-                if (rotateTime < 0)
+                if (RotateTime < 0)
                 {
                     block.CancelInvoke("StopBeingRotatable");
                     block.SetFlag(BaseEntity.Flags.Reserved1, true); //reserved1 is rotatable
                     block.SendNetworkUpdateImmediate(justCreated);
                 }
-                    if (rotateTime == 0) block.Invoke("StopBeingRotatable", 0.01f);
-                if (rotateTime >= 1 && rotateTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
+                    if (RotateTime == 0) block.Invoke("StopBeingRotatable", 0.01f);
+                if (RotateTime >= 1 && RotateTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
                 {
                     block.CancelInvoke("StopBeingRotatable");
                     block.SetFlag(BaseEntity.Flags.Reserved1, true); //reserved1 is rotatable
-                    block.Invoke("StopBeingRotatable", rotateTime);
+                    block.Invoke("StopBeingRotatable", RotateTime);
                     block.SendNetworkUpdateImmediate(justCreated);
                 }
             }
         }
-
-        void OnEntityDeath(BaseCombatEntity entity, HitInfo info)
-        {
-            if (entity == null) return;
-            var getType = entity?.GetType()?.ToString() ?? string.Empty;
-            if (getType != "BuildingBlock") return;
-            var block = entity?.GetComponent<BuildingBlock>() ?? null;
-            if (block == null) return;
-        }
-        
-    
+        #endregion
+        #region Hooks
+      
         private void OnEntityBuilt(Planner plan, GameObject objectBlock)
         {
             var GetTypeString = objectBlock?.ToBaseEntity()?.GetType()?.ToString();
             var isBuildingBlock = GetTypeString == "BuildingBlock";
             if (!isBuildingBlock) return;
-            var block = (BuildingBlock)objectBlock.ToBaseEntity();
+            var block = objectBlock?.ToBaseEntity()?.GetComponent<BuildingBlock>() ?? null;
             if (block == null) return;
             var name = block?.LookupShortPrefabName() ?? string.Empty;
             if (string.IsNullOrEmpty(name)) return;
@@ -163,8 +141,7 @@ namespace Oxide.Plugins
        object OnStructureRepair(BaseCombatEntity block, BasePlayer player)
         {
             if (block == null || player == null) return null;
-            var cooldown = 8f;
-            TryParseFloat(Config["RepairDamageCooldown"].ToString(), ref cooldown);
+            var cooldown = RepairCooldown;
             if (cooldown < 1f) cooldown = 0f;
             if (cooldown == 8f) return null;
             if (block.TimeSinceAttacked() < cooldown) return false;
@@ -175,8 +152,7 @@ namespace Oxide.Plugins
         {
             var entity = hitInfo?.HitEntity?.GetComponent<BaseCombatEntity>() ?? null;
             if (entity == null) return null;
-            var cooldown = 8f;
-            TryParseFloat(Config["RepairDamageCooldown"].ToString(), ref cooldown);
+            var cooldown = RepairCooldown;
             if (cooldown < 1f) cooldown = 0f;
             if (cooldown == 8f) return null;
             if (entity.TimeSinceAttacked() < cooldown) return false;
@@ -209,29 +185,14 @@ namespace Oxide.Plugins
                 
             return null;
         }
-
-        public bool TryParseFloat(string text, ref float value)
+        #endregion
+        #region Util
+        T GetConfig<T>(string name, T defaultValue)
         {
-            float tmp;
-            if (float.TryParse(text, out tmp))
-            {
-                value = tmp;
-                return true;
-            }
-            else return false;
+            if (Config[name] == null) return defaultValue;
+            return (T)Convert.ChangeType(Config[name], typeof(T));
         }
-
-        public bool TryParseInt(string text, ref int value)
-        {
-            int tmp;
-            if (int.TryParse(text, out tmp))
-            {
-                value = tmp;
-                return true;
-            }
-            else return false;
-        }
-
-
+        private string GetMessage(string key, string steamId = null) => lang.GetMessage(key, this, steamId);
+        #endregion
     }
 }
