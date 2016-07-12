@@ -12,7 +12,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("PlayerManager", "Reneb", "1.0.6", ResourceId= 1535)]
+    [Info("PlayerManager", "Reneb", "1.0.7", ResourceId= 1535)]
     class PlayerManager : RustPlugin
     {
         [PluginReference]
@@ -916,7 +916,7 @@ namespace Oxide.Plugins
         string parentoverlay = @"[
 			{
 				""name"": ""PlayerManagerOverlay"",
-				""parent"": ""HUD/Overlay"",
+				""parent"": ""Overlay"",
 				""components"":
 				[
 					{
@@ -1076,7 +1076,7 @@ namespace Oxide.Plugins
         string dialogoverlay = @"[
 			{
 				""name"": ""DialogOverlay"",
-				""parent"": ""HUD/Overlay"",
+				""parent"": ""Overlay"",
 				""components"":
 				[
 					{
