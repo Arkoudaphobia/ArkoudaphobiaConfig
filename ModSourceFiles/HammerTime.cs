@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Hammer Time", "Shady", "1.0.7", ResourceId = 1711)]
+    [Info("Hammer Time", "Shady", "1.0.9", ResourceId = 1711)]
     [Description("Tweak settings for building blocks like demolish time, and rotate time.")]
     class HammerTime : RustPlugin
     {
@@ -12,6 +12,7 @@ namespace Oxide.Plugins
         float DemolishTime => GetConfig("DemolishTime", 600f);
         float RotateTime => GetConfig("RotateTime", 600f);
         float RepairCooldown => GetConfig("RepairDamageCooldown", 8f);
+        float pluginInitTime = 0f;
 
         bool DemolishAfterRestart => GetConfig("AllowDemolishAfterServerRestart", false);
         bool RotateAfterServerRestart => GetConfig("AllowRotateAfterServerRestart", false);
@@ -19,7 +20,7 @@ namespace Oxide.Plugins
         bool MustOwnRotate => GetConfig("MustOwnToRotate", false);
         bool AuthLevelOverride => GetConfig("AuthLevelOverrideDemolish", true);
 
-        
+
         /*--------------------------------------------------------------//
 		//			Load up the default config on first use				//
 		//--------------------------------------------------------------*/
@@ -37,23 +38,33 @@ namespace Oxide.Plugins
             SaveConfig();
         }
 
-        private void Init() => LoadDefaultMessages();
+        
+        private void Init()
+        {
+            pluginInitTime = UnityEngine.Time.realtimeSinceStartup;
+            LoadDefaultMessages();
+        }
 
         void OnServerInitialized()
         {
+            /*/
+            var time = UnityEngine.Time.realtimeSinceStartup;
+            var timeInit = time - pluginInitTime;
+            if (timeInit < 1)
+            {
+                Puts("server is probably already running?");
+                return;
+            }-- Untested/*/
             if (!DemolishAfterRestart && !RotateAfterServerRestart) return;
-            var doRotate = RotateAfterServerRestart;
             var blocks = GameObject.FindObjectsOfType<BuildingBlock>();
             for(int i = 0; i < blocks.Length; i++)
             {
                 var block = blocks[i];
-                var name = block?.LookupShortPrefabName() ?? string.Empty;
-                if (string.IsNullOrEmpty(name)) continue;
                 var grade = block?.grade.ToString() ?? string.Empty;
                 if (grade.ToLower().Contains("twig")) continue; //ignore twigs (performance)
-                if (block.Health() <= block.MaxHealth() / 2.75f) continue; //ignore blocks that are weak (performance)
-
-                if (name.Contains("foundation") || name.Contains("pillar") || name.Contains("roof") || name.Contains("floor")) doRotate = false;
+                var doRotate = RotateAfterServerRestart;
+                if (doRotate) doRotate = block?.blockDefinition?.canRotate ?? RotateAfterServerRestart;
+                if (!doRotate && !DemolishAfterRestart) continue;
                 DoInvokes(block, DemolishAfterRestart, doRotate, false);
             }
         }
@@ -81,16 +92,14 @@ namespace Oxide.Plugins
                 if (DemolishTime < 0)
                 {
                     block.CancelInvoke("StopBeingDemolishable");
-                    block.SetFlag(BaseEntity.Flags.Reserved2, true); //reserved2 is demolishable
-                    block.SendNetworkUpdateImmediate(justCreated);
+                    block.SetFlag(BaseEntity.Flags.Reserved2, true, false); //reserved2 is demolishable
                 }
                 if (DemolishTime == 0) block.Invoke("StopBeingDemolishable", 0.01f);
                 if (DemolishTime >= 1 && DemolishTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
                 {
                     block.CancelInvoke("StopBeingDemolishable");
-                    block.SetFlag(BaseEntity.Flags.Reserved2, true); //reserved2 is demolishable
+                    block.SetFlag(BaseEntity.Flags.Reserved2, true, false); //reserved2 is demolishable
                     block.Invoke("StopBeingDemolishable", DemolishTime);
-                    block.SendNetworkUpdateImmediate(justCreated);
                 }
             }
             if (rotate)
@@ -98,16 +107,14 @@ namespace Oxide.Plugins
                 if (RotateTime < 0)
                 {
                     block.CancelInvoke("StopBeingRotatable");
-                    block.SetFlag(BaseEntity.Flags.Reserved1, true); //reserved1 is rotatable
-                    block.SendNetworkUpdateImmediate(justCreated);
+                    block.SetFlag(BaseEntity.Flags.Reserved1, true, false); //reserved1 is rotatable
                 }
-                    if (RotateTime == 0) block.Invoke("StopBeingRotatable", 0.01f);
+                if (RotateTime == 0) block.Invoke("StopBeingRotatable", 0.01f);
                 if (RotateTime >= 1 && RotateTime != 600) //if time is = to 600, then it's default, and there's no point in changing anything
                 {
                     block.CancelInvoke("StopBeingRotatable");
-                    block.SetFlag(BaseEntity.Flags.Reserved1, true); //reserved1 is rotatable
+                    block.SetFlag(BaseEntity.Flags.Reserved1, true, false); //reserved1 is rotatable
                     block.Invoke("StopBeingRotatable", RotateTime);
-                    block.SendNetworkUpdateImmediate(justCreated);
                 }
             }
         }
@@ -116,27 +123,13 @@ namespace Oxide.Plugins
       
         private void OnEntityBuilt(Planner plan, GameObject objectBlock)
         {
-            var GetTypeString = objectBlock?.ToBaseEntity()?.GetType()?.ToString();
-            var isBuildingBlock = GetTypeString == "BuildingBlock";
-            if (!isBuildingBlock) return;
             var block = objectBlock?.ToBaseEntity()?.GetComponent<BuildingBlock>() ?? null;
             if (block == null) return;
-            var name = block?.LookupShortPrefabName() ?? string.Empty;
-            if (string.IsNullOrEmpty(name)) return;
-            var doRotate = true;
-            if (name.Contains("foundation") || name.Contains("pillar") || name.Contains("floor") || name.Contains("roof")) doRotate = false;
-            DoInvokes(block, true, doRotate, true);
+            var doRotate = block?.blockDefinition?.canRotate ?? true;
+            NextTick(() => DoInvokes(block, true, doRotate, true));
         }
 
-        private void OnStructureUpgrade(BuildingBlock block, BasePlayer player, BuildingGrade.Enum grade)
-        {
-            if (block == null) return;
-            var name = block?.LookupShortPrefabName() ?? string.Empty;
-            if (string.IsNullOrEmpty(name)) return;
-            var doRotate = true;
-            if (name.Contains("foundation") || name.Contains("pillar") || name.Contains("floor") || name.Contains("roof")) doRotate = false;   
-            DoInvokes(block, false, doRotate, false);
-        }
+       private void OnStructureUpgrade(BuildingBlock block, BasePlayer player, BuildingGrade.Enum grade) =>  NextTick(() => DoInvokes(block, false, block?.blockDefinition?.canRotate ?? true, false));
 
        object OnStructureRepair(BaseCombatEntity block, BasePlayer player)
         {
@@ -161,10 +154,10 @@ namespace Oxide.Plugins
 
         object OnStructureDemolish(BuildingBlock block, BasePlayer player)
         {
-            if (!(bool)Config["MustOwnToDemolish"]) return null;
-            if ((bool)Config["AuthLevelOverrideDemolish"] && player.IsAdmin()) return null;
+            if (!MustOwnDemolish) return null;
+            if (AuthLevelOverride && player.IsAdmin()) return null;
             if (permission.UserHasPermission(player.userID.ToString(), "hammertime.allowdemo")) return null;
-            if (block.OwnerID == 0 || player.userID == 0) return null;
+            if (block.OwnerID == 0) return null;
             if (block.OwnerID != player.userID)
             {
                 SendReply(player, GetMessage("doesNotOwnDemo"));
@@ -175,14 +168,13 @@ namespace Oxide.Plugins
 
         object OnStructureRotate(BuildingBlock block, BasePlayer player)
         {
-            if (!(bool)Config["MustOwnToRotate"]) return null;
-            if (block.OwnerID == 0 || player.userID == 0) return null;
+            if (!MustOwnRotate) return null;
+            if (block.OwnerID == 0) return null;
             if (block.OwnerID != player.userID)
             {
                 SendReply(player, GetMessage("doesNotOwnRotate"));
                 return true;
             }
-                
             return null;
         }
         #endregion
