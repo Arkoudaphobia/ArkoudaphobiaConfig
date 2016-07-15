@@ -1,5 +1,6 @@
 ﻿// Reference: Oxide.Ext.MySql
 // Reference: Oxide.Ext.SQLite
+
 using UnityEngine;
 using System.Collections.Generic;
 using System;
@@ -13,11 +14,10 @@ using Oxide.Core.Database;
 
 namespace Oxide.Plugins
 {
-    [Info("Zeiser Levels REMASTERED", "Zeiser/Visagalis", "1.6.3", ResourceId = 1453)]
+    [Info("Zeiser Levels REMASTERED", "Zeiser/Visagalis", "1.6.4", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting.")]
     public class ZLevelsRemastered : RustPlugin
     {
-
         [PluginReference]
         Plugin EventManager;
 
@@ -982,14 +982,14 @@ namespace Oxide.Plugins
             {
                 Image =
                 {
-                    Color = "0.1 0.1 0.1 0.7"
+                    Color = "0.1 0.1 0.1 0.0"
                 },
                 RectTransform =
                 {
-                    AnchorMin = "0.67 0.04525",
-                    AnchorMax = "0.819 0.1625"
+                    AnchorMin = "0.69 0.0140",
+                    AnchorMax = "0.83 0.1335"
                 }
-            }, "HUD/Overlay", "StatsUI");
+            }, "Hud", "StatsUI");
 
             int fontSize = 12;
             string xpBarAnchorMin = "0.16 0.1";
@@ -1272,10 +1272,10 @@ namespace Oxide.Plugins
                 {Skills.SKINNING, 2.0d}
             });
             levelCaps = checkCfg<Dictionary<string, object>>("LevelCaps", new Dictionary<string, object>{
-                {Skills.WOODCUTTING, 0},
-                {Skills.MINING, 0},
-                {Skills.SKINNING, 0},
-                {Skills.CRAFTING, 20}
+                {Skills.WOODCUTTING, 200},
+                {Skills.MINING, 200},
+                {Skills.SKINNING, 200},
+                {Skills.CRAFTING, -1}
             });
             pointsPerHit = checkCfg<Dictionary<string, object>>("PointsPerHit", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 30},
@@ -1288,8 +1288,8 @@ namespace Oxide.Plugins
                 { "PercentFasterPerLevel", 5 }
             });
             percentLostOnDeath = checkCfg<Dictionary<string, object>>("PercentLostOnDeath", new Dictionary<string, object>{
-                {Skills.WOODCUTTING, 100},
-                {Skills.MINING, 100},
+                {Skills.WOODCUTTING, 50},
+                {Skills.MINING, 50},
                 {Skills.SKINNING, 50},
                 {Skills.CRAFTING, 50}
             });
