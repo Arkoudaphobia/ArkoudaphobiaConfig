@@ -9,7 +9,7 @@ using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("MonumentRadiation", "k1lly0u", "0.2.02", ResourceId = 1562)]
+    [Info("MonumentRadiation", "k1lly0u", "0.2.04", ResourceId = 1562)]
     class MonumentRadiation : RustPlugin
     {
         private bool RadsOn;
@@ -178,10 +178,11 @@ namespace Oxide.Plugins
             {
                 OnTimer--;
                 if (OnTimer == 0)
-                {
-                    if (configData.Options.Using_InfoPanel) ConVar.Server.radiation = false;
+                {                    
                     foreach (var zone in RadiationZones)
                         zone.Deactivate();
+                    if (configData.Options.Using_InfoPanel) timer.Once(5, ()=> ConVar.Server.radiation = false);
+
                     if (configData.Options.Broadcast_Timers)                    
                         MessageAllPlayers(lang.GetMessage("RadsOffMsg", this), offtime);
                     
@@ -205,7 +206,7 @@ namespace Oxide.Plugins
         }
         private int GetRandom() => UnityEngine.Random.Range(1, 1000);
         private int GetRandom(int min, int max) => UnityEngine.Random.Range(min, max);        
-        private void MessageAllPlayers(string msg, int time) => ConsoleSystem.Broadcast("chat.add", new object[] { 0, string.Format(msg, time)});           
+        private void MessageAllPlayers(string msg, int time) => PrintToChat(string.Format(msg, time));           
         
         void EnterRadiation(BasePlayer player)
         {

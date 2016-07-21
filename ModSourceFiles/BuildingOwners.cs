@@ -8,7 +8,7 @@ using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("Building Owners", "Reneb", "3.0.0")]
+    [Info("Building Owners", "Reneb", "3.0.1")]
     class BuildingOwners : RustPlugin
     {
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -18,7 +18,7 @@ namespace Oxide.Plugins
         private Core.Configuration.DynamicConfigFile BuildingOwnersData;
 
         private static bool serverInitialized = false;
-
+         
         int constructionLayer = LayerMask.GetMask("Construction", "Construction Trigger");
 
         string changeownerPermissions = "buildingowners.changeowner";
@@ -52,7 +52,7 @@ namespace Oxide.Plugins
             var block = gameobject.GetComponent<BuildingBlock>();
             if (block == null) return;
 
-            var player = heldentity.ownerPlayer;
+            var player = heldentity.GetOwnerPlayer();
             if (player == null) return;
 
             var blockdata = FindBlockData(block);

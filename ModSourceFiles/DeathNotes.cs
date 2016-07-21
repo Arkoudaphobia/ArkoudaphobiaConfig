@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.5", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.6", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -186,7 +186,7 @@ namespace Oxide.Plugins
                     CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo() { connection = player.net.connection }, null, "DestroyUI", new Facepunch.ObjectList(uiName));
             }
 
-            public string AddText(string name, double left, double top, double width, double height, UIColor color, string text, int textsize = 15, string parent = "HUD/Overlay", int alignmode = 0, float fadeIn = 0f, float fadeOut = 0f)
+            public string AddText(string name, double left, double top, double width, double height, UIColor color, string text, int textsize = 15, string parent = "Overlay", int alignmode = 0, float fadeIn = 0f, float fadeOut = 0f)
             {
                 //name = name + RandomString();
                 text = text.Replace("\n", "{NEWLINE}");

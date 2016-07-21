@@ -7,7 +7,8 @@
     "Broadcast_Timers": true, // Print when radiation is deactivated/reactivate to chat
     "Use_RandomTimers": true, // Use random radiation timers
     "Use_Timers": false, // Use active/inactive radiation timers
-    "Using_HapisIsland": false // For use with Hapis island
+    "Using_HapisIsland": false, // For use with Hapis island
+    "Using_InfoPanel": true
   },
   "Timers": {
     "Random_OffMax": 60, // Random timer off max time
