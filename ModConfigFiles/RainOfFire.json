@@ -1,34 +1,34 @@
 {
-  "BarrageSettings": { // Settings for the rocket barrage
+  "BarrageSettings": {
     "NumberOfRockets": 20,
-    "RocketDelay": 0.33, // Time between rockets
+    "RocketDelay": 0.33, 
     "RocketSpread": 16.0
   },
   "DamageControl": {
-    "DamageMultiplier": 0.2 // Global damage modifier for "meteors"
+    "DamageMultiplier": 0.2
   },
   "Options": {
-    "EnableAutomaticEvents": true, // Toggle events starting automatically
+    "EnableAutomaticEvents": true,
     "EventTimers": {
-      "EventInterval": 30, // Standard time between events
+      "EventInterval": 30,
       "RandomTimerMax": 45,
       "RandomTimerMin": 15,
-      "UseRandomTimer": true // Activate random timers using a value between the min and max setting
+      "UseRandomTimer": true
     },
-    "GlobalDropMultiplier": 1.0, // Multiplier for item drops
-    "NotifyEvent": false // Broadcast event
+    "GlobalDropMultiplier": 1.0,
+    "NotifyEvent": false
   },
-  "z_IntensitySettings": { // Settings for each event type
+  "z_IntensitySettings": {
     "Settings_Extreme": {
-      "Duration": 30, // Time in seconds the event will last
-      "FireRocketChance": 10, // The chance of getting a fire rocket (ie 1 in 10)
+      "Duration": 30,
+      "FireRocketChance": 10,
       "ItemDropControl": {
-        "EnableItemDrop": true, // Toggle item drops
+        "EnableItemDrop": true,
         "ItemsToDrop": [
           {
-            "Maximum": 400, // Maximum amount of item to drop
-            "Minimum": 250, // Minimum amount of item to drop
-            "Shortname": "stones" // Item shortname
+            "Maximum": 400,
+            "Minimum": 250,
+            "Shortname": "stones"
           },
           {
             "Maximum": 300,
@@ -47,8 +47,8 @@
           }
         ]
       },
-      "Radius": 100.0, // The radius in which the rockets will fall
-      "RocketAmount": 70 // The amount of rockets to be launched
+      "Radius": 100.0,
+      "RocketAmount": 70
     },
     "Settings_Mild": {
       "Duration": 240,
