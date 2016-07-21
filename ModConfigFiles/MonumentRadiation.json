@@ -4,26 +4,26 @@
     "Display_LeaveMessage": true
   },
   "Options": {
-    "Broadcast_Timers": true, // Print when radiation is deactivated/reactivate to chat
-    "Use_RandomTimers": true, // Use random radiation timers
-    "Use_Timers": false, // Use active/inactive radiation timers
-    "Using_HapisIsland": false, // For use with Hapis island
+    "Broadcast_Timers": true,
+    "Use_RandomTimers": true,
+    "Use_Timers": false,
+    "Using_HapisIsland": false,
     "Using_InfoPanel": true
   },
   "Timers": {
-    "Random_OffMax": 60, // Random timer off max time
-    "Random_OffMin": 25, // Random timer off min time
-    "Random_OnMax": 30, // Random timer on max time
-    "Random_OnMin": 5, // Random timer on min time
-    "Static_Off": 15, // Time radiation will be disabled (when not using random timers)
-    "Static_On": 45 // Same as above for active zones
+    "Random_OffMax": 60,
+    "Random_OffMin": 25,
+    "Random_OnMax": 30,
+    "Random_OnMin": 5,
+    "Static_Off": 15,
+    "Static_On": 45
   },
   "Zones": {
     "Airfield": {
-      "Activate": false, // Enable/Disable the zone
-      "Name": "Airfield", // Zone name (internal use)
-      "Radiation": 100.0, // Radiation amount
-      "Radius": 85.0 // Radius of the zone
+      "Activate": false,
+      "Name": "Airfield",
+      "Radiation": 100.0,
+      "Radius": 85.0
     },
     "Dome": {
       "Activate": true,
