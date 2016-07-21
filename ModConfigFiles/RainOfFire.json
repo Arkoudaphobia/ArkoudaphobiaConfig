@@ -1,6 +1,101 @@
 {
-  "DamageMultiplier": 0.2,
-  "EventIntervals": 900.0,
-  "ItemDropMultiplier": 1.5,
-  "NotifyEvent": false
+  "BarrageSettings": { // Settings for the rocket barrage
+    "NumberOfRockets": 20,
+    "RocketDelay": 0.33, // Time between rockets
+    "RocketSpread": 16.0
+  },
+  "DamageControl": {
+    "DamageMultiplier": 0.2 // Global damage modifier for "meteors"
+  },
+  "Options": {
+    "EnableAutomaticEvents": true, // Toggle events starting automatically
+    "EventTimers": {
+      "EventInterval": 30, // Standard time between events
+      "RandomTimerMax": 45,
+      "RandomTimerMin": 15,
+      "UseRandomTimer": true // Activate random timers using a value between the min and max setting
+    },
+    "GlobalDropMultiplier": 1.0, // Multiplier for item drops
+    "NotifyEvent": false // Broadcast event
+  },
+  "z_IntensitySettings": { // Settings for each event type
+    "Settings_Extreme": {
+      "Duration": 30, // Time in seconds the event will last
+      "FireRocketChance": 10, // The chance of getting a fire rocket (ie 1 in 10)
+      "ItemDropControl": {
+        "EnableItemDrop": true, // Toggle item drops
+        "ItemsToDrop": [
+          {
+            "Maximum": 400, // Maximum amount of item to drop
+            "Minimum": 250, // Minimum amount of item to drop
+            "Shortname": "stones" // Item shortname
+          },
+          {
+            "Maximum": 300,
+            "Minimum": 125,
+            "Shortname": "metal.fragments"
+          },
+          {
+            "Maximum": 50,
+            "Minimum": 20,
+            "Shortname": "metal.refined"
+          },
+          {
+            "Maximum": 120,
+            "Minimum": 45,
+            "Shortname": "sulfur.ore"
+          }
+        ]
+      },
+      "Radius": 100.0, // The radius in which the rockets will fall
+      "RocketAmount": 70 // The amount of rockets to be launched
+    },
+    "Settings_Mild": {
+      "Duration": 240,
+      "FireRocketChance": 30,
+      "ItemDropControl": {
+        "EnableItemDrop": true,
+        "ItemsToDrop": [
+          {
+            "Maximum": 120,
+            "Minimum": 80,
+            "Shortname": "stones"
+          },
+          {
+            "Maximum": 50,
+            "Minimum": 25,
+            "Shortname": "metal.ore"
+          }
+        ]
+      },
+      "Radius": 500.0,
+      "RocketAmount": 20
+    },
+    "Settings_Optimal": {
+      "Duration": 120,
+      "FireRocketChance": 20,
+      "ItemDropControl": {
+        "EnableItemDrop": true,
+        "ItemsToDrop": [
+          {
+            "Maximum": 250,
+            "Minimum": 160,
+            "Shortname": "stones"
+          },
+          {
+            "Maximum": 120,
+            "Minimum": 60,
+            "Shortname": "metal.fragments"
+          },
+          {
+            "Maximum": 50,
+            "Minimum": 20,
+            "Shortname": "hq.metal.ore"
+          }
+        ]
+      },
+      "Radius": 300.0,
+      "RocketAmount": 45
+    }
+  }
 }
