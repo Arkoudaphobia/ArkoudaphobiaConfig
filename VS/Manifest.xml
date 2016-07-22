@@ -34,7 +34,6 @@
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="SpawnConfig.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
-    <Mod Name="TearUpBP.cs" Enabled="false"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
     <Mod Name="ZoneManager.cs" Enabled="true"/>
@@ -69,7 +68,6 @@
     <Config Name="RustIO.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
-    <Config Name="TearUpBP.json" remove="true"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
     <Config Name="ZoneManager.json" remove="false"/>
