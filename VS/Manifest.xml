@@ -16,8 +16,8 @@
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
-    <Mod Name="Jail.cs" Enabled="true"/>
-    <Mod Name="Kits.cs" Enabled="true"/>
+    <Mod Name="Jail.cs" Enabled="false"/>
+    <Mod Name="Kits.cs" Enabled="false"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
@@ -28,7 +28,7 @@
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
-    <Mod Name="Portals.cs" Enabled="true"/>
+    <Mod Name="Portals.cs" Enabled="false"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
@@ -36,7 +36,7 @@
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
-    <Mod Name="ZoneManager.cs" Enabled="true"/>
+    <Mod Name="ZoneManager.cs" Enabled="false"/>
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AFK.json" remove="false" />
