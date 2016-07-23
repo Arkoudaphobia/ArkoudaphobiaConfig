@@ -1,6 +1,9 @@
 ﻿/*
 TODO:
 - Add automatic admin exclusion
+- Add optional protection while AFK
+- Add chat command to mark yourself as AFK
+- Cancel "AFK" status when input detected
 */
 
 using System;
@@ -9,8 +12,8 @@ using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins
 {
-    [Info("AFK", "Wulf/lukespragg", "1.0.1")]
-    [Description("Kicks players that are AFK (away from keyboard) for too long.")]
+    [Info("AFK", "Wulf/lukespragg", "1.1.0", ResourceId = 1922)]
+    [Description("Kicks players that are AFK (away from keyboard) for too long")]
 
     class AFK : CovalencePlugin
     {
@@ -19,12 +22,16 @@ namespace Oxide.Plugins
 
         #region Configuration
 
+        const string permExcluded = "afk.excluded";
+
+        bool AdminExcluded => GetConfig("AdminExcluded", true);
         int AfkLimitMinutes => GetConfig("AfkLimitMinutes", 10);
         bool KickAfkPlayers => GetConfig("KickAfkPlayers", true);
         //bool WarnBeforeKick => GetConfig("WarnBeforeKick", true);
 
         protected override void LoadDefaultConfig()
         {
+            Config["AdminExluded"] = AdminExcluded;
             Config["AfkLimitMinutes"] = AfkLimitMinutes;
             Config["KickAfkPlayers"] = KickAfkPlayers;
             //Config["WarnBeforeKick"] = WarnBeforeKick;
@@ -51,21 +58,17 @@ namespace Oxide.Plugins
 
         void Loaded()
         {
-            #if !HURTWORLD && !REIGNOFKINGS && !RUST && !RUSTLEGACY
-            throw new NotSupportedException("This plugin does not support this game");
-            #endif
-
             LoadDefaultConfig();
             LoadDefaultMessages();
-            permission.RegisterPermission("afk.excluded", this);
+            permission.RegisterPermission(permExcluded, this);
         }
 
         void OnServerInitialized()
         {
             foreach (var player in players.Online)
             {
-                lastPosition[player.BasePlayer.UniqueID] = player.Character.GetPosition();
-                AfkCheck(player.BasePlayer.UniqueID);
+                lastPosition[player.BasePlayer.Id] = player.Character.Position();
+                AfkCheck(player.BasePlayer);
             }
         }
 
@@ -73,83 +76,58 @@ namespace Oxide.Plugins
 
         #region AFK Checking
 
+        void OnUserConnected(IPlayer player) => AfkCheck(player);
+
         readonly Hash<string, GenericPosition> lastPosition = new Hash<string, GenericPosition>();
         readonly Dictionary<string, Timer> afkTimer = new Dictionary<string, Timer>();
 
-        void AfkCheck(string userId)
+        void AfkCheck(IPlayer player)
         {
-            if (HasPermission(userId, "afk.excluded")) return;
+            if (IsAllowed(player.Id, permExcluded)) return;
 
-            afkTimer.Add(userId, timer.Repeat(AfkLimitMinutes*60, 0, () =>
+            afkTimer.Add(player.Id, timer.Repeat(AfkLimitMinutes * 60, 0, () =>
             {
-                var player = players.GetOnlinePlayer(userId);
                 if (!IsPlayerAfk(player)) return;
 
-                //player.Message(GetMessage("YouWentAfk", userId));
+                //player.Message(Lang("YouWentAfk", player.Id));
 
                 if (KickAfkPlayers)
                 {
                     // TODO: Send timed message/warning to player before kick
 
-                    player.Kick(string.Format(GetMessage("KickedForAfk", userId), AfkLimitMinutes));
+                    player.ConnectedPlayer.Kick(Lang("KickedForAfk", player.Id, AfkLimitMinutes));
                 }
             }));
         }
 
-        void ResetPlayer(string userId)
+        bool IsPlayerAfk(IPlayer player)
         {
-            if (afkTimer.ContainsKey(userId))
-            {
-                afkTimer[userId].Destroy();
-                afkTimer.Remove(userId);
-            }
-            if (lastPosition.ContainsKey(userId)) lastPosition.Remove(userId);
+            var position = player.ConnectedPlayer.Character.Position();
+            if (lastPosition[player.Id].Equals(position)) return true;
+            lastPosition[player.Id] = position;
+            return false;
         }
 
-        bool IsPlayerAfk(ILivePlayer player)
+        void OnUserDisconnected(IPlayer player) => ResetPlayer(player.Id);
+
+        void ResetPlayer(string id)
         {
-            var position = player.Character.GetPosition();
-            if (lastPosition[player.BasePlayer.UniqueID].Equals(position)) return true;
-            lastPosition[player.BasePlayer.UniqueID] = position;
-            return false;
+            if (afkTimer.ContainsKey(id))
+            {
+                afkTimer[id].Destroy();
+                afkTimer.Remove(id);
+            }
+            if (lastPosition.ContainsKey(id)) lastPosition.Remove(id);
         }
 
         void Unload()
         {
-            foreach (var player in players.Online) ResetPlayer(player.BasePlayer.UniqueID);
+            foreach (var player in players.Online) ResetPlayer(player.BasePlayer.Id);
         }
 
         #endregion
 
-        #region Game Hooks
-
-        #if HURTWORLD
-        void OnPlayerInit(PlayerSession session) => AfkCheck(session.SteamId.ToString());
-        void OnPlayerDisconnected(PlayerSession session) => ResetPlayer(session.SteamId.ToString());
-        bool IsPlayerAfk(PlayerSession session) => IsPlayerAfk(players.GetOnlinePlayer(session.SteamId.ToString()));
-        #endif
-
-        #if REIGNOFKINGS
-        void OnPlayerSpawn(CodeHatch.Networking.Events.Players.PlayerFirstSpawnEvent evt) => AfkCheck(evt.PlayerId.ToString());
-        void OnPlayerDisconnected(CodeHatch.Engine.Networking.Player player) => ResetPlayer(player.Id.ToString());
-        bool IsPlayerAfk(CodeHatch.Engine.Networking.Player player) => IsPlayerAfk(players.GetOnlinePlayer(player.Id.ToString()));
-        #endif
-
-        #if RUST
-        void OnPlayerInit(BasePlayer player) => AfkCheck(player.UserIDString);
-        void OnPlayerDisconnected(BasePlayer player) => ResetPlayer(player.UserIDString);
-        bool IsPlayerAfk(BasePlayer player) => IsPlayerAfk(players.GetOnlinePlayer(player.UserIDString));
-        #endif
-
-        #if RUSTLEGACY
-        void OnPlayerSpawn(PlayerClient client) => AfkCheck(client.netUser.userID.ToString());
-        void OnPlayerDisconnected(uLink.NetworkPlayer player) => ResetPlayer(player.GetLocalData<NetUser>()?.userID.ToString());
-        bool IsPlayerAfk(NetUser netUser) => IsPlayerAfk(players.GetOnlinePlayer(netUser.userID.ToString()));
-        #endif
-
-        #endregion
-
-        #region Helper Methods
+        #region Helpers
 
         T GetConfig<T>(string name, T defaultValue)
         {
@@ -157,9 +135,9 @@ namespace Oxide.Plugins
             return (T)Convert.ChangeType(Config[name], typeof(T));
         }
 
-        string GetMessage(string key, string userId = null) => lang.GetMessage(key, this, userId);
+        string Lang(string key, string id = null, params object[] args) => string.Format(lang.GetMessage(key, this, id), args);
 
-        bool HasPermission(string userId, string perm) => permission.UserHasPermission(userId, perm);
+        bool IsAllowed(string id, string perm) => permission.UserHasPermission(id, perm);
 
         #endregion
     }

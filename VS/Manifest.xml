@@ -6,10 +6,10 @@
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
-    <Mod Name="DeadPlayersList.cs" Enabled="true"/>
+    <Mod Name="DeadPlayersList.cs" Enabled="false"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="DemolishRefund.coffee" Enabled="true"/>
-    <Mod Name="EnhancedBanSystem.cs" Enabled="true"/>
+    <Mod Name="EnhancedBanSystem.cs" Enabled="false"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
@@ -32,7 +32,7 @@
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
-    <Mod Name="SpawnConfig.cs" Enabled="true"/>
+    <Mod Name="SpawnConfig.cs" Enabled="false"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
