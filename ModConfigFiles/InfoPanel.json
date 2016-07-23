@@ -10,25 +10,43 @@
 		"w": "West"
 	},
 	"Docks": {
-		"BottomDock": {
-			"AnchorX": "Left",
-			"AnchorY": "Top",
-			"Available": true,
-			"BackgroundColor": "0 0 0 0.3",
-			"Height": 0.03,
-			"Margin": "0.005 0.005 0.001 0.005",
-			"Width": 0.99
-		},
-		"TopDock": {
-			"AnchorX": "Left",
-			"AnchorY": "Top",
-			"Available": true,
-			"BackgroundColor": "0 0 0 0.4",
-			"Height": 0.03,
-			"Margin": "0.005 0.005 0.005 0.005",
-			"Width": 0.99
-		}
-	},
+    "BottomLeftDock": {
+      "AnchorX": "Left",
+      "AnchorY": "Bottom",
+      "Available": true,
+      "BackgroundColor": "0 0 0 0.0",
+      "Height": 0.03,
+      "Margin": "0.005 0.174 0.002 0.165",
+      "Width": 0.18
+    },
+    "BottomRightDock": {
+      "AnchorX": "Right",
+      "AnchorY": "Bottom",
+      "Available": true,
+      "BackgroundColor": "0 0 0 0.0",
+      "Height": 0.03,
+      "Margin": "0.91 0.600 0.040 0.648",
+      "Width": 0.19
+    },
+    "TopLeftDock": {
+      "AnchorX": "Left",
+      "AnchorY": "Top",
+      "Available": true,
+      "BackgroundColor": "0 0 0 0.0",
+      "Height": 0.03,
+      "Margin": "0.005 0.175 0.005 0.005",
+      "Width": 0.25
+    },
+    "TopRightDock": {
+      "AnchorX": "Right",
+      "AnchorY": "Top",
+      "Available": true,
+      "BackgroundColor": "0 0 0 0",
+      "Height": 0.03,
+      "Margin": "0.005 0.175 0.005 0.005",
+      "Width": 0.98
+    }
+  },
 	"Messages": [
 		"Welcome to 'The Rusty Bear'!",
 		"We've changed our name from Arkoudaphobia!",
