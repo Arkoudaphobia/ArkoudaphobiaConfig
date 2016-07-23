@@ -12,11 +12,11 @@
 	"Docks": {
 		"BottomDock": {
 			"AnchorX": "Left",
-			"AnchorY": "Bottom",
+			"AnchorY": "Top",
 			"Available": true,
-			"BackgroundColor": "0 0 0 0.4",
+			"BackgroundColor": "0 0 0 0.3",
 			"Height": 0.03,
-			"Margin": "0.005 0.005 0.005 0.005",
+			"Margin": "0.005 0.005 0.001 0.005",
 			"Width": 0.99
 		},
 		"TopDock": {
