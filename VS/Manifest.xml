@@ -6,18 +6,14 @@
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="chatmute.lua" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
-    <Mod Name="DeadPlayersList.cs" Enabled="false"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="DemolishRefund.coffee" Enabled="true"/>
-    <Mod Name="EnhancedBanSystem.cs" Enabled="false"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
-    <Mod Name="Jail.cs" Enabled="false"/>
-    <Mod Name="Kits.cs" Enabled="false"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
@@ -28,15 +24,12 @@
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
-    <Mod Name="Portals.cs" Enabled="false"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
-    <Mod Name="SpawnConfig.cs" Enabled="false"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
-    <Mod Name="ZoneManager.cs" Enabled="false"/>
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AFK.json" remove="false" />
@@ -45,15 +38,15 @@
     <Config Name="chatmute.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
-    <Config Name="EnhancedBanSystem.json" remove="false"/>
+    <Config Name="EnhancedBanSystem.json" remove="true"/>
     <Config Name="EntityOwner.json" remove="false"/>
-    <Config Name="eventmanager.json" remove="false"/>
+    <Config Name="eventmanager.json" remove="true"/>
     <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
-    <Config Name="Jail.json" remove="false"/>
-    <Config Name="LastManStanding.json" remove="false"/>
+    <Config Name="Jail.json" remove="true"/>
+    <Config Name="LastManStanding.json" remove="true"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
@@ -70,6 +63,6 @@
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
-    <Config Name="ZoneManager.json" remove="false"/>
+    <Config Name="ZoneManager.json" remove="true"/>
   </ModConfigFiles>
 </ArkoudaphobiaConfig>
