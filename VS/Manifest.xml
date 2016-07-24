@@ -38,15 +38,15 @@
     <Config Name="chatmute.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
-    <Config Name="EnhancedBanSystem.json" remove="false"/>
+    <Config Name="EnhancedBanSystem.json" remove="true"/>
     <Config Name="EntityOwner.json" remove="false"/>
-    <Config Name="eventmanager.json" remove="false"/>
+    <Config Name="eventmanager.json" remove="true"/>
     <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
-    <Config Name="Jail.json" remove="false"/>
-    <Config Name="LastManStanding.json" remove="false"/>
+    <Config Name="Jail.json" remove="true"/>
+    <Config Name="LastManStanding.json" remove="true"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
@@ -63,6 +63,6 @@
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
-    <Config Name="ZoneManager.json" remove="false"/>
+    <Config Name="ZoneManager.json" remove="true"/>
   </ModConfigFiles>
 </ArkoudaphobiaConfig>
