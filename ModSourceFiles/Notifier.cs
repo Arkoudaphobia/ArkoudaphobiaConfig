@@ -11,7 +11,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Notifier", "SkinN", "3.1.2", ResourceId = 797)]
+    [Info("Notifier", "SkinN", "3.1.3", ResourceId = 797)]
     [Description("Server administration tool with chat based notifications")]
 
     class Notifier : RustPlugin
@@ -24,11 +24,10 @@ namespace Oxide.Plugins
         private static string DataFile = "Notifier_PlayersData_v2";
 
         // Global Variables
-        private string LastAdvert = "none";
         private Dictionary<string, PlayerData> PlayersData;
-        private System.Random rdm = new System.Random();
+        private System.Random AdvertsRandom = new System.Random();
+        private int LastAdvert = 0;
         private List<string> WM_Queue = new List<string>();
-        private List<string> AdvertsCycle = new List<string>();
         private Dictionary<string, object> Rules;
         private Dictionary<string, string> Countries = new Dictionary<string, string>
         {
@@ -451,11 +450,9 @@ namespace Oxide.Plugins
 
         void Loaded()
         {
-            // Setup plugin configuration and messages
             LoadVariables();
             LoadMessages();
 
-            // Setup Players Data database
             try
             {
                 PlayersData = Interface.Oxide.DataFileSystem.ReadObject<Dictionary<string, PlayerData>>(DataFile);
@@ -547,14 +544,15 @@ namespace Oxide.Plugins
 
         private void AdvertsLoop()
         {
-            if (AdvertsCycle.Count == 0)
-                AdvertsCycle = ConvertList(Config.Get("Advert Messages"));
-            string choosen = LastAdvert;
-            while (LastAdvert == choosen)
-                choosen = (string) AdvertsCycle[rdm.Next(AdvertsCycle.Count)];
-                LastAdvert = choosen;
-            AdvertsCycle.Remove(choosen);
-            Say(ReplaceNameFormats(choosen));
+            List<string> Adverts = ConvertList(Config.Get("Advert Messages"));
+            int index = LastAdvert;
+            if (Adverts.Count > 1)
+            {
+                while (index == LastAdvert)
+                    index = AdvertsRandom.Next(Adverts.Count);
+            }
+            LastAdvert = index;
+            Say(ReplaceNameFormats((string) Adverts[index]));
         }
 
         private void CheckScheduledMessages()
