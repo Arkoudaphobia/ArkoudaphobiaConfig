@@ -1,7 +1,9 @@
 {
-  "ChancePerConsumption": 0.75,
-  "CharcoalChanceModifier": 1.5,
-  "CharcoalProductionModifier": 2.0,
-  "DontOvercookMeat": true,
-  "ProductionModifier": 1.5
+  "ByproductModifier": 1.0,
+  "ByproductPercent": 50,
+  "CookedModifier": 1.0,
+  "CookedPercent": 100,
+  "FuelUsageModifier": 1,
+  "OvercookMeat": false,
+  "UsePermissions": false
 }

@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.7", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.8", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -105,6 +105,7 @@ namespace Oxide.Plugins
                     string DistanceColor;
                     string BodypartColor;
                     string MessageColor;
+                    string HealthColor;
 
             // ------->   Localization
 
@@ -186,7 +187,7 @@ namespace Oxide.Plugins
                     CommunityEntity.ServerInstance.ClientRPCEx(new Network.SendInfo() { connection = player.net.connection }, null, "DestroyUI", new Facepunch.ObjectList(uiName));
             }
 
-            public string AddText(string name, double left, double top, double width, double height, UIColor color, string text, int textsize = 15, string parent = "HUD/Overlay", int alignmode = 0, float fadeIn = 0f, float fadeOut = 0f)
+            public string AddText(string name, double left, double top, double width, double height, UIColor color, string text, int textsize = 15, string parent = "Hud.Under", int alignmode = 0, float fadeIn = 0f, float fadeOut = 0f)
             {
                 //name = name + RandomString();
                 text = text.Replace("\n", "{NEWLINE}");
@@ -255,6 +256,7 @@ namespace Oxide.Plugins
             [JsonIgnore]
             public BaseCombatEntity entity;
             public AttackerType type = AttackerType.Invalid;
+            public float healthLeft;
 
             public string TryGetName()
             {
@@ -692,6 +694,7 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Distance Color", "#C4FF00");
             SetConfig("Settings", "Bodypart Color", "#C4FF00");
             SetConfig("Settings", "Message Color", "#696969");
+            SetConfig("Settings", "Health Color", "#C4FF00");
 
             SetConfig("Names", new Dictionary<string, object> { });
             SetConfig("Bodyparts", new Dictionary<string, object> { });
@@ -1020,7 +1023,10 @@ namespace Oxide.Plugins
             data.victim.name = data.victim.TryGetName();
 
             if (info?.Initiator != null)
-                data.attacker.entity = info?.Initiator as BaseCombatEntity;
+            {
+                data.attacker.entity = info.Initiator as BaseCombatEntity;
+                data.attacker.healthLeft = info.Initiator.Health();
+            }
             else
                 data.attacker.entity = victim.lastAttacker as BaseCombatEntity;
 
@@ -1226,7 +1232,8 @@ namespace Oxide.Plugins
                 message = ConsoleFormatting.Replace("{Title}", $"<color={TitleColor}>{ChatTitle}</color>").Replace("{Message}", $"<color={MessageColor}>{messages.GetRandom()}</color>");
             else
                 message = ChatFormatting.Replace("{Title}", $"<color={TitleColor}>{ChatTitle}</color>").Replace("{Message}", $"<color={MessageColor}>{messages.GetRandom()}</color>");
-            
+
+            message = message.Replace("{health}", $"<color={HealthColor}>{Math.Round(data.attacker.healthLeft, 1)}</color>");
             message = message.Replace("{attacker}", $"<color={AttackerColor}>{data.attacker.name}</color>");
             message = message.Replace("{victim}", $"<color={VictimColor}>{data.victim.name}</color>");
             message = message.Replace("{distance}", $"<color={DistanceColor}>{Math.Round(data.distance, 2)}</color>");
@@ -1432,8 +1439,8 @@ namespace Oxide.Plugins
 
             UIObject ui = new UIObject();
 
-            ui.AddText("DeathNotice_DropShadow", SimpleUI_Left + 0.001, SimpleUI_Top + 0.001, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeShadowColor, StripTags(message), SimpleUI_FontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
-            ui.AddText("DeathNotice", SimpleUI_Left, SimpleUI_Top, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeColor, message, SimpleUI_FontSize, "HUD/Overlay", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice_DropShadow", SimpleUI_Left + 0.001, SimpleUI_Top + 0.001, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeShadowColor, StripTags(message), SimpleUI_FontSize, "Hud.Under", 3, fadeIn, 0.2f);
+            ui.AddText("DeathNotice", SimpleUI_Left, SimpleUI_Top, SimpleUI_MaxWidth, SimpleUI_MaxHeight, deathNoticeColor, message, SimpleUI_FontSize, "Hud.Under", 3, fadeIn, 0.2f);
 
             ui.Destroy(player);
 

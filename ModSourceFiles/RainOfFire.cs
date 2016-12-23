@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿// Reference: Rust.Global
+using System.Collections.Generic;
 using Oxide.Core.Plugins;
 using UnityEngine;
 using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("RainOfFire", "emu / k1lly0u", "0.2.0", ResourceId = 1249)]
+    [Info("RainOfFire", "emu / k1lly0u", "0.2.2", ResourceId = 1249)]
     class RainOfFire : RustPlugin
     {
         #region Fields
@@ -22,12 +23,15 @@ namespace Oxide.Plugins
 
         private float projectileSpeed = 20f;
         private float gravityModifier = 0f;
-        private float damageModifier = 0.2f;
         private float detonationTime = 20f;
         #endregion
 
         #region Oxide Hooks       
-        void OnServerInitialized() => LoadVariables();       
+        void OnServerInitialized()
+        {
+            LoadVariables();
+            StartEventTimer();
+        }   
         void Unload()
         {
             StopTimer();
@@ -48,9 +52,9 @@ namespace Oxide.Plugins
                 if (configData.Options.EventTimers.UseRandomTimer)
                 {
                     var random = GetRandom(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
-                    EventTimer = timer.Once(random, () => { StartRandomOnMap(); StartEventTimer(); });
+                    EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
                 }
-                else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval, 0, () => StartRandomOnMap());
+                else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval * 60, 0, () => StartRandomOnMap());
             }
         }
         private void StopTimer()
@@ -149,10 +153,10 @@ namespace Oxide.Plugins
             serverProjectile.speed = projectileSpeed;
             timedExplosive.timerAmountMin = detonationTime;
             timedExplosive.timerAmountMax = detonationTime;
-            ScaleAllDamage(timedExplosive.damageTypes, damageModifier);
+            ScaleAllDamage(timedExplosive.damageTypes, configData.DamageControl.DamageMultiplier);
 
             entity.SendMessage("InitializeVelocity", (object)(direction * 1f));
-            entity.Spawn(true);
+            entity.Spawn();
             return entity;
         }
 

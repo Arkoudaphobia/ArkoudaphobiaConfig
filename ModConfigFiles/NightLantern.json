@@ -1,10 +1,12 @@
 {
-  "Settings": {
-    "AutoTurnLanterns": true,
-    "includeCeilinglight": true,
-    "includeCampfires": false,
-    "includeJackOLanterns": true,
-    "sunriseHour": "6",
-    "sunsetHour": "18"
-  }
+  "ConsumeFuel": false, // Require's fuel to start lights
+  "LightTypes": {
+    "Campfires": true,
+    "CeilingLights": true,
+    "Furnaces": false,
+    "JackOLanterns": true,
+    "Lanterns": true
+  },
+  "SunriseHour": 7.5, //Time lights are disabled
+  "SunsetHour": 18.5 // Time lights are enabled
 }

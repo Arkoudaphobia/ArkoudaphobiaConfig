@@ -1,5 +1,8 @@
 {
-  "BroadcastKick": true,
-  "HighPingKick": true,
-  "PingLimit": 220
+  "High Ping Kick (true/false)": true,
+  "High Ping Limit (Milliseconds)": 200,
+  "Kick Grace Period (Seconds)": 30,
+  "Kick Notice Messages (true/false)": true,
+  "Repeat Checking (true/false)": true,
+  "Warn Before Kicking (true/false)": true
 }

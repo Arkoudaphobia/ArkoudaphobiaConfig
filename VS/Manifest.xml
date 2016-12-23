@@ -1,13 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<ArkoudaphobiaConfig xmlns="http://xmlschema.utmonline.net/2016/RustModuleManafest">
+<ArkoudaphobiaConfig xmlns="http://schema.utmonline.net/xml/2016/RustModuleManafest2">
   <ModFiles>
     <Mod Name="AFK.CS" Enabled="true"/>
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
-    <Mod Name="chatmute.lua" Enabled="true"/>
+    <Mod Name="chatmute.lua" Enabled="false"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
-    <Mod Name="DemolishRefund.coffee" Enabled="true"/>
+    <Mod Name="DemolishRefund.coffee" Enabled="false"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
@@ -15,11 +15,11 @@
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
-    <Mod Name="MonumentRadiation.cs" Enabled="true"/>
+    <Mod Name="MonumentRadiation.cs" Enabled="false"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.cs" Enabled="true"/>
+    <Mod Name="notifier.cs" Enabled="false"/>
     <Mod Name="Ping.cs" Enabled="true"/>
-    <Mod Name="PillsHere.cs" Enabled="true"/>
+    <Mod Name="PillsHere.cs" Enabled="false"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
@@ -35,10 +35,9 @@
     <Config Name="AFK.json" remove="false" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
-    <Config Name="chatmute.json" remove="false"/>
+    <Config Name="chatmute.json" remove="true"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
-    <Config Name="EnhancedBanSystem.json" remove="true"/>
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="eventmanager.json" remove="true"/>
     <Config Name="GatherManager.json" remove="false"/>
@@ -48,11 +47,11 @@
     <Config Name="Jail.json" remove="true"/>
     <Config Name="LastManStanding.json" remove="true"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
-    <Config Name="MonumentRadiation.json" remove="false"/>
+    <Config Name="MonumentRadiation.json" remove="true"/>
     <Config Name="NightLantern.json" remove="false"/>
-    <Config Name="notifier.json" remove="false"/>
+    <Config Name="notifier.json" remove="true"/>
     <Config Name="Ping.json" remove="false"/>
-    <Config Name="PillsHere.json" remove="false"/>
+    <Config Name="PillsHere.json" remove="true"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
@@ -63,6 +62,5 @@
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
-    <Config Name="ZoneManager.json" remove="true"/>
   </ModConfigFiles>
 </ArkoudaphobiaConfig>
