@@ -1,9 +1,0 @@
-{
-  "Options - Default kit": "lmskit",
-  "Options - Default spawnfile": "lmsspawns",
-  "Options - Zone name": "lmszone",
-  "Player - Starting Health": 100.0,
-  "Scoring - Tokens given to alive players when a players gets eliminated": 1,
-  "Scoring - Tokens given to player when killing another player": 2,
-  "Scoring - Winner tokens": 5
-}
