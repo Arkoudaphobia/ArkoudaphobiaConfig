@@ -14,6 +14,7 @@
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
+    <Mod Name="MagicTeleportation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
@@ -42,6 +43,7 @@
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
+    <Config Name="MagicTeleportation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
