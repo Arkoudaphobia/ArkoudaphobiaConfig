@@ -8,7 +8,7 @@
     "CraftingRate": 50.0,
     "IndividualCraftingRates": {},
     "InstantBulkCraft": false,
-    "InstantCraftForAdmins": true,
+    "InstantCraftForAdmins": false,
     "InstantCraftForModerators": false
   },
   "Messages": {
