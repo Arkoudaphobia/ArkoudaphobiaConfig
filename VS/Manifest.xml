@@ -13,7 +13,7 @@
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
-    <Mod Name="Metabolism.cs" Enabled="true">
+    <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
@@ -23,6 +23,7 @@
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
+    <Mod Name="SleeperAnimalProtection.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
@@ -40,7 +41,7 @@
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
-    <Config Name="Metabolism.json" remove="false">
+    <Config Name="Metabolism.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
@@ -50,6 +51,7 @@
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
+    <Config Name="SleeperAnimalProtection.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
