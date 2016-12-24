@@ -70,7 +70,7 @@
   },
   "Settings": {
     "BypassAdmin": false,
-    "EntityHeight": 2,
+    "EntityHeight": 1,
     "MaxEntitiesPerBuilding": 2,
     "RefundEntity": true,
     "TPSleepGod": true,
