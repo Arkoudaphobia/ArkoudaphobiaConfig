@@ -5,7 +5,7 @@
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
-    <Mod Name="CraftingControler.cs" Enabled="true"/>
+    <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
@@ -36,7 +36,7 @@
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
-    <Config Name="CraftingControler.json" remove="false"/>
+    <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="GatherManager.json" remove="false"/>
