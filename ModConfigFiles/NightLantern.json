@@ -1,13 +1,14 @@
 {
   "ConsumeFuel": false,
   "LightTypes": 
-    {
-        "Campfires": true,
-        "CeilingLights": true,
-        "Furnaces": false,
-        "JackOLanterns": true,
-        "Lanterns": true
-      },
+ {
+    "Campfires": true,
+    "CeilingLight": true,
+    "Furnace": false,
+    "JackOLantern": true,
+    "Lanterns": true,
+    "LargeFurnace": false
+  },
   "SunriseHour": 7.5,
   "SunsetHour": 18.5
 }
