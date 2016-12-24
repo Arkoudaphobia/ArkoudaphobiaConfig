@@ -1,17 +1,12 @@
 {
-  "apiKey": "hDibGTtYXxFgWjoXsnGFhrqfxTghmxwd",
-  "broadcastChat": true,
-  "broadcastDeaths": true,
-  "broadcastSpawns": true,
-  "defaultLanguage": "en",
-  "displayBuildings": false,
-  "displayMonuments": true,
-  "displayMortality": true,
-  "enableLocationSharing": true,
-  "helpMessage": "To locate yourself on the LIVEMAP, browse to <color=#CC3A2D>http://playrust.io</color> and type in this server's name!",
-  "hideSpecificMonuments": [
-    "cave",
-    "mountain"
-  ],
-  "welcomeMessage": "To locate yourself on the LIVEMAP, browse to <color=#CC3A2D>http://playrust.io</color> and type in this server's name!"
+  "displayMonuments": true,
+  "hideSpecificMonuments": [],
+  "displayBuildings": false,
+  "displayMortality": true,
+  "enableLocationSharing": true,
+  "broadcastSpawns": true,
+  "broadcastDeaths": true,
+  "broadcastChat": true,
+  "defaultLanguage": "en",
+  "welcomeMessage": "To locate yourself on the LIVEMAP, browse to <color=#CC3A2D>http://utmo.link/rustmap</color>!"
 }
