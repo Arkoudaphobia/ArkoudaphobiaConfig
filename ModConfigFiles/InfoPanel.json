@@ -204,8 +204,8 @@
     "Coordinates": {
       "AnchorX": "Left",
       "AnchorY": "Bottom",
-      "Autoload": true,
-      "Available": true,
+      "Autoload": false,
+      "Available": false,
       "BackgroundColor": "0 0 0 0",
       "Dock": "BottomRightDock",
       "FadeOut": 0.0,
@@ -213,7 +213,7 @@
       "Image": {
         "AnchorX": "Left",
         "AnchorY": "Bottom",
-        "Available": true,
+        "Available": false,
         "BackgroundColor": "0 0 0 0.1",
         "Height": 0.8,
         "Margin": "0 0 0.01 0",
@@ -230,7 +230,7 @@
         "Align": "MiddleCenter",
         "AnchorX": "Left",
         "AnchorY": "Bottom",
-        "Available": true,
+        "Available": false,
         "BackgroundColor": "0 0 0 0.4",
         "Content": "No Content",
         "FadeIn": 0.0,
