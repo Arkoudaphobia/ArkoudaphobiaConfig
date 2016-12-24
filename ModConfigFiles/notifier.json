@@ -14,7 +14,6 @@
       "Players List": true,
       "Plugins List": false,
       "Server Map": false,
-      "Server MOTD": false,
       "Server Rules": true
     },
     "Triggers": {
@@ -33,9 +32,6 @@
       "Server Map": [
         "/map"
       ],
-      "Server MOTD": [
-        "/motd"
-      ],
       "Server Rules": [
         "/rules"
       ]
@@ -46,10 +42,12 @@
     "Broadcast To Console": true,
     "Date Format": "{day}/{month}/{year}",
     "Enable Advert Messages": true,
-    "Enable Chat Separators": true,
-    "Enable Icon Profile": false,
+    "Enable BetterChat Support": false,
+    "Enable HelpText Support": true,
     "Enable Join Message": true,
     "Enable Leave Message": true,
+    "Enable Line Separators": true,
+    "Enable Plugin Icon": false,
     "Enable Plugin Prefix": true,
     "Enable Scheduled Messages": false,
     "Enable Welcome Message": true,
@@ -61,7 +59,6 @@
     "Rules Default Language": "auto",
     "Time Format": "{hour}:{minute}:{second}"
   },
-  "Message Of The Day": "We are using <cyan>Notifier<end> <grey>v3.0<end>, type <orange>/notifier help<end> for all its available commands.",
   "Rules": {
     "CZ": [
       "Cheatování je přísně zakázáno.",
