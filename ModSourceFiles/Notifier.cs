@@ -604,14 +604,14 @@ namespace Oxide.Plugins
                     Dict.Add("{player.steamid}", ply.SteamID);
 
                     // Player Experience
-                    int level = (int) player.xp.CurrentLevel;
+                    //int level = (int) player.xp.CurrentLevel;
                     //float currentXp = (float) player.xp.EarnedXp;
                     //float levelToXp = Rust.Xp.Config.LevelToXp(level + 1);
                     //float xpRequired = levelToXp - Rust.Xp.Config.LevelToXp(level);
                     //float levelXp = currentXp - Rust.Xp.Config.LevelToXp(level);
                     //float percentage = (levelXp / xpRequired) * 100;
 
-                    Dict.Add("{player.level}", level);
+                    //Dict.Add("{player.level}", level);
                     //Dict.Add("{player.xp}", currentXp.ToString("0.00"));
                     //Dict.Add("{player.progress}", percentage.ToString("0.00"));
 
