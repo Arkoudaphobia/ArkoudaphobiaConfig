@@ -1,6 +1,6 @@
 {
   "CraftingDetails": {
-    "PercentFasterPerLevel": 5,
+    "PercentFasterPerLevel": 10,
     "TimeSpent": 1,
     "XPPerTimeSpent": 3
   },
@@ -40,8 +40,8 @@
     "WC": 30
   },
   "ResourcePerLevelMultiplier": {
-    "M": 2.0,
-    "S": 2.0,
-    "WC": 2.0
+    "M": 2.5,
+    "S": 2.5,
+    "WC": 2.5
   }
 }
