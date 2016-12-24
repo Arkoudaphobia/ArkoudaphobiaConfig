@@ -1,12 +1,13 @@
 {
-  "ConsumeFuel": false, // Require's fuel to start lights
-  "LightTypes": {
-    "Campfires": true,
-    "CeilingLights": true,
-    "Furnaces": false,
-    "JackOLanterns": true,
-    "Lanterns": true
-  },
-  "SunriseHour": 7.5, //Time lights are disabled
-  "SunsetHour": 18.5 // Time lights are enabled
+  "ConsumeFuel": false,
+  "LightTypes": 
+    {
+        "Campfires": true,
+        "CeilingLights": true,
+        "Furnaces": false,
+        "JackOLanterns": true,
+        "Lanterns": true
+      },
+  "SunriseHour": 7.5,
+  "SunsetHour": 18.5
 }
