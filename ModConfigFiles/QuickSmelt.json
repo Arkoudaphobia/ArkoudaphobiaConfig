@@ -1,6 +1,6 @@
 {
-  "ByproductModifier": 1.0,
-  "ByproductPercent": 50,
+  "ByproductModifier": 1.5,
+  "ByproductPercent": 60,
   "CookedModifier": 1.0,
   "CookedPercent": 100,
   "FuelUsageModifier": 1,
