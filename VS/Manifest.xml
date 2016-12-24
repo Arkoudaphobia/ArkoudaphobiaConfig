@@ -17,7 +17,7 @@
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="false"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.cs" Enabled="false"/>
+    <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PillsHere.cs" Enabled="false"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
@@ -49,7 +49,7 @@
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="true"/>
     <Config Name="NightLantern.json" remove="false"/>
-    <Config Name="notifier.json" remove="true"/>
+    <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
     <Config Name="PillsHere.json" remove="true"/>
     <Config Name="PlayerInformations.json" remove="false"/>
