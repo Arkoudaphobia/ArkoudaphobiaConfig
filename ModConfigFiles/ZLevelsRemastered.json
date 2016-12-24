@@ -1,6 +1,6 @@
 {
   "CraftingDetails": {
-    "PercentFasterPerLevel": 10,
+    "PercentFasterPerLevel": 5,
     "TimeSpent": 1,
     "XPPerTimeSpent": 3
   },
