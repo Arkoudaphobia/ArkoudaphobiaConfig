@@ -157,7 +157,7 @@
     ]
   },
   "Schedule Messages": { },
-  "WELCOME MESSAGE": [
+  "Welcome Messages": [
     "<size=17>Welcome <lime>{username}<end></size>",
     "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
     "<orange><size=20>•</size><end> You are responsible for knowing our <orange>/rules<end>.",
