@@ -158,7 +158,7 @@
   },
   "Schedule Messages": { },
   "Welcome Messages": [
-    "<size=17>Welcome <lime>{username}<end></size>",
+    "<size=20>Welcome <lightblue>{username}<end></size>",
     "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
     "<orange><size=20>•</size><end> You are responsible for knowing our <orange>/rules<end>.",
     "<orange><size=20>•</size><end> See where you are on the server map at: <lime>https://utmo.link/rustmap<end>"
