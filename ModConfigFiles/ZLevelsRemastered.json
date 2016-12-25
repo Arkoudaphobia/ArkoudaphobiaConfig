@@ -40,8 +40,8 @@
     "WC": 30
   },
   "ResourcePerLevelMultiplier": {
-    "M": 1.5,
-    "S": 1.5,
-    "WC": 1.5
+    "M": 1.2,
+    "S": 1.2,
+    "WC": 1.2
   }
 }
