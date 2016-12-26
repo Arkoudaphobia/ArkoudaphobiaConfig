@@ -65,6 +65,8 @@ namespace Oxide.Plugins
         Dictionary<string, string> DEFAULT_HomeEntities = new Dictionary<string, string>() {
             {
                 "assets/prefabs/deployable/bed/bed_deployed.prefab", "Bed"
+            },
+            {
                 "assets/prefabs/deployable/sleeping bag/sleepingbag_leather_deployed.prefab","Sleeping Bag"
             },
         };
