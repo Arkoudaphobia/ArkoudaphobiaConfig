@@ -2,7 +2,7 @@
   "ConsumeFuel": false,
   "LightTypes": 
  {
-    "Campfires": true,
+    "Campfires": false,
     "CeilingLight": true,
     "Furnace": false,
     "JackOLantern": true,
