@@ -14,7 +14,7 @@
         }
       ],
       "name": "Mute",
-      "permission": "canmute"
+      "permission": "playermanager.canmute"
     },
     {
       "commands": [
@@ -30,7 +30,7 @@
         }
       ],
       "name": "Jail",
-      "permission": "canjail"
+      "permission": "playermanager.canjail"
     }
   ],
   "Options": {
