@@ -48,8 +48,8 @@
     }
   },
 	"Messages": [
-		"Welcome to 'The Origional Rusty Bear'!",
-		"Visit http://utmo.link/rustconfig to view configuration history & propose changes",
+		"Welcome to 'The Rusty Bear'!",
+		"Visit http://utmo.link/rustconfig to view \rconfiguration history & propose changes",
 		"Beware! You Are Not Alone!"
 	],
 	"Panels": {
