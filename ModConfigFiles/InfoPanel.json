@@ -273,7 +273,7 @@
       "Width": 0.1
     },
     "MessageBox": {
-      "AnchorX": "Center",
+      "AnchorX": "Left",
       "AnchorY": "Bottom",
       "Autoload": true,
       "Available": true,
