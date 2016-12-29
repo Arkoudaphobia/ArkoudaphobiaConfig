@@ -49,7 +49,7 @@
   },
 	"Messages": [
 		"Welcome to 'The Rusty Bear'!",
-		"Visit http://utmo.link/rustconfig to view \rconfiguration history & propose changes",
+		"Visit http://utmo.link/rustconfig to view configuration history & propose changes",
 		"Beware! You Are Not Alone!"
 	],
 	"Panels": {
@@ -303,7 +303,7 @@
         "Order": 0,
         "Width": 1.0
       },
-      "Width": 0.55
+      "Width": 0.45
     },
     "OPlayers": {
       "AnchorX": "Left",
