@@ -288,7 +288,7 @@
         "MsgOrder": "normal"
       },
       "Text": {
-        "Align": "MiddleCenter",
+        "Align": "LeftCenter",
         "AnchorX": "Left",
         "AnchorY": "Bottom",
         "Available": true,
