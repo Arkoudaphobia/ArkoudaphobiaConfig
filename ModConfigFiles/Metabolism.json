@@ -3,6 +3,6 @@
   "CaloriesSpawnValue": 500.0,
   "HealthGainRate": 0.03,
   "HealthSpawnValue": 100.0,
-  "HydrationLossRate": 0.025,
+  "HydrationLossRate": 0.02,
   "HydrationSpawnValue": 250.0
 }
