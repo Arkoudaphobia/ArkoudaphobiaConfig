@@ -33,7 +33,7 @@
       "*": 1.5
     },
     "QuarryResourceModifiers": {
-      "Crude Oil": 0.5,
+      "Crude Oil": 1.0,
       "Stones": 10.0,
       "High Quality Metal Ore": 5.0,
       "*": 20.0
