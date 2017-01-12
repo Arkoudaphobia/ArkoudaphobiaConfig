@@ -1,7 +1,17 @@
 {
-  "ConfigVersion": "1.0.0",
-  "Settings": {
-    "Daylength": 45,
-    "Nightlength": 20
-  }
+  "DatePreset": {
+    "presetDay": 1,
+    "presetMonth": 1,
+    "presetYear": 2020,
+    "setPresetDate": false   
+  },
+  "Settings": {
+    "authLevelCmds": 1,   
+    "authLevelFreeze": 2,   
+    "autoSkipNight": false,   
+    "dayLength": 45,   
+    "freezeDate": false,  
+    "logAutoSkipConsole": true,   
+    "nightLength": 15   
+  }
 }
