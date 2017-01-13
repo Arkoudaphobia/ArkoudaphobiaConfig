@@ -8,12 +8,12 @@ using System.Globalization;
 
 namespace Oxide.Plugins
 {
-    [Info("TimeOfDay", "Fujikura", "2.0.0", ResourceId = 1355)]
+    [Info("TimeOfDay", "Fujikura", "2.1.0", ResourceId = 1355)]
     [Description("Does alter day and night duration.")]
     public class TimeOfDay : RustPlugin
     {
 		bool Changed = false;
-		bool Initialized = false;
+		bool Initialized;
 		int componentSearchAttempts = 0;
 		TOD_Time timeComponent = null;
 		bool activatedDay;
@@ -29,6 +29,8 @@ namespace Oxide.Plugins
 		bool freezeDate;
 		bool autoSkipNight;
 		bool logAutoSkipConsole;
+		bool freezeTimeOnload;
+		float timeToFreeze;
 		
 		object GetConfig(string menu, string datavalue, object defaultValue)
 		{
@@ -63,6 +65,9 @@ namespace Oxide.Plugins
 			presetMonth =  Convert.ToInt32(GetConfig("DatePreset", "presetMonth", 1));
 			presetYear =  Convert.ToInt32(GetConfig("DatePreset", "presetYear", 2020));
 			setPresetDate = Convert.ToBoolean(GetConfig("DatePreset", "setPresetDate", false));
+			
+			freezeTimeOnload = Convert.ToBoolean(GetConfig("TimeFreeze", "freezeTimeOnload", false));
+			timeToFreeze = Convert.ToSingle(GetConfig("TimeFreeze", "timeToFreeze", 12.0));
 
 			if (!Changed) return;
 			SaveConfig();
@@ -78,11 +83,12 @@ namespace Oxide.Plugins
 		void Loaded()
 		{
 			LoadVariables();
+			Initialized = false;
 		}
 
 		void Unload()
 		{
-			if (timeComponent == null) return;
+			if (timeComponent == null || !Initialized) return;
 			timeComponent.OnSunrise -= OnSunrise;
             timeComponent.OnSunset -= OnSunset;
 			timeComponent.OnDay -= OnDay;
@@ -113,6 +119,8 @@ namespace Oxide.Plugins
 				TOD_Sky.Instance.Cycle.Year = presetYear;
 			}
 			SetTimeComponent();
+			if (freezeTimeOnload)
+				StartupFreeze();
 		}
 
         void SetTimeComponent()
@@ -129,10 +137,17 @@ namespace Oxide.Plugins
             else
                 OnSunset();
         }
+		
+		void StartupFreeze()
+		{
+			if (!Initialized) return;
+			timeComponent.ProgressTime = false;
+			ConVar.Env.time = timeToFreeze;
+		}
 
         void OnDay()
         {
-			if (freezeDate)
+			if (Initialized && freezeDate)
 				--TOD_Sky.Instance.Cycle.Day;
 		}
 
@@ -153,12 +168,14 @@ namespace Oxide.Plugins
 
         void OnSunrise()
         {
+			if (!Initialized) return;
 			timeComponent.DayLengthInMinutes = dayLength * (24.0f / (TOD_Sky.Instance.SunsetTime - TOD_Sky.Instance.SunriseTime));
 			activatedDay = true;
         }
 
         void OnSunset()
         {
+			if (!Initialized) return;
 			if (autoSkipNight)
 			{
 				TOD_Sky.Instance.Cycle.Hour = TOD_Sky.Instance.SunriseTime;
@@ -174,7 +191,8 @@ namespace Oxide.Plugins
 		[ConsoleCommand("tod.daylength")]
         void consoleDayLength(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+            if (!Initialized) return;
+			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
 			if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, $"Current 'dayLength' setting is '{dayLength}'");
@@ -204,7 +222,8 @@ namespace Oxide.Plugins
 		[ConsoleCommand("tod.nightlength")]
         void consoleNightLength(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+            if (!Initialized) return;
+			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
 			if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, $"Current 'nightLength' setting is '{nightLength}'");
@@ -233,7 +252,8 @@ namespace Oxide.Plugins
 		[ConsoleCommand("tod.freezetime")]
         void consoleFreezeTime(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < authLevelFreeze) return;
+            if (!Initialized) return;
+			if (arg.connection != null && arg.connection.authLevel < authLevelFreeze) return;
 
 			timeComponent.ProgressTime = !timeComponent.ProgressTime;
 			
@@ -246,7 +266,8 @@ namespace Oxide.Plugins
 		[ConsoleCommand("tod.skipday")]
         void consoleSkipDay(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+            if (!Initialized) return;
+			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
 			if (TOD_Sky.Instance.IsNight)
 			{
 				SendReply(arg, $"Night is already active");
@@ -260,7 +281,8 @@ namespace Oxide.Plugins
 		[ConsoleCommand("tod.skipnight")]
         void consoleSkipNight(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+            if (!Initialized) return;
+			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
 			if (TOD_Sky.Instance.IsDay)
 			{
 				SendReply(arg, $"Day is already active");
@@ -274,6 +296,7 @@ namespace Oxide.Plugins
         [ChatCommand("tod")]
         private void TodCommand(BasePlayer Player, string Command, string[] Args)
         {
+			if (!Initialized) return;
 			TimeSpan ts1= TimeSpan.FromHours(TOD_Sky.Instance.SunriseTime);
 			TimeSpan ts2= TimeSpan.FromHours(TOD_Sky.Instance.SunsetTime);
 			
@@ -290,7 +313,8 @@ namespace Oxide.Plugins
         [HookMethod("SendHelpText")]
         private void SendHelpText(BasePlayer Player)
         {
-            StringBuilder stringBuilder = new StringBuilder();
+            if (!Initialized) return;
+			StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append(FormNeutralMessage("-------------------- Available Commands --------------------\n"));
 			stringBuilder.Append(FormNeutralMessage("/tod") + " - Shows current Time Of Day.\n");
             PrintPluginMessageToChat(Player, stringBuilder.ToString());

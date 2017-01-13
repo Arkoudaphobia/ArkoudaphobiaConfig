@@ -12,6 +12,10 @@
     "dayLength": 45,   
     "freezeDate": false,  
     "logAutoSkipConsole": true,   
-    "nightLength": 15   
+    "nightLength":  15
+  },
+  "TimeFreeze": {
+    "freezeTimeOnload": false,
+    "timeToFreeze": 12.0
   }
 }
