@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Fuji/Visa", "1.0.1", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Fuji/Visa", "1.1.1", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         bool Changed = false;
@@ -127,15 +127,10 @@ namespace Oxide.Plugins
         public static Dictionary<ulong, PlayerDetails> playersInfo = new Dictionary<ulong, PlayerDetails>();
         public static Dictionary<ulong, Timer> playersTimers = new Dictionary<ulong, Timer>();
 
-        void OnStructureRepair(BaseCombatEntity entity, BasePlayer player, bool permChecked = false)
+        void OnStructureRepair(BaseCombatEntity entity, BasePlayer player)
         {
-            if (!permChecked)
-			{
-				if (enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName))
-					return;
-				if (PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED) || !(entity is BuildingBlock))
-					return;
-			}
+			if (entity == null || player == null || (enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED) || !(entity is BuildingBlock))
+				return;
 			BuildingBlock block = entity as BuildingBlock;
             if (playersInfo[player.userID].upgradeInfo == BuildingGrade.Enum.Count
                 || playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type
@@ -197,6 +192,7 @@ namespace Oxide.Plugins
                         int itemCostAmount = Convert.ToInt32((float)itemCost.amount * block.blockDefinition.costMultiplier);
                         var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
                         player.inventory.Take(foundItems, itemCost.itemid, itemCostAmount);
+						player.Command(string.Concat(new object[]{"note.inv ", itemCost.itemid, " ",	itemCost.amount * -1f}), new object[0]);
                     }
                     block.SetHealthToMax();
                     block.SetFlag(BaseEntity.Flags.Reserved1, true); // refresh rotation
@@ -249,14 +245,14 @@ namespace Oxide.Plugins
 		{
 			if (player == null || player.svActiveItemID == 0 || inputState == null || !inputState.WasJustPressed(BUTTON.FIRE_PRIMARY) || player.GetActiveItem() == null || player.GetActiveItem().info.shortname != "hammer")
 				return;
-			if ((enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED))
-                return;
+			//if ((enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED))
+            //    return;
 			BaseEntity targetEntity;
             RaycastHit rayHit;
 			bool flag1 = UnityEngine.Physics.Raycast(player.eyes.HeadRay(), out rayHit, hammerHitRange, 2097152);
 			targetEntity = flag1 ? rayHit.GetEntity() : null;
 			if (targetEntity)
-				OnStructureRepair(targetEntity as BaseCombatEntity, player, true);
+				OnStructureRepair(targetEntity as BaseCombatEntity, player);
 		}
 
         void RenderMode(BasePlayer player, bool repair = false)
