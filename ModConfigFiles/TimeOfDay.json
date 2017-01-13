@@ -9,10 +9,10 @@
     "authLevelCmds": 1,   
     "authLevelFreeze": 2,   
     "autoSkipNight": false,   
-    "dayLength": 45,   
+    "dayLength": 90,   
     "freezeDate": false,  
     "logAutoSkipConsole": true,   
-    "nightLength":  15
+    "nightLength":  30
   },
   "TimeFreeze": {
     "freezeTimeOnload": false,
