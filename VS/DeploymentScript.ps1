@@ -3,7 +3,7 @@
 	[Switch]$MonthlyClean
 )
 
-$BaseServerPath = "C:\RustServerOxide\server\ArkoudaphobiaModded"
+$BaseServerPath = "$Env:RustOxideLocalDir\server\ArkoudaphobiaModded"
 
 If($QuarterlyClean)
 {
@@ -127,3 +127,5 @@ Foreach($File in $ServerConfigFiles)
 	Write-Host "$($File.Name) has been writen to the server."
 	Pop-Location
 }
+
+Copy-Item -Path .\VS\StartUpScript.ps1 -Destination "C:\RustTools" -Force -Confirm:$false
