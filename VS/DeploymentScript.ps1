@@ -3,7 +3,7 @@
 	[Switch]$MonthlyClean
 )
 
-$BaseServerPath = "$Env:RustOxideLocalDir\server\ArkoudaphobiaModded"
+$BaseServerPath = "$($Env:RustOxideLocalDir)\server\ArkoudaphobiaModded"
 
 If($QuarterlyClean)
 {
