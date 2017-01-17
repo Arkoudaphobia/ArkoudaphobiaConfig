@@ -5,7 +5,8 @@
     "<red>Cheating is strictly prohibited.<end>",
     "To view the server map browse to https://utmo.link/rustmap",
     "You are playing on: <lime>{server.hostname}<end>",
-    "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig"
+    "Check out our GitHub Repository for the latest configuration changes to the server and mod updates https://utmo.link/rustconfig",
+    "Check out our website for news related to the server and get in touch with other players! https://playrust.utmonline.net"
   ],
   "Commands": {
     "Settings": {

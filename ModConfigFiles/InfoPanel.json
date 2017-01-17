@@ -50,7 +50,8 @@
 	"Messages": [
 		"Welcome to 'The Rusty Bear'!",
 		"Visit http://utmo.link/rustconfig to view configuration history & propose changes",
-		"Beware! You Are Not Alone!"
+		"Beware! You Are Not Alone!",
+    "Check us out at https://playrust.utmonline.net"
 	],
 	"Panels": {
     "AirdropEvent": {
