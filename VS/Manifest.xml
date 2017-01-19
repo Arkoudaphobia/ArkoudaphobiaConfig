@@ -4,6 +4,7 @@
     <Mod Name="AFK.CS" Enabled="true"/>
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
+    <Mod Name="BetterSay.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
@@ -16,6 +17,7 @@
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MagicTeleportation.cs" Enabled="true"/>
+    <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
@@ -35,6 +37,7 @@
     <Config Name="AFK.json" remove="false" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
+    <Config Name="BetterSay.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
@@ -47,6 +50,7 @@
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
     <Config Name="MagicTeleportation.json" remove="false"/>
+    <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
