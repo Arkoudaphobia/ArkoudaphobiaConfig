@@ -1,0 +1,96 @@
+{
+  "Messaging": {
+    "Display_EnterMessage": true,
+    "Display_LeaveMessage": false
+  },
+
+"Options": {
+    "Broadcast_Timers": true,
+    "Use_RandomTimers": false,
+    "Use_Timers": true,
+    "Using_HapisIsland": false,
+    "Using_InfoPanel": true
+  },
+  "Timers": {
+    "Random_OffMax": 60, 
+    "Random_OffMin": 25, 
+    "Random_OnMax": 30, 
+    "Random_OnMin": 5, 
+    "Static_Off": 45, 
+    "Static_On": 240 
+  },
+  "Zones": {
+    "Airfield": {
+      "Activate": false, 
+      "Name": "Airfield", 
+      "Radiation": 30.0, 
+      "Radius": 85.0 
+    },
+    "Dome": {
+      "Activate": false,
+      "Name": "Dome",
+      "Radiation": 30.0,
+      "Radius": 50.0
+    },
+    "LargeHarbor": {
+      "Activate": false,
+      "Name": "Large Harbor",
+      "Radiation": 30.0,
+      "Radius": 120.0
+    },
+    "Lighthouse": {
+      "Activate": false,
+      "Name": "Lighthouse",
+      "Radiation": 30.0,
+      "Radius": 15.0
+    },
+    "Powerplant": {
+      "Activate": false,
+      "Name": "Powerplant",
+      "Radiation": 30.0,
+      "Radius": 120.0
+    },
+    "Radtown": {
+      "Activate": true,
+      "Name": "Radtown",
+      "Radiation": 30.0,
+      "Radius": 85.0
+    },
+    "Satellite": {
+      "Activate": false,
+      "Name": "Satellite",
+      "Radiation": 30.0,
+      "Radius": 60.0
+    },
+    "SmallHarbor": {
+      "Activate": true,
+      "Name": "Small Harbor",
+      "Radiation": 30.0,
+      "Radius": 85.0
+    },
+    "Trainyard": {
+      "Activate": false,
+      "Name": "Trainyard",
+      "Radiation": 30.0,
+      "Radius": 100.0
+    },
+    "Tunnels": {
+      "Activate": false,
+      "Name": "Tunnels",
+      "Radiation": 30.0,
+      "Radius": 90.0
+    },
+    "Warehouse": {
+      "Activate": false,
+      "Name": "Warehouse",
+      "Radiation": 30.0,
+      "Radius": 15.0
+    },
+    "WaterTreatment": {
+      "Activate": false,
+      "Name": "WaterTreatment",
+      "Radiation": 30.0,
+      "Radius": 120.0
+    }
+  }
+}
