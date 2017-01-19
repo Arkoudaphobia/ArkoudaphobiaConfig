@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Fuji/Visa", "1.1.1", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Fuji/Visa", "1.2.0", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         bool Changed = false;
@@ -19,6 +19,7 @@ namespace Oxide.Plugins
 		bool enablePermission;
 		static int defaultDisableTimer;
 		float hammerHitRange;
+		bool enableDistanceUpgrade;
 		
 		string UIAnchorMin = "0.32 0.09";
         string UIAnchorMax = "0.34 0.13";
@@ -55,6 +56,7 @@ namespace Oxide.Plugins
 			UIAnchorMin = Convert.ToString(GetConfig("Settings", "UIAnchorMin", "0.32 0.09"));
 			UIAnchorMax = Convert.ToString(GetConfig("Settings", "UIAnchorMax", "0.34 0.13"));
 			hammerHitRange = Convert.ToInt32(GetConfig("Settings", "hammerHitRange", 3.0f));
+			enableDistanceUpgrade =  Convert.ToBoolean(GetConfig("Settings", "enableDistanceUpgrade", true));
 			
 			permissionName  = Convert.ToString(GetConfig("Permission", "permissionName", "enhancedhammer.use"));
 			enablePermission  = Convert.ToBoolean(GetConfig("Permission", "enablePermission", false));
@@ -126,15 +128,45 @@ namespace Oxide.Plugins
 
         public static Dictionary<ulong, PlayerDetails> playersInfo = new Dictionary<ulong, PlayerDetails>();
         public static Dictionary<ulong, Timer> playersTimers = new Dictionary<ulong, Timer>();
+		
+		void OnPlayerInput(BasePlayer player, InputState inputState)
+		{
+			if (!enableDistanceUpgrade || player == null || player.svActiveItemID == 0 || player.GetActiveItem() == null || player.GetActiveItem().info.shortname != "hammer" || inputState == null || !inputState.WasJustPressed(BUTTON.FIRE_PRIMARY) ||
+				(enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED)) return;
+			BaseEntity targetEntity;
+            RaycastHit rayHit;
+			bool flag1 = UnityEngine.Physics.Raycast(player.eyes.HeadRay(), out rayHit, hammerHitRange, 2097152);
+			targetEntity = flag1 ? rayHit.GetEntity() : null;
+			if (targetEntity != null && targetEntity is BuildingBlock)
+			{
+				BuildingBlock block = targetEntity as BuildingBlock;
+				BaseCombatEntity entity = targetEntity as BaseCombatEntity;
+				if (playersInfo[player.userID].upgradeInfo == BuildingGrade.Enum.Count || playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type || !player.CanBuild())
+				{
+					if (playersInfo[player.userID].upgradeInfo != BuildingGrade.Enum.Count && playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type)
+					{
+						if (entity.healthFraction < 1f)
+						{
+							if(!PlayerHasFlag(player.userID, PlayerFlags.MESSAGES_DISABLED))
+								player.ChatMessage(pluginPrefix + lang.GetMessage("RepairMode", this, player.UserIDString));
+							playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
+							RenderMode(player, true);
+						}
+					}
+					else if (!player.CanBuild())
+						player.ChatMessage(pluginPrefix + lang.GetMessage("BuildingBlocked", this, player.UserIDString));
+				}
+				else
+					UpgradeBlock(player, entity, block);
+			}
+		}
 
         void OnStructureRepair(BaseCombatEntity entity, BasePlayer player)
         {
 			if (entity == null || player == null || (enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED) || !(entity is BuildingBlock))
 				return;
 			BuildingBlock block = entity as BuildingBlock;
-            if (playersInfo[player.userID].upgradeInfo == BuildingGrade.Enum.Count
-                || playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type
-                || !player.CanBuild())
+            if (playersInfo[player.userID].upgradeInfo == BuildingGrade.Enum.Count || playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type || !player.CanBuild())
             {
                 if (playersInfo[player.userID].upgradeInfo != BuildingGrade.Enum.Count && playersInfo[player.userID].upgradeInfo <= block.currentGrade.gradeBase.type)
                 {
@@ -147,69 +179,70 @@ namespace Oxide.Plugins
 					}
                 }
                 else if (!player.CanBuild())
-                {
 					player.ChatMessage(pluginPrefix + lang.GetMessage("BuildingBlocked", this, player.UserIDString));
-                }
             }
             else
-            {
-                BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
-                MethodInfo dynMethod = block.GetType().GetMethod("CanChangeToGrade", flags);
-                bool canChangeGrade = (bool)dynMethod.Invoke(block, new object[] { playersInfo[player.userID].upgradeInfo, player });
-
-                if (!canChangeGrade)
-                {
-                    player.ChatMessage(pluginPrefix + lang.GetMessage("UpgradeBlocked", this, player.UserIDString));
-                    return;
-                }
-
-                if (block.name.ToLower().Contains("wall.external"))
-                {
-                    player.ChatMessage(pluginPrefix + lang.GetMessage("CantUpgradeWalls", this, player.UserIDString));
-					playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
-                    return;
-                }
-                float currentHealth = block.health;
-                var currentGradeType = block.currentGrade.gradeBase.type;
-                block.SetGrade(playersInfo[player.userID].upgradeInfo);
-                var TwigsDecay = plugins.Find("TwigsDecay");
-                TwigsDecay?.Call("OnStructureUpgrade", block, player, playersInfo[player.userID].upgradeInfo);
-				block.UpdateSkin(false);
-                var cost = block.currentGrade.gradeBase.baseCost;
-                int hasEnough = 0;
-                foreach (var itemCost in cost)
-                {
-                    int itemCostAmount = Convert.ToInt32((float)itemCost.amount*block.blockDefinition.costMultiplier);
-                    var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
-                    var amountFound = foundItems?.Sum(item => item.amount) ?? 0;
-                    if (amountFound >= itemCostAmount)
-                        hasEnough++;
-                }
-                if (hasEnough >= cost.Count)
-                {
-                    foreach (var itemCost in cost)
-                    {
-                        int itemCostAmount = Convert.ToInt32((float)itemCost.amount * block.blockDefinition.costMultiplier);
-                        var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
-                        player.inventory.Take(foundItems, itemCost.itemid, itemCostAmount);
-						player.Command(string.Concat(new object[]{"note.inv ", itemCost.itemid, " ",	itemCost.amount * -1f}), new object[0]);
-                    }
-                    block.SetHealthToMax();
-                    block.SetFlag(BaseEntity.Flags.Reserved1, true); // refresh rotation
-                    block.Invoke("StopBeingRotatable", 600f);
-                    Effect.server.Run("assets/bundled/prefabs/fx/build/promote_" + playersInfo[player.userID].upgradeInfo.ToString().ToLower() + ".prefab", block, 0u, Vector3.zero, Vector3.zero, null, false);
-                }
-                else
-                {
-                    block.SetGrade(currentGradeType);
-                    TwigsDecay?.Call("OnStructureUpgrade", block, player, currentGradeType);
-                    block.UpdateSkin(false);
-                    block.health = currentHealth;
-					player.ChatMessage(pluginPrefix + lang.GetMessage("CantAffordUpgrade", this, player.UserIDString));
-                }
-            }
+				UpgradeBlock(player, entity, block);
             RefreshTimer(player);
         }
+		
+		void UpgradeBlock(BasePlayer player, BaseCombatEntity entity, BuildingBlock block)
+		{
+			BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+			MethodInfo dynMethod = block.GetType().GetMethod("CanChangeToGrade", flags);
+			bool canChangeGrade = (bool)dynMethod.Invoke(block, new object[] { playersInfo[player.userID].upgradeInfo, player });
+
+			if (!canChangeGrade)
+			{
+				player.ChatMessage(pluginPrefix + lang.GetMessage("UpgradeBlocked", this, player.UserIDString));
+				return;
+			}
+
+			if (block.name.ToLower().Contains("wall.external"))
+			{
+				player.ChatMessage(pluginPrefix + lang.GetMessage("CantUpgradeWalls", this, player.UserIDString));
+				playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
+				return;
+			}
+			float currentHealth = block.health;
+			var currentGradeType = block.currentGrade.gradeBase.type;
+			block.SetGrade(playersInfo[player.userID].upgradeInfo);
+			var TwigsDecay = plugins.Find("TwigsDecay");
+			TwigsDecay?.Call("OnStructureUpgrade", block, player, playersInfo[player.userID].upgradeInfo);
+			block.UpdateSkin(false);
+			var cost = block.currentGrade.gradeBase.baseCost;
+			int hasEnough = 0;
+			foreach (var itemCost in cost)
+			{
+				int itemCostAmount = Convert.ToInt32((float)itemCost.amount*block.blockDefinition.costMultiplier);
+				var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
+				var amountFound = foundItems?.Sum(item => item.amount) ?? 0;
+				if (amountFound >= itemCostAmount)
+					hasEnough++;
+			}
+			if (hasEnough >= cost.Count)
+			{
+				foreach (var itemCost in cost)
+				{
+					int itemCostAmount = Convert.ToInt32((float)itemCost.amount * block.blockDefinition.costMultiplier);
+					var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
+					player.inventory.Take(foundItems, itemCost.itemid, itemCostAmount);
+					player.Command(string.Concat(new object[]{"note.inv ", itemCost.itemid, " ",	itemCost.amount * -1f}), new object[0]);
+				}
+				block.SetHealthToMax();
+				block.SetFlag(BaseEntity.Flags.Reserved1, true); // refresh rotation
+				block.Invoke("StopBeingRotatable", 600f);
+				Effect.server.Run("assets/bundled/prefabs/fx/build/promote_" + playersInfo[player.userID].upgradeInfo.ToString().ToLower() + ".prefab", block, 0u, Vector3.zero, Vector3.zero, null, false);
+			}
+			else
+			{
+				block.SetGrade(currentGradeType);
+				TwigsDecay?.Call("OnStructureUpgrade", block, player, currentGradeType);
+				block.UpdateSkin(false);
+				block.health = currentHealth;
+				player.ChatMessage(pluginPrefix + lang.GetMessage("CantAffordUpgrade", this, player.UserIDString));
+			}
+		}		
 
         void RefreshTimer(BasePlayer player)
         {
@@ -240,20 +273,6 @@ namespace Oxide.Plugins
             }
             RefreshTimer(player);
         }
-		
-		void OnPlayerInput(BasePlayer player, InputState inputState)
-		{
-			if (player == null || player.svActiveItemID == 0 || inputState == null || !inputState.WasJustPressed(BUTTON.FIRE_PRIMARY) || player.GetActiveItem() == null || player.GetActiveItem().info.shortname != "hammer")
-				return;
-			//if ((enablePermission && !permission.UserHasPermission(player.UserIDString, permissionName)) || PlayerHasFlag(player.userID, PlayerFlags.PLUGIN_DISABLED))
-            //    return;
-			BaseEntity targetEntity;
-            RaycastHit rayHit;
-			bool flag1 = UnityEngine.Physics.Raycast(player.eyes.HeadRay(), out rayHit, hammerHitRange, 2097152);
-			targetEntity = flag1 ? rayHit.GetEntity() : null;
-			if (targetEntity)
-				OnStructureRepair(targetEntity as BaseCombatEntity, player);
-		}
 
         void RenderMode(BasePlayer player, bool repair = false)
         {

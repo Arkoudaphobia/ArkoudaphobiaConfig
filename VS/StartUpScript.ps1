@@ -16,6 +16,8 @@ $WebClient.DownloadFile($url,$file)
 
 $OxideTemp = "$Env:temp\RustOxideTempDir"
 
+Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -Force -Confirm:$false
+
 [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
 
 $ExtractedFiles = Get-ChildItem -Path $OxideTemp -Recurse
