@@ -21,13 +21,13 @@
   },
   "Zones": {
     "Airfield": {
-      "Activate": false, 
+      "Activate": true, 
       "Name": "Airfield", 
       "Radiation": 30.0, 
       "Radius": 85.0 
     },
     "Dome": {
-      "Activate": false,
+      "Activate": true,
       "Name": "Dome",
       "Radiation": 30.0,
       "Radius": 50.0
@@ -45,7 +45,7 @@
       "Radius": 15.0
     },
     "Powerplant": {
-      "Activate": false,
+      "Activate": true,
       "Name": "Powerplant",
       "Radiation": 30.0,
       "Radius": 120.0
@@ -57,25 +57,25 @@
       "Radius": 85.0
     },
     "Satellite": {
-      "Activate": false,
+      "Activate": true,
       "Name": "Satellite",
       "Radiation": 30.0,
       "Radius": 60.0
     },
     "SmallHarbor": {
-      "Activate": true,
+      "Activate": false,
       "Name": "Small Harbor",
       "Radiation": 30.0,
       "Radius": 85.0
     },
     "Trainyard": {
-      "Activate": false,
+      "Activate": true,
       "Name": "Trainyard",
       "Radiation": 30.0,
       "Radius": 100.0
     },
     "Tunnels": {
-      "Activate": false,
+      "Activate": true,
       "Name": "Tunnels",
       "Radiation": 30.0,
       "Radius": 90.0
@@ -87,7 +87,7 @@
       "Radius": 15.0
     },
     "WaterTreatment": {
-      "Activate": false,
+      "Activate": true,
       "Name": "WaterTreatment",
       "Radiation": 30.0,
       "Radius": 120.0
