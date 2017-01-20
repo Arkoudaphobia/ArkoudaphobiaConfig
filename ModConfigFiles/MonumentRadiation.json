@@ -1,7 +1,7 @@
 {
   "Messaging": {
     "Display_EnterMessage": true,
-    "Display_LeaveMessage": false
+    "Display_LeaveMessage": true
   },
 
 "Options": {
