@@ -879,7 +879,7 @@ namespace Oxide.Plugins
 				player.inventory.crafting.CancelAll(true);
 				player.MovePosition(pos);
 				player.ClientRPCPlayer(null, player, "ForcePositionTo", pos, null, null, null, null);
-				player.TransformChanged();
+				//player.TransformChanged();
 				player.SetPlayerFlag(BasePlayer.PlayerFlags.ReceivingSnapshot, true);
 				player.UpdateNetworkGroup();
 				player.SendNetworkUpdateImmediate(false);
