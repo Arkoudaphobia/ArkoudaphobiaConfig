@@ -1,3 +1,5 @@
+Start-Transcript -Path ($Env:temp + "\" + [DateTime]::Now.ToFileTime().ToString() + ".log")
+
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $WebClient = New-Object System.Net.WebClient
 
@@ -16,8 +18,14 @@ $WebClient.DownloadFile($url,$file)
 
 $OxideTemp = "$Env:temp\RustOxideTempDir"
 
+Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -recurse -Force -Confirm:$false
+
 [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
 
 $ExtractedFiles = Get-ChildItem -Path $OxideTemp -Recurse
 
-$ExtractedFiles | Copy-Item -Destination {If($_.PSIsContainer) {Join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length)} else {join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length)}} -Force -Confirm:$false -Verbose
+Write-Host $ExtractedFiles
+
+$ExtractedFiles | Copy-Item -Destination {If($_.PSIsContainer) {Join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length + 5)} else {join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length + 5)}} -Force -Confirm:$false -Recurse -Verbose
+
+Stop-Transcript
