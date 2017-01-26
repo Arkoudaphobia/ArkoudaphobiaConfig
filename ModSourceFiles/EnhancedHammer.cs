@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Fuji/Visa", "1.2.0", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Fuji/Visa", "1.2.1", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         bool Changed = false;
@@ -24,11 +24,11 @@ namespace Oxide.Plugins
 		string UIAnchorMin = "0.32 0.09";
         string UIAnchorMax = "0.34 0.13";
 		
-		string iconRepair = "http://i.imgur.com/Nq6DNSX.png";
-		string iconWood = "http://i.imgur.com/F4XBBhY.png";
-		string iconStone = "http://i.imgur.com/S7Sl9oh.png";
-		string iconMetal = "http://i.imgur.com/fVjzbag.png";
-		string iconTopTier = "http://i.imgur.com/f0WklR3.png";
+		string iconRepair;
+		string iconWood;
+		string iconStone;
+		string iconMetal;
+		string iconTopTier;
 		
 		object GetConfig(string menu, string datavalue, object defaultValue)
 		{
@@ -226,8 +226,8 @@ namespace Oxide.Plugins
 				{
 					int itemCostAmount = Convert.ToInt32((float)itemCost.amount * block.blockDefinition.costMultiplier);
 					var foundItems = player.inventory.FindItemIDs(itemCost.itemid);
-					player.inventory.Take(foundItems, itemCost.itemid, itemCostAmount);
-					player.Command(string.Concat(new object[]{"note.inv ", itemCost.itemid, " ",	itemCost.amount * -1f}), new object[0]);
+					int taken = player.inventory.Take(foundItems, itemCost.itemid, itemCostAmount);
+					player.Command(string.Concat(new object[]{"note.inv ", itemCost.itemid, " ",	taken * -1f}), new object[0]);
 				}
 				block.SetHealthToMax();
 				block.SetFlag(BaseEntity.Flags.Reserved1, true); // refresh rotation
@@ -302,7 +302,7 @@ namespace Oxide.Plugins
                         break;
                 }
             }
-            CuiElement ehUI = new CuiElement { Name = "EnhancedHammerUI", Parent = "Overlay", FadeOut = 0.5f };
+            CuiElement ehUI = new CuiElement { Name = "EnhancedHammerUI", Parent = "Hud", FadeOut = 0.5f };
             CuiRawImageComponent ehUI_IMG = new CuiRawImageComponent { FadeIn = 0.5f, Url = icon };
             CuiRectTransformComponent ehUI_RECT = new CuiRectTransformComponent
             {
