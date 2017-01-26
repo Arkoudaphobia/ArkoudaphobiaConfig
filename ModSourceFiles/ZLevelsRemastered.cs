@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.0.0", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.1.0", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -37,6 +37,8 @@ namespace Oxide.Plugins
 
 		int gameProtocol;
 		bool wipeDataOnNewSave;
+		bool enablePermission;
+		string permissionName;
 		Dictionary<string, object> defaultMultipliers;
         Dictionary<string, object> resourceMultipliers;
         Dictionary<string, object> levelCaps;
@@ -82,6 +84,8 @@ namespace Oxide.Plugins
 		{
 			gameProtocol = Convert.ToInt32(GetConfig("Generic", "gameProtocol", Rust.Protocol.network));
 			wipeDataOnNewSave = Convert.ToBoolean(GetConfig("Generic", "wipeDataOnNewSave", false));
+			enablePermission = Convert.ToBoolean(GetConfig("Generic", "enablePermission", false));
+			permissionName = Convert.ToString(GetConfig("Generic", "permissionName", "zlevelsremastered.use"));
 
 			defaultMultipliers = (Dictionary<string, object>)GetConfig("Settings", "DefaultResourceMultiplier", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 1},
@@ -163,6 +167,7 @@ namespace Oxide.Plugins
 				{"StatsText",   "-{0}\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3} [{5}].\n<color=red>-{6} XP loose on death.</color>"},
 				{"LevelUpText", "{0} Level up\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3}"},
 				{"PenaltyText", "<color=orange>You have lost XP for dying:{0}</color>"},
+				{"NoPermission", "You don't have permission to use this command"},
 				{"WCSkill", "Woodcutting"},
 				{"MSkill", "Mining"},
 				{"SSkill", "Skinning"},
@@ -179,6 +184,7 @@ namespace Oxide.Plugins
         {
             LoadVariables();
 			LoadDefaultMessages();
+			if (!permission.PermissionExists(permissionName)) permission.RegisterPermission(permissionName, this);
             if ((_craftData = Interface.GetMod().DataFileSystem.ReadObject<CraftData>("ZLevelsCraftDetails")) == null)
                 _craftData = new CraftData();
             playerPrefs = Interface.GetMod().DataFileSystem.ReadObject<PlayerData>(this.Title);
@@ -363,6 +369,7 @@ namespace Oxide.Plugins
         {
             if (entity == null || !(entity is BasePlayer)) return;
 			var player = entity as BasePlayer;
+			if (!hasRights(player.UserIDString)) return;
 			if (EventManager?.Call("isPlaying", player) != null && (bool)EventManager?.Call("isPlaying", player)) return;
 			if (hitInfo != null && hitInfo.damageTypes != null && hitInfo.damageTypes.Has(Rust.DamageType.Suicide)) return;
 			var penaltyText = string.Empty;
@@ -387,6 +394,7 @@ namespace Oxide.Plugins
         {
             if (entity == null || !(entity is BasePlayer) || item == null || dispenser == null) return;
 			var player = entity as BasePlayer;
+			if (!hasRights(player.UserIDString)) return;
             if (IsSkillEnabled(Skills.WOODCUTTING) &&(int)dispenser.gatherType == 0) levelHandler(player, item, Skills.WOODCUTTING);
             if (IsSkillEnabled(Skills.MINING) && (int)dispenser.gatherType == 1) levelHandler(player, item, Skills.MINING);
             if (IsSkillEnabled(Skills.SKINNING) && (int)dispenser.gatherType == 2) levelHandler(player, item, Skills.SKINNING);
@@ -394,7 +402,7 @@ namespace Oxide.Plugins
 
         void OnCollectiblePickup(Item item, BasePlayer player)
         {
-            if (item == null || player == null) return;
+            if (item == null || player == null || !hasRights(player.UserIDString)) return;
 			var skillName = string.Empty;
 
 			if (IsSkillDisabled(Skills.ACQUIRE))
@@ -446,7 +454,7 @@ namespace Oxide.Plugins
 
 		object OnItemCraft(ItemCraftTask task, BasePlayer crafter)
         {
-            if (IsSkillDisabled(Skills.CRAFTING)) return null;
+            if (IsSkillDisabled(Skills.CRAFTING) || !hasRights(crafter.UserIDString)) return null;
             var Level = getLevel(crafter.userID, Skills.CRAFTING);
             var craftingTime = task.blueprint.time;
             var amountToReduce = task.blueprint.time * ((float)(Level * (int)craftingDetails["PercentFasterPerLevel"]) / 100);
@@ -492,8 +500,8 @@ namespace Oxide.Plugins
 		object OnItemCraftFinished(ItemCraftTask task, Item item)
         {
             if (IsSkillDisabled(Skills.CRAFTING)) return null;
-
-            var crafter = task.owner;
+            var crafter = task.owner as BasePlayer;
+			if (crafter == null || !hasRights(crafter.UserIDString)) return null;
             var xpPercentBefore = getExperiencePercent(crafter, Skills.CRAFTING);
             if (task.blueprint == null)
             {
@@ -574,6 +582,11 @@ namespace Oxide.Plugins
 		[ChatCommand("topskills")]
         void StatsTopCommand(BasePlayer player, string command, string[] args)
         {
+			if (!hasRights(player.UserIDString))
+			{				 
+				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				return;
+			}
 			var sb = new StringBuilder();
 			sb.AppendLine("<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>");
 			sb.AppendLine("Data temporary not available");
@@ -746,7 +759,12 @@ namespace Oxide.Plugins
         [ChatCommand("stats")]
         void StatsCommand(BasePlayer player, string command, string[] args)
         {
-            var text = "<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>\n";
+			if (!hasRights(player.UserIDString))
+			{				 
+				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				return;
+			}
+			var text = "<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>\n";
             foreach (var skill in Skills.ALL)
                 text += getStatPrint(player, skill);
             var details = playerPrefs.PlayerInfo[player.userID].LD;
@@ -762,7 +780,12 @@ namespace Oxide.Plugins
 		[ChatCommand("statinfo")]
         void StatInfoCommand(BasePlayer player, string command, string[] args)
         {
-            var messagesText = string.Empty;
+			if (!hasRights(player.UserIDString))
+			{				 
+				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				return;
+			}
+			var messagesText = string.Empty;
             long xpMultiplier = playerPrefs.PlayerInfo[player.userID].XPM;
 
 			messagesText += "<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>\n";
@@ -796,7 +819,8 @@ namespace Oxide.Plugins
         [ChatCommand("statsui")]
         void StatsUICommand(BasePlayer player, string command, string[] args)
         {
-            if (playerPrefs.PlayerInfo[player.userID].CUI)
+            if (!hasRights(player.UserIDString)) return;
+			if (playerPrefs.PlayerInfo[player.userID].CUI)
             {
 				CuiHelper.DestroyUi(player, "StatsUI");
 				playerPrefs.PlayerInfo[player.userID].CUI = false;
@@ -811,6 +835,15 @@ namespace Oxide.Plugins
 		#endregion Commands
 
 		#region Functions
+		
+		bool hasRights(string UserIDString)
+		{
+			if (!enablePermission)
+				return true;
+			if (!permission.UserHasPermission(UserIDString, permissionName))
+				return false;
+			return true;
+		}
 
 		void editMultiplierForPlayer(long multiplier, ulong userID = ulong.MinValue)
         {
@@ -1190,14 +1223,13 @@ namespace Oxide.Plugins
 
         void BlendOutUI(BasePlayer player)
         {
-            if (!playerPrefs.PlayerInfo[player.userID].CUI) return;
+            if (!playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
 			CuiHelper.DestroyUi(player, "StatsUI");
 		}
 
         void RenderUI(BasePlayer player)
         {
-            if (!playerPrefs.PlayerInfo[player.userID].CUI)
-                return;
+            if (!playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
             var enabledSkillCount = 0;
             foreach (var skill in Skills.ALL)
             {

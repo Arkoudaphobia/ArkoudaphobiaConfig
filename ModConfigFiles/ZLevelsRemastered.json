@@ -20,7 +20,9 @@
     }
   },
   "Generic": {
+    "enablePermission": false,
     "gameProtocol": 1955,
+    "permissionName": "zlevelsremastered.use",
     "wipeDataOnNewSave": true
   },
   "Settings": {
