@@ -31,6 +31,8 @@
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
+    <Mod Name="Trade.cs" Enabled="true"/>
+    <Mod Name="Quests.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
   </ModFiles>
   <ModConfigFiles>
@@ -64,6 +66,8 @@
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
+    <Config Name="Trade.json" remove="false"/>
+    <Config Name="Quests.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
   </ModConfigFiles>
 </ArkoudaphobiaConfig>
