@@ -1,0 +1,11 @@
+{
+  "Autoset_KeyBind": false,
+  "DisableUI_FadeIn": false,
+  "Icon_Delivery": "deliveryicon",
+  "Icon_Vendor": "vendoricon",
+  "KeyBind_Key": "k",
+  "MSG_Color": "<color=#939393>",
+  "MSG_MainColor": "<color=orange>",
+  "Quest_Cooldown": 1440,
+  "UseNPCVendors": false
+}
