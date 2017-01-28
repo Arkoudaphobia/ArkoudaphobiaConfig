@@ -1,14 +1,13 @@
 ﻿using Oxide.Core.Plugins;
+using Oxide.Core;
 using System;
 using System.Text;
-using System.Reflection;
 using System.Collections.Generic;
-using UnityEngine;
 using System.Globalization;
 
 namespace Oxide.Plugins
 {
-    [Info("TimeOfDay", "Fujikura", "2.1.0", ResourceId = 1355)]
+    [Info("TimeOfDay", "Fujikura", "2.2.0", ResourceId = 1355)]
     [Description("Does alter day and night duration.")]
     public class TimeOfDay : RustPlugin
     {
@@ -171,6 +170,7 @@ namespace Oxide.Plugins
 			if (!Initialized) return;
 			timeComponent.DayLengthInMinutes = dayLength * (24.0f / (TOD_Sky.Instance.SunsetTime - TOD_Sky.Instance.SunriseTime));
 			activatedDay = true;
+			Interface.CallHook("OnTimeSunrise");
         }
 
         void OnSunset()
@@ -186,6 +186,7 @@ namespace Oxide.Plugins
 			}
 			timeComponent.DayLengthInMinutes = nightLength * (24.0f / (24.0f - (TOD_Sky.Instance.SunsetTime - TOD_Sky.Instance.SunriseTime)));
 			activatedDay = false;
+			Interface.CallHook("OnTimeSunset");
         }
 		
 		[ConsoleCommand("tod.daylength")]
