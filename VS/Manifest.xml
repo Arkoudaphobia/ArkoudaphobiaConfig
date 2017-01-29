@@ -13,6 +13,7 @@
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
+    <Mod Name="HumanNpc.cs" Enabled="true"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
