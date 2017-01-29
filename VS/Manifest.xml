@@ -30,6 +30,7 @@
     <Mod Name="SleeperAnimalProtection.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
+    <Mod Name="ServerRewards.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
     <Mod Name="Quests.cs" Enabled="true"/>
@@ -65,6 +66,7 @@
     <Config Name="SleeperAnimalProtection.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
+    <Config Name="ServerRewards.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="Trade.json" remove="false"/>
     <Config Name="Quests.json" remove="false"/>
