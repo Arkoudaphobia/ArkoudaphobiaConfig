@@ -25,6 +25,17 @@
     "permissionName": "zlevelsremastered.use",
     "wipeDataOnNewSave": true
   },
+  "NightBonus": {
+    "broadcastEnabledBonus": true,
+    "enableNightBonus": true,
+    "logEnabledBonusConsole": true,
+    "PointsPerHitAtNight": {
+      "A": 60,
+      "M": 60,
+      "S": 60,
+      "WC": 60
+    }
+  },
   "Settings": {
     "CraftingDetails": {
       "PercentFasterPerLevel": 5,

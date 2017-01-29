@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.4.0", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.0", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -24,6 +24,8 @@ namespace Oxide.Plugins
 
 		bool Changed = false;
 		bool initialized;
+		bool bonusOn = false;
+		
 		Dictionary<string, ItemDefinition> CraftItems;
 		CraftData _craftData;
 		PlayerData playerPrefs = new PlayerData();
@@ -39,11 +41,17 @@ namespace Oxide.Plugins
 		int gameProtocol;
 		bool wipeDataOnNewSave;
 		bool enablePermission;
+		bool enableNightBonus;
+		bool logEnabledBonusConsole;
+		bool broadcastEnabledBonus;
 		string permissionName;
+		string pluginPrefix;
 		Dictionary<string, object> defaultMultipliers;
         Dictionary<string, object> resourceMultipliers;
         Dictionary<string, object> levelCaps;
         Dictionary<string, object> pointsPerHit;
+		Dictionary<string, object> pointsPerHitAtNight;
+		Dictionary<string, object> pointsPerHitCurrent;
         Dictionary<string, object> craftingDetails;
         Dictionary<string, object> percentLostOnDeath;
 		Dictionary<string, object> colors;
@@ -88,6 +96,7 @@ namespace Oxide.Plugins
 			wipeDataOnNewSave = Convert.ToBoolean(GetConfig("Generic", "wipeDataOnNewSave", false));
 			enablePermission = Convert.ToBoolean(GetConfig("Generic", "enablePermission", false));
 			permissionName = Convert.ToString(GetConfig("Generic", "permissionName", "zlevelsremastered.use"));
+			pluginPrefix = Convert.ToString(GetConfig("Generic", "pluginPrefix", "<color=orange>ZLevels</color>:"));
 
 			defaultMultipliers = (Dictionary<string, object>)GetConfig("Settings", "DefaultResourceMultiplier", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 1},
@@ -157,7 +166,17 @@ namespace Oxide.Plugins
 				{"HeightLower", "0.023"},
 				{"HeightUpper", "0.19"}
 			});
-
+			
+			pointsPerHitAtNight = (Dictionary<string, object>)GetConfig("NightBonus", "PointsPerHitAtNight", new Dictionary<string, object>{
+                {Skills.WOODCUTTING, 60},
+                {Skills.MINING, 60},
+                {Skills.SKINNING, 60},
+				{Skills.ACQUIRE, 60}
+            });
+			enableNightBonus = Convert.ToBoolean(GetConfig("NightBonus", "enableNightBonus", false));
+			logEnabledBonusConsole = Convert.ToBoolean(GetConfig("NightBonus", "logEnabledBonusConsole", false));
+			broadcastEnabledBonus = Convert.ToBoolean(GetConfig("NightBonus", "broadcastEnabledBonus", true));
+			
 			if (!Changed) return;
 			SaveConfig();
 			Changed = false;
@@ -177,6 +196,8 @@ namespace Oxide.Plugins
 				{"SSkill", "Skinning"},
 				{"CSkill", "Crafting" },
 				{"ASkill", "Acquire" },
+				{"NightBonusOn", "Nightbonus for points per hit enabled"},
+				{"NightBonusOff", "Nightbonus for points per hit disabled"},
 			},this);
 		}
 
@@ -224,6 +245,12 @@ namespace Oxide.Plugins
 			{
 				playerPrefs = new PlayerData();
 				Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
+			}
+			pointsPerHitCurrent = pointsPerHit;
+			if (enableNightBonus && TOD_Sky.Instance.IsNight)
+			{
+				pointsPerHitCurrent = pointsPerHitAtNight;
+				bonusOn = true;
 			}
 			initialized = true;
 			foreach (var player in BasePlayer.activePlayerList)
@@ -456,7 +483,29 @@ namespace Oxide.Plugins
 			if (!string.IsNullOrEmpty(skillName))
 				levelHandler(player, item, skillName);
         }
+		
+		void OnTimeSunset()
+		{
+			if (!enableNightBonus || bonusOn) return;
+			bonusOn = true;
+			pointsPerHitCurrent = pointsPerHitAtNight;
+			if (broadcastEnabledBonus)
+				rust.BroadcastChat(pluginPrefix + " "+ msg("NightBonusOn"));			
+			if (logEnabledBonusConsole)
+				Puts("Nightbonus points enabled");
+		}
 
+		void OnTimeSunrise()
+		{
+			if (!enableNightBonus || !bonusOn) return;
+			bonusOn = false;
+			pointsPerHitCurrent = pointsPerHit;
+			if (broadcastEnabledBonus)
+				rust.BroadcastChat(pluginPrefix + " "+ msg("NightBonusOff"));
+			if (logEnabledBonusConsole)
+				Puts("Nightbonus points disabled");
+		}
+		
 		void OnCropGather(PlantEntity plant, Item item, BasePlayer player)
 		{
 			if (!initialized || item == null || player == null || !hasRights(player.UserIDString)) return;
@@ -600,7 +649,7 @@ namespace Oxide.Plugins
         {
 			if (!hasRights(player.UserIDString))
 			{				 
-				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				player.ChatMessage(pluginPrefix + " "+ msg("NoPermission", player.UserIDString));
 				return;
 			}
 			var sb = new StringBuilder();
@@ -628,7 +677,7 @@ namespace Oxide.Plugins
 				foreach (var currSkill in Skills.ALL)
 				{
 					if (IsSkillDisabled(currSkill)) continue;
-					sb.Append($" {currSkill} > {pointsPerHit[currSkill]} |");
+					sb.Append($" {currSkill} > {pointsPerHitCurrent[currSkill]} |");
 				}
 				SendReply(arg, sb.ToString().TrimEnd('|'));
 				return;
@@ -656,27 +705,27 @@ namespace Oxide.Plugins
 					foreach (var currSkill in Skills.ALL)
 					{
 						if (IsSkillDisabled(currSkill)) continue;
-						pointsPerHit[currSkill] = points;
+						pointsPerHitCurrent[currSkill] = points;
 					}
 					var sb = new StringBuilder();
 					sb.Append("New points per hit:");
 					foreach (var currSkill in Skills.ALL)
 					{
 						if (IsSkillDisabled(currSkill)) continue;
-						sb.Append($" {currSkill} > {pointsPerHit[currSkill]} |");
+						sb.Append($" {currSkill} > {pointsPerHitCurrent[currSkill]} |");
 					}
 					SendReply(arg, sb.ToString().TrimEnd('|'));
 					return;
 				}
 				else
 				{
-					pointsPerHit[skill] = points;
+					pointsPerHitCurrent[skill] = points;
 					var sb = new StringBuilder();
 					sb.Append("New points per hit:");
 					foreach (var currSkill in Skills.ALL)
 					{
 						if (IsSkillDisabled(currSkill)) continue;
-						sb.Append($" {currSkill} > {pointsPerHit[currSkill]} |");
+						sb.Append($" {currSkill} > {pointsPerHitCurrent[currSkill]} |");
 					}
 					SendReply(arg, sb.ToString().TrimEnd('|'));
 					return;
@@ -888,7 +937,7 @@ namespace Oxide.Plugins
         {
 			if (!hasRights(player.UserIDString))
 			{				 
-				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				player.ChatMessage(pluginPrefix + " " + msg("NoPermission", player.UserIDString));
 				return;
 			}
 			var text = "<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>\n";
@@ -909,7 +958,7 @@ namespace Oxide.Plugins
         {
 			if (!hasRights(player.UserIDString))
 			{				 
-				player.ChatMessage(msg("NoPermission", player.UserIDString));
+				player.ChatMessage(pluginPrefix + " " + msg("NoPermission", player.UserIDString));
 				return;
 			}
 			var messagesText = string.Empty;
@@ -918,21 +967,21 @@ namespace Oxide.Plugins
 			messagesText += "<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>\n";
 
 			messagesText += "<color=" + colors[Skills.MINING] + ">Mining</color>" + (IsSkillDisabled(Skills.MINING) ? "(DISABLED)" : "") + "\n";
-			messagesText += "XP per hit: <color=" + colors[Skills.MINING] + ">" + ((int)pointsPerHit[Skills.MINING] * (xpMultiplier / 100f)) + "</color>\n";
+			messagesText += "XP per hit: <color=" + colors[Skills.MINING] + ">" + ((int)pointsPerHitCurrent[Skills.MINING] * (xpMultiplier / 100f)) + "</color>\n";
 			messagesText += "Bonus materials per level: <color=" + colors[Skills.MINING] + ">" + ((getGathMult(2, Skills.MINING) - 1) * 100).ToString("0.##") + "%</color>\n";
 
 			messagesText += "<color=" + colors[Skills.WOODCUTTING] + ">Woodcutting</color>" + (IsSkillDisabled(Skills.WOODCUTTING) ? "(DISABLED)" : "") + "\n";
-			messagesText += "XP per hit: <color=" + colors[Skills.WOODCUTTING] + ">" + ((int)pointsPerHit[Skills.WOODCUTTING] * (xpMultiplier / 100f)) + "</color>\n";
+			messagesText += "XP per hit: <color=" + colors[Skills.WOODCUTTING] + ">" + ((int)pointsPerHitCurrent[Skills.WOODCUTTING] * (xpMultiplier / 100f)) + "</color>\n";
 			messagesText += "Bonus materials per level: <color=" + colors[Skills.WOODCUTTING] + ">" + ((getGathMult(2, Skills.WOODCUTTING) - 1) * 100).ToString("0.##") + "%</color>\n";
 
 			messagesText += "<color=" + colors[Skills.SKINNING] + '>' + "Skinning" + "</color>" + (IsSkillDisabled(Skills.SKINNING) ? "(DISABLED)" : "") + "\n";
-			messagesText += "XP per hit: <color=" + colors[Skills.SKINNING] + ">" + ((int)pointsPerHit[Skills.SKINNING] * (xpMultiplier / 100f)) + "</color>\n";
+			messagesText += "XP per hit: <color=" + colors[Skills.SKINNING] + ">" + ((int)pointsPerHitCurrent[Skills.SKINNING] * (xpMultiplier / 100f)) + "</color>\n";
 			messagesText += "Bonus materials per level: <color=" + colors[Skills.SKINNING] + ">" + ((getGathMult(2, Skills.SKINNING) - 1) * 100).ToString("0.##") + "%</color>\n";
 
 			if (IsSkillEnabled(Skills.ACQUIRE))
 			{
 				messagesText += "<color=" + colors[Skills.ACQUIRE] + '>' + "Acquire" + "</color>" + (IsSkillDisabled(Skills.ACQUIRE) ? "(DISABLED)" : "") + "\n";
-				messagesText += "XP per hit: <color=" + colors[Skills.ACQUIRE] + ">" + ((int)pointsPerHit[Skills.ACQUIRE] * (xpMultiplier / 100f)) + "</color>\n";
+				messagesText += "XP per hit: <color=" + colors[Skills.ACQUIRE] + ">" + ((int)pointsPerHitCurrent[Skills.ACQUIRE] * (xpMultiplier / 100f)) + "</color>\n";
 				messagesText += "Bonus materials per level: <color=" + colors[Skills.ACQUIRE] + ">" + ((getGathMult(2, Skills.ACQUIRE) - 1) * 100).ToString("0.##") + "%</color>\n";
 			}
 
@@ -1114,7 +1163,7 @@ namespace Oxide.Plugins
             var Level = getLevel(player.userID, skill);
             var Points = getPoints(player.userID, skill);
             item.amount = (int)(item.amount * getGathMult(Level, skill));
-            var pointsToGet = (int)pointsPerHit[skill];
+            var pointsToGet = (int)pointsPerHitCurrent[skill];
             var xpMultiplier = Convert.ToInt64(playerPrefs.PlayerInfo[player.userID].XPM);
             Points += Convert.ToInt64(pointsToGet * (xpMultiplier / 100f));
             getPointsLevel(Points, skill);
@@ -1230,7 +1279,7 @@ namespace Oxide.Plugins
 
         double getGathMult(long skillLevel, string skill)
         {
-            return Convert.ToDouble(defaultMultipliers[skill]) + Convert.ToDouble(resourceMultipliers[skill]) * 0.1 * (skillLevel - 1);
+			return Convert.ToDouble(defaultMultipliers[skill]) + Convert.ToDouble(resourceMultipliers[skill]) * 0.1 * (skillLevel - 1);
         }
 
         bool IsSkillDisabled(string skill)
