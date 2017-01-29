@@ -9,6 +9,7 @@
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
+    <Mod Name="Economics.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
@@ -46,6 +47,7 @@
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="EnhancedHammer.json" remove="false"/>
+    <Config Name="Economics.json" remove="false"/>
     <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
