@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.0", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.1", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -418,7 +418,8 @@ namespace Oxide.Plugins
         {
             if (!initialized || entity == null || !(entity is BasePlayer)) return;
 			var player = entity as BasePlayer;
-			if (!hasRights(player.UserIDString)) return;
+			PlayerInfo p = null;
+			if (!hasRights(player.UserIDString) || !playerPrefs.PlayerInfo.TryGetValue(player.userID, out p)) return;
 			if (EventManager?.Call("isPlaying", player) != null && (bool)EventManager?.Call("isPlaying", player)) return;
 			if (hitInfo != null && hitInfo.damageTypes != null && hitInfo.damageTypes.Has(Rust.DamageType.Suicide)) return;
 			var penaltyText = string.Empty;
