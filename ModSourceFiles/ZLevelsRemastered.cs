@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.1", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.2", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -1416,7 +1416,7 @@ namespace Oxide.Plugins
 
         void BlendOutUI(BasePlayer player)
         {
-            if (!playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
+            if (player.userID < 76560000000000000L || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
 			CuiHelper.DestroyUi(player, "StatsUI");
 		}
 
