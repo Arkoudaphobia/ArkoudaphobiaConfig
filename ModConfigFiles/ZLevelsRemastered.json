@@ -1,47 +1,85 @@
 {
-  "CraftingDetails": {
-    "PercentFasterPerLevel": 5,
-    "TimeSpent": 1,
-    "XPPerTimeSpent": 3
-  },
-  "dbConnection": {
-    "Database": "db",
-    "GameProtocol": 1351,
-    "Host": "127.0.0.1",
-    "Password": "password",
-    "Port": 3306,
-    "UseMySQL": false,
-    "Username": "user"
-  },
-  "LevelCaps": {
-    "C": 20,
-    "M": 50,
-    "S": 50,
-    "WC": 50
-  },
-  "Messages": {
-    "CSkill": "Crafting",
-    "LevelUpText": "{0} Level up\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3}",
-    "MSkill": "Mining",
-    "SSkill": "Skinning",
-    "StatsHeadline": "Level stats (/statinfo [statname] - To get more information about skill)",
-    "StatsText": "-{0}\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3} [{5}].\n<color=red>-{6} XP loose on death.</color>",
-    "WCSkill": "Woodcutting"
-  },
-  "PercentLostOnDeath": {
-    "C": 50,
-    "M": 100,
-    "S": 50,
-    "WC": 100
-  },
-  "PointsPerHit": {
-    "M": 30,
-    "S": 30,
-    "WC": 30
-  },
-  "ResourcePerLevelMultiplier": {
-    "M": 1.2,
-    "S": 1.2,
-    "WC": 1.2
-  }
+  "CUI": {
+    "Bounds": {
+      "HeightLower": "0.023",
+      "HeightUpper": "0.19",
+      "WidthLeft": "0.72",
+      "WidthRight": "0.847"
+    },
+    "BoundsBackground": "0.1 0.1 0.1 0.1",
+    "FontColor": "0.74 0.76 0.78 1",
+    "FontSizeBar": 13,
+    "FontSizeLevel": 12,
+    "XpBarBackground": "0.2 0.2 0.2 0.2",
+    "XpBarColors": {
+      "A": "0 0.8 0 0.5",
+      "C": "0.2 0.72 0.5 0.5",
+      "M": "0.1 0.5 0.8 0.5",
+      "S": "0.8 0.1 0 0.5",
+      "WC": "0.8 0.4 0 0.5"
+    }
+  },
+  "Generic": {
+    "enablePermission": false,
+    "gameProtocol": 1955,
+    "permissionName": "zlevelsremastered.use",
+    "wipeDataOnNewSave": true
+  },
+  "NightBonus": {
+    "broadcastEnabledBonus": true,
+    "enableNightBonus": true,
+    "logEnabledBonusConsole": true,
+    "PointsPerHitAtNight": {
+      "A": 60,
+      "M": 60,
+      "S": 60,
+      "WC": 60
+    }
+  },
+  "Settings": {
+    "CraftingDetails": {
+      "PercentFasterPerLevel": 5,
+      "TimeSpent": 1,
+      "XPPerTimeSpent": 3
+    },
+    "DefaultResourceMultiplier": {
+      "A": 1,
+      "M": 1,
+      "S": 1,
+      "WC": 1
+    },
+    "LevelCaps": {
+      "A": 200,
+      "C": -1,
+      "M": 200,
+      "S": 200,
+      "WC": 200
+    },
+    "PercentLostOnDeath": {
+      "A": 50,
+      "C": 50,
+      "M": 50,
+      "S": 50,
+      "WC": 50
+    },
+    "PointsPerHit": {
+      "A": 30,
+      "M": 30,
+      "S": 30,
+      "WC": 30
+    },
+    "ResourcePerLevelMultiplier": {
+      "A": 1.2,
+      "M": 1.2,
+      "S": 1.2,
+      "WC": 1.2
+    },
+    "SkillColors": {
+      "A": "#ADD8E6",
+      "C": "#CCFF99",
+      "M": "#DDDDDD",
+      "S": "#FFDDDD",
+      "WC": "#FFDDAA"
+    }
+  }
 }
