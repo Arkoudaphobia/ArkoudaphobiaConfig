@@ -9,7 +9,7 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("Trade", "Calytic", "1.0.7", ResourceId = 1242)]
+    [Info("Trade", "Calytic", "1.0.8", ResourceId = 1242)]
     class Trade : RustPlugin
     {
         #region Configuration Data
@@ -530,7 +530,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("trade")]
         void ccTrade(ConsoleSystem.Arg arg)
         {
-            cmdTrade(arg.connection.player as BasePlayer, arg.cmd.name, arg.Args);
+            cmdTrade(arg.connection.player as BasePlayer, arg.cmd.Name, arg.Args);
         }
 
         [ConsoleCommand("trade.decline")]
