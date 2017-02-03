@@ -21,7 +21,7 @@
     <Mod Name="MagicTeleportation.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
-    <Mod Name="notifier.cs" Enabled="true"/>
+    <Mod Name="Notifier.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
     <Mod Name="PlayerDatabase.cs" Enabled="true"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
