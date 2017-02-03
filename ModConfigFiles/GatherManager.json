@@ -26,11 +26,11 @@
   "Options": {
     "GatherDispenserModifiers": {},
     "GatherResourceModifiers": {
-      "*": 1.3
+      "*": 1.0
     },
     "MiningQuarryResourceTickRate": 10.0,
     "PickupResourceModifiers": {
-      "*": 1.5
+      "*": 1.0
     },
     "QuarryResourceModifiers": {
       "Crude Oil": 1.0,
