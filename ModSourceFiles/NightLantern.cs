@@ -207,7 +207,11 @@ namespace Oxide.Plugins
         void cmdLanternList(BasePlayer player, string command, string[] args)
         {
             if(!permission.UserHasPermission(player.UserIDString,"nightlantern.use")) return;
-            SendReply(player,  lights);
+            SendReply(player, "Found:")
+            foreach(BaseOven oven in lights)
+            {
+                SendReply(player, StringToType(oven.ShortPrefabName).ToString());
+            }
         }
         #endregion
 
