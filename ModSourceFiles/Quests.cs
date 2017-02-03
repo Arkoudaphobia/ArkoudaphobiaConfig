@@ -11,7 +11,7 @@ using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("Quests", "k1lly0u", "2.1.79", ResourceId = 1084)]
+    [Info("Quests", "k1lly0u", "2.1.8", ResourceId = 1084)]
     public class Quests : RustPlugin
     {
         #region Fields
@@ -52,6 +52,7 @@ namespace Oxide.Plugins
         private Dictionary<uint, Dictionary<ulong, int>> HeliAttackers = new Dictionary<uint, Dictionary<ulong, int>>();
 
         private Dictionary<ulong, List<string>> OpenUI = new Dictionary<ulong, List<string>>();
+        private List<ulong> IsClaiming = new List<ulong>();
         private Dictionary<uint, ulong> Looters = new Dictionary<uint, ulong>();
 
         private List<ulong> StatsMenu = new List<ulong>();
@@ -414,7 +415,7 @@ namespace Oxide.Plugins
         {
             if (BetterChat) return null;
 
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return null;
 
@@ -2050,7 +2051,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_AcceptQuest")]
         private void cmdAcceptQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var questName = string.Join(" ", arg.Args);
@@ -2074,7 +2075,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_AcceptDelivery")]
         private void cmdAcceptDelivery(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var vendorID = arg.Args[0];
@@ -2087,7 +2088,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_CancelDelivery")]
         private void cmdCancelDelivery(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (!string.IsNullOrEmpty(PlayerProgress[player.userID].CurrentDelivery.TargetID))
@@ -2100,9 +2101,13 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_FinishDelivery")]
         private void cmdFinishDelivery(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
+
+            if (IsClaiming.Contains(player.userID)) return;
+            else IsClaiming.Add(player.userID);
+
             if (PlayerProgress[player.userID].CurrentDelivery != null)
             {
                 var npcID = PlayerProgress[player.userID].CurrentDelivery.VendorID;
@@ -2123,12 +2128,13 @@ namespace Oxide.Plugins
                 }
 
                 DestroyUI(player);
-            }            
+            }
+            IsClaiming.Remove(player.userID);         
         }
         [ConsoleCommand("QUI_ChangeElement")]
         private void cmdChangeElement(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             CheckPlayerEntry(player);
@@ -2190,7 +2196,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_DestroyAll")]
         private void cmdDestroyAll(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (StatsMenu.Contains(player.userID))
@@ -2207,7 +2213,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_NewQuest")]
         private void cmdNewQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2228,7 +2234,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_AddVendor")]
         private void cmdAddVendor(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2246,7 +2252,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_SelectObj")]
         private void cmdSelectObj(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2272,7 +2278,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_RewardType")]
         private void cmdRewardType(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2328,9 +2334,12 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_ClaimReward")]
         private void cmdClaimReward(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
+            if (IsClaiming.Contains(player.userID)) return;
+            else IsClaiming.Add(player.userID);
+
             var questName = string.Join(" ", arg.Args);
             var quest = GetQuest(questName);
             if (quest == null) return;
@@ -2349,6 +2358,7 @@ namespace Oxide.Plugins
                     PopupMessage(player, LA("rewError", player.UserIDString));
                 }
             }
+            IsClaiming.Remove(player.userID);
         }
         bool CompleteQuest(ulong playerId, string questName = "", bool isDelivery = false)
         {
@@ -2360,7 +2370,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_CancelQuest")]
         private void cmdCancelQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var questName = string.Join(" ", arg.Args);
@@ -2370,7 +2380,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_ItemDeduction")]
         private void cmdItemDeduction(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2394,7 +2404,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_ConfirmCancel")]
         private void cmdConfirmCancel(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var questName = string.Join(" ", arg.Args);
@@ -2438,7 +2448,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_RemoveCompleted")]
         private void cmdRemoveCompleted(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var questName = string.Join(" ", arg.Args);
@@ -2460,7 +2470,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_DeleteQuest")]
         private void cmdDeleteQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2487,7 +2497,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_DeleteNPCMenu")]
         private void cmdDeleteNPCMenu(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2498,7 +2508,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_RemoveVendor")]
         private void cmdRemoveVendor(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2525,7 +2535,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_ConfirmDelete")]
         private void cmdConfirmDelete(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2538,7 +2548,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_EditQuest")]
         private void cmdEditQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2560,7 +2570,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_EditQuestVar")]
         private void cmdEditQuestVar(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2600,7 +2610,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_RemoveReward")]
         private void cmdEditReward(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2622,7 +2632,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_EndEditing")]
         private void cmdEndEditing(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2634,7 +2644,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_SaveQuest")]
         private void cmdSaveQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2648,7 +2658,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_ExitQuest")]
         private void cmdExitQuest(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2662,7 +2672,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_AddReward")]
         private void cmdAddReward(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2678,7 +2688,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_RewardFinish")]
         private void cmdFinishReward(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (player.IsAdmin())
@@ -2689,7 +2699,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("QUI_OpenQuestMenu")]
         private void cmdOpenQuestMenu(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             if (!OpenMenuBind.Contains(player.userID))

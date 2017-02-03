@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.2", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.3", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -668,7 +668,7 @@ namespace Oxide.Plugins
 		[ConsoleCommand("zl.pointsperhit")]
         void PointsPerHitCommand(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < 2) return;
+            if (arg.Connection != null && arg.Connection.authLevel < 2) return;
             if (arg.Args == null || arg.Args.Length < 2)
             {
 				SendReply(arg, "Syntax: zl.pointsperhit skill number");
@@ -739,7 +739,7 @@ namespace Oxide.Plugins
 		[ConsoleCommand("zl.playerxpm")]
         void PlayerXpmCommand(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < 2) return;
+            if (arg.Connection != null && arg.Connection.authLevel < 2) return;
             if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, "Syntax: zl.playerxpm name|steamid (to show current XP multiplier)");
@@ -779,7 +779,7 @@ namespace Oxide.Plugins
 		[ConsoleCommand("zl.info")]
         void InfoCommand(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < 2) return;
+            if (arg.Connection != null && arg.Connection.authLevel < 2) return;
             if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, "Syntax: zl.info name|steamid");
@@ -813,7 +813,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("zl.lvl")]
         void ZlvlCommand(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null && arg.connection.authLevel < 2) return;
+            if (arg.Connection != null && arg.Connection.authLevel < 2) return;
 
             if (arg.Args == null || arg.Args.Length < 3)
             {
