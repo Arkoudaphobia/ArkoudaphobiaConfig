@@ -11,7 +11,7 @@
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="Economics.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
-    <Mod Name="GatherManager.cs" Enabled="false"/>
+    <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HumanNpc.cs" Enabled="true"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
@@ -51,7 +51,7 @@
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="EnhancedHammer.json" remove="false"/>
     <Config Name="Economics.json" remove="false"/>
-    <Config Name="GatherManager.json" remove="true"/>
+    <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
