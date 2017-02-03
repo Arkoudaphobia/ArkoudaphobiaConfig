@@ -208,7 +208,7 @@ namespace Oxide.Plugins
         {
             if(!permission.UserHasPermission(player.UserIDString,"nightlantern.use")) return;
             SendReply(player, "Found:")
-            foreach(BaseOven oven in lights)
+            foreach (BaseOven oven in lights)
             {
                 SendReply(player, StringToType(oven.ShortPrefabName).ToString());
             }
