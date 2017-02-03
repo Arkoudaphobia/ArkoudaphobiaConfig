@@ -18,7 +18,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.3.10", ResourceId = 1751)]
+    [Info("ServerRewards", "k1lly0u", "0.3.92", ResourceId = 1751)]
     public class ServerRewards : RustPlugin
     {
         #region Fields
@@ -923,7 +923,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_CancelSale")]
         private void cmdCancelSale(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             CreateSaleElement(player);
@@ -931,7 +931,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_SellItem")]
         private void cmdSellItem(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             int itemId = arg.GetInt(0);
@@ -950,7 +950,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_Sell")]
         private void cmdSell(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             int itemId = arg.GetInt(0);
@@ -1363,7 +1363,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_BuyKit")]
         private void cmdBuyKit(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var kitName = arg.FullString;
@@ -1393,7 +1393,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_BuyCommand")]
         private void cmdBuyCommand(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var commandname = arg.FullString;
@@ -1425,7 +1425,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_BuyItem")]
         private void cmdBuyItem(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var itemname = int.Parse(arg.GetString(0).Replace("'", ""));
@@ -1460,7 +1460,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_ChangeElement")]
         private void cmdChangeElement(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
 
@@ -1500,7 +1500,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_Exchange")]
         private void cmdExchange(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var type = int.Parse(arg.GetString(0).Replace("'", ""));
@@ -1534,7 +1534,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_Transfer")]
         private void ccmdTransfer(ConsoleSystem.Arg args)
         {
-            var player = args.connection.player as BasePlayer;
+            var player = args.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var type = args.GetInt(0);
@@ -1544,7 +1544,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_TransferNext")]
         private void ccmdTransferNext(ConsoleSystem.Arg args)
         {
-            var player = args.connection.player as BasePlayer;
+            var player = args.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var ID = args.GetString(0);
@@ -1555,7 +1555,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_TransferID")]
         private void ccmdTransferID(ConsoleSystem.Arg args)
         {
-            var player = args.connection.player as BasePlayer;
+            var player = args.Connection.player as BasePlayer;
             if (player == null)
                 return;
             var ID = args.GetUInt64(0);
@@ -1577,7 +1577,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_DestroyAll")]
         private void cmdDestroyAll(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             DestroyUI(player);
@@ -2257,7 +2257,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_CustomList")]
         private void cmdCustomList(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
 
@@ -2290,7 +2290,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_NPCPage")]
         private void cmdNPCPage(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
 
@@ -2300,7 +2300,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_NPCOption")]
         private void cmdNPCOption(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             switch (arg.Args[1])
@@ -2329,7 +2329,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_NPCCancel")]
         private void cmdNPCCancel(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
             NPCCreator.Remove(player.userID);
@@ -2340,7 +2340,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("SRUI_NPCSave")]
         private void cmdNPCSave(ConsoleSystem.Arg arg)
         {
-            var player = arg.connection.player as BasePlayer;
+            var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
 
@@ -2843,9 +2843,9 @@ namespace Oxide.Plugins
         }
         bool isAuthCon(ConsoleSystem.Arg arg)
         {
-            if (arg.connection != null)
+            if (arg.Connection != null)
             {
-                if (arg.connection.authLevel < 1)
+                if (arg.Connection.authLevel < 1)
                 {
                     SendReply(arg, "You dont not have permission to use this command.");
                     return false;
@@ -3106,7 +3106,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("loadimages")]
         private void cmdLoadImages(ConsoleSystem.Arg arg)
         {
-            if (arg.connection == null)
+            if (arg.Connection == null)
             {
                 LoadImages();
             }
