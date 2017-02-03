@@ -4,7 +4,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("NightLantern", "k1lly0u", "2.0.4", ResourceId = 1182)]
+    [Info("NightLantern", "k1lly0u", "2.0.5", ResourceId = 1182)]
     class NightLantern : RustPlugin
     {
         #region Fields
@@ -201,6 +201,13 @@ namespace Oxide.Plugins
                     CheckTime();
                 SendReply(player, lang.GetMessage("You have enabled auto lights", this, player.UserIDString));
             }
+        }
+
+        [ChatCommand("lanternlist")]
+        void cmdLanternList(BasePlayer player, string command, string[] args)
+        {
+            if(!permission.UserHasPermission(player.UserIDString,"nightlantern.use")) return;
+            SendReply(player,  lights)
         }
         #endregion
 
