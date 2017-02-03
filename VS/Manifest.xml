@@ -30,6 +30,7 @@
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
+    <Mod Name="RustyBearDebug.cs" Enabled="true"/>
     <Mod Name="SleeperAnimalProtection.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
