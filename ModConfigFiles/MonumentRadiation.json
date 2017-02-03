@@ -87,7 +87,7 @@
       "Radius": 15.0
     },
     "WaterTreatment": {
-      "Activate": true,
+      "Activate": false,
       "Name": "WaterTreatment",
       "Radiation": 20.0,
       "Radius": 120.0
