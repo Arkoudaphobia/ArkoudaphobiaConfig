@@ -22,10 +22,12 @@ Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -recurse -Force -Confirm:$
 
 [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
 
-$ExtractedFiles = Get-ChildItem -Path $OxideTemp -Recurse
+Copy-Item (Get-ChildItem -Path $OxideTemp | ?{$_.PSIsContainer -eq $false}) -Destination $Env:RustOxideLocalDir -Force -Confirm:$false
 
-Write-Host $ExtractedFiles
+Copy-Item (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed | ?{$_.PSIsContainer -eq $False}) -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false
 
-$ExtractedFiles | Copy-Item -Destination {If($_.PSIsContainer) {Join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length + 5)} else {join-Path $Env:RustOxideLocalDir $_.FullName.Substring($OxideTemp.length + 5)}} -Force -Confirm:$false -Recurse -Verbose
+Copy-Item (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x86) -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x86 -Force -Confirm:$false
+
+Copy-Item (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x64) -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x64 -Force -Confirm:$false
 
 Stop-Transcript
