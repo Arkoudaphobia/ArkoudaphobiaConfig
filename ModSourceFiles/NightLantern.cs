@@ -172,7 +172,9 @@ namespace Oxide.Plugins
                 case "jackolantern.angry":
                     return ConsumeTypes.JackOLantern;
                 case "jackolantern.happy":
-                    return ConsumeTypes.JackOLantern;                
+                    return ConsumeTypes.JackOLantern;
+                case "tunalight":
+                    return ConsumeTypes.TunaLamp;                
                 default:
                     return ConsumeTypes.None;
             }
@@ -205,7 +207,7 @@ namespace Oxide.Plugins
         #region Config   
         enum ConsumeTypes
         {
-            Campfires, CeilingLight, Furnace, LargeFurnace, Lanterns, JackOLantern, None
+            Campfires, CeilingLight, Furnace, LargeFurnace, Lanterns, JackOLantern, TunaLamp, None
         }
         private ConfigData configData;
         class LightTypes
@@ -215,6 +217,7 @@ namespace Oxide.Plugins
             public bool CeilingLights { get; set; }
             public bool Furnaces { get; set; }
             public bool JackOLanterns { get; set; }
+            public bool TunaLamp {get;set;}
 
         }
         class ConfigData
@@ -241,7 +244,8 @@ namespace Oxide.Plugins
                     {ConsumeTypes.Furnace, true },
                     {ConsumeTypes.LargeFurnace, true },
                     {ConsumeTypes.JackOLantern, true },
-                    {ConsumeTypes.Lanterns, true }
+                    {ConsumeTypes.Lanterns, true },
+                    {ConsumeTypes.TunaLamp, true}
                 },
                 SunriseHour = 7.5f,
                 SunsetHour = 18.5f
