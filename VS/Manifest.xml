@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ArkoudaphobiaConfig xmlns="http://schema.utmonline.net/xml/2016/RustModuleManafest2">
   <ModFiles>
-    <Mod Name="AFK.CS" Enabled="false"/>
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
@@ -43,7 +42,6 @@
     <Mod Name="ZoneManager.cs" Enabled="true"/>
   </ModFiles>
   <ModConfigFiles>
-    <Config Name="AFK.json" remove="true" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
