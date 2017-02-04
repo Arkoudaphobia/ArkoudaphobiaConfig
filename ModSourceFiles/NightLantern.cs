@@ -173,8 +173,8 @@ namespace Oxide.Plugins
                     return ConsumeTypes.JackOLantern;
                 case "jackolantern.happy":
                     return ConsumeTypes.JackOLantern;
-                case "tunalight":
-                    return ConsumeTypes.TunaLamp;                
+                case "tunalight.deployed":
+                    return ConsumeTypes.TunaLight;
                 default:
                     return ConsumeTypes.None;
             }
@@ -202,23 +202,12 @@ namespace Oxide.Plugins
                 SendReply(player, lang.GetMessage("You have enabled auto lights", this, player.UserIDString));
             }
         }
-
-        [ChatCommand("lanternlist")]
-        void cmdLanternList(BasePlayer player, string command, string[] args)
-        {
-            if(!permission.UserHasPermission(player.UserIDString,"nightlantern.use")) return;
-            SendReply(player, "Found:");
-            foreach (BaseOven oven in lights)
-            {
-                SendReply(player, StringToType(oven.ShortPrefabName).ToString());
-            }
-        }
         #endregion
 
         #region Config   
         enum ConsumeTypes
         {
-            Campfires, CeilingLight, Furnace, LargeFurnace, Lanterns, JackOLantern, TunaLamp, None
+            Campfires, CeilingLight, Furnace, LargeFurnace, Lanterns, JackOLantern, TunaLight, None
         }
         private ConfigData configData;
         class LightTypes
@@ -228,7 +217,6 @@ namespace Oxide.Plugins
             public bool CeilingLights { get; set; }
             public bool Furnaces { get; set; }
             public bool JackOLanterns { get; set; }
-            public bool TunaLamp {get;set;}
 
         }
         class ConfigData
@@ -256,7 +244,7 @@ namespace Oxide.Plugins
                     {ConsumeTypes.LargeFurnace, true },
                     {ConsumeTypes.JackOLantern, true },
                     {ConsumeTypes.Lanterns, true },
-                    {ConsumeTypes.TunaLamp, true}
+                    {ConsumeTypes.TunaLight, true }
                 },
                 SunriseHour = 7.5f,
                 SunsetHour = 18.5f
