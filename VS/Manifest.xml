@@ -14,7 +14,6 @@
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HumanNpc.cs" Enabled="true"/>
-    <Mod Name="ZoneManager.cs" Enabled="true">
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
@@ -40,6 +39,7 @@
     <Mod Name="Trade.cs" Enabled="true"/>
     <Mod Name="Quests.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
+    <Mod Name="ZoneManager.cs" Enabled="true">
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AFK.json" remove="true" />
