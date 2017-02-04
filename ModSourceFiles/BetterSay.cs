@@ -5,7 +5,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Say", "LaserHydra", "2.0.3", ResourceId = 998)]
+    [Info("Better Say", "LaserHydra", "2.0.4", ResourceId = 998)]
     [Description("Customize the say console command output as you want")]
     class BetterSay : RustPlugin
     {
@@ -48,9 +48,9 @@ namespace Oxide.Plugins
 		{
 			if(arg?.cmd?.FullName != null && arg?.cmd?.FullName == "global.say")
 			{
-				if(arg.connection != null && arg.connection.player != null)
+				if(arg.Connection != null && arg.Connection.player != null)
 				{
-					BasePlayer player = arg.connection.player as BasePlayer;
+					BasePlayer player = arg.Connection.player as BasePlayer;
 
 					if (!permission.UserHasPermission(player.UserIDString, "bettersay.use"))
 						return true;

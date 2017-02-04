@@ -7,7 +7,7 @@ using System.Globalization;
 
 namespace Oxide.Plugins
 {
-    [Info("TimeOfDay", "Fujikura", "2.2.0", ResourceId = 1355)]
+    [Info("TimeOfDay", "Fujikura", "2.2.1", ResourceId = 1355)]
     [Description("Does alter day and night duration.")]
     public class TimeOfDay : RustPlugin
     {
@@ -193,7 +193,7 @@ namespace Oxide.Plugins
         void consoleDayLength(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
-			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
 			if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, $"Current 'dayLength' setting is '{dayLength}'");
@@ -224,7 +224,7 @@ namespace Oxide.Plugins
         void consoleNightLength(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
-			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
 			if (arg.Args == null || arg.Args.Length < 1)
             {
                 SendReply(arg, $"Current 'nightLength' setting is '{nightLength}'");
@@ -254,7 +254,7 @@ namespace Oxide.Plugins
         void consoleFreezeTime(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
-			if (arg.connection != null && arg.connection.authLevel < authLevelFreeze) return;
+			if (arg.Connection != null && arg.Connection.authLevel < authLevelFreeze) return;
 
 			timeComponent.ProgressTime = !timeComponent.ProgressTime;
 			
@@ -268,7 +268,7 @@ namespace Oxide.Plugins
         void consoleSkipDay(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
-			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
 			if (TOD_Sky.Instance.IsNight)
 			{
 				SendReply(arg, $"Night is already active");
@@ -283,7 +283,7 @@ namespace Oxide.Plugins
         void consoleSkipNight(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
-			if (arg.connection != null && arg.connection.authLevel < authLevelCmds) return;
+			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
 			if (TOD_Sky.Instance.IsDay)
 			{
 				SendReply(arg, $"Day is already active");
