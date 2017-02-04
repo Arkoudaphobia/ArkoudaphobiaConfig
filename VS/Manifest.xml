@@ -21,6 +21,7 @@
     <Mod Name="MagicTeleportation.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
+    <Mod Name="NTeleportation.cs" Enabled="true"/>
     <Mod Name="Notifier.cs" Enabled="true"/>
     <Mod Name="PathFinding.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
@@ -62,6 +63,7 @@
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
+    <Config Name="NTeleportation.json" remove="false"/>
     <Config Name="Ping.json" remove="false"/>
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
