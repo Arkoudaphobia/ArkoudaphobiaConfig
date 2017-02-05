@@ -3,9 +3,9 @@
     "Want to know the available commands? Type <orange>/help<end>.",
     "Respect the server <orange>/rules<end>.",
     "<red>Cheating is strictly prohibited.<end>",
-    "To view the server map browse to https://utmo.link/rustmap",
+    "To view the server map browse to http://utmo.link/rustmap",
     "You are playing on: <lime>{server.hostname}<end>",
-    "Check out our GitHub Repository for the latest configuration changes and to make sugestions for changes https://utmo.link/rustconfig",
+    "Check out our GitHub Repository for the latest configuration changes and to make sugestions for changes http://utmo.link/rustconfig",
     "Check out our website for news related to the server and get in touch with other players! https://playrust.utmonline.net"
   ],
   "Commands": {
@@ -159,6 +159,6 @@
     "<size=20>Welcome <lightblue>{player.name}<end></size>",
     "<orange><size=20>•</size><end> Type <orange>/help<end> for all available commands.",
     "<orange><size=20>•</size><end> You are responsible for knowing our <orange>/rules<end>.",
-    "<orange><size=20>•</size><end> See where you are on the server map at: <lime>https://utmo.link/rustmap<end>"
+    "<orange><size=20>•</size><end> See where you are on the server map at: <lime>http://utmo.link/rustmap<end>"
   ]
 }
