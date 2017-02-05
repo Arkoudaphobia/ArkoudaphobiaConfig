@@ -15,7 +15,7 @@
     "Cooldown": 300,
     "Countdown": 10,
     "CupOwnerAllowOnBuildingBlocked": true,
-    "DailyLimit": 5,
+    "DailyLimit": 0,
     "ForceOnTopOfFoundation": true,
     "HomesLimit": 4,
     "LocationRadius": 25,
@@ -41,7 +41,7 @@
     "ChatName": "<color=red>Teleportation</color>: ",
     "HomesEnabled": true,
     "InterruptTPOnHurt": true,
-    "TownEnabled": true,
+    "TownEnabled": false,
     "TPREnabled": true
   },
   "Town": {
