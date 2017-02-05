@@ -6,8 +6,7 @@
     "To view the server map browse to https://utmo.link/rustmap",
     "You are playing on: <lime>{server.hostname}<end>",
     "Check out our GitHub Repository for the latest configuration changes and to make sugestions for changes https://utmo.link/rustconfig",
-    "Check out our website for news related to the server and get in touch with other players! https://playrust.utmonline.net",
-    "We are currently experincing issues with some of our mods and we are working to fix this as soon as possible"
+    "Check out our website for news related to the server and get in touch with other players! https://playrust.utmonline.net"
   ],
   "Commands": {
     "Settings": {
