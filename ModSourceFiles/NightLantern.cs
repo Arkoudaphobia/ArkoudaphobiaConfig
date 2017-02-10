@@ -4,7 +4,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("NightLantern", "k1lly0u", "2.0.5", ResourceId = 1182)]
+    [Info("NightLantern", "k1lly0u", "2.0.61", ResourceId = 1182)]
     class NightLantern : RustPlugin
     {
         #region Fields
@@ -43,16 +43,13 @@ namespace Oxide.Plugins
         }
         void OnConsumeFuel(BaseOven oven, Item fuel, ItemModBurnable burnable)
         {
-            if (nfrInstalled) return;
-            if (!configData.ConsumeFuel)
-            {
-                if (oven == null || fuel == null) return;
-                ConsumeTypes type = StringToType(oven?.ShortPrefabName ?? string.Empty);
-                if (type == ConsumeTypes.None) return;
+            if (!isActivated || nfrInstalled || configData.ConsumeFuel || oven == null || fuel == null || !lights.Contains(oven)) return;
 
-                if (configData.LightTypes[type])
-                    fuel.amount++;                
-            }
+            ConsumeTypes type = StringToType(oven?.ShortPrefabName ?? string.Empty);
+            if (type == ConsumeTypes.None) return;
+
+            if (configData.LightTypes[type])
+                fuel.amount++;
         }
         void OnEntitySpawned(BaseEntity entity)
         {
@@ -65,12 +62,14 @@ namespace Oxide.Plugins
         }
         void OnEntityDeath(BaseEntity entity, HitInfo hitInfo)
         {
+            if (!isActivated) return;
             if (entity == null) return;
             if (entity is BaseOven && lights.Contains(entity as BaseOven))
                 lights.Remove(entity as BaseOven);
         }
         void OnEntityKill(BaseNetworkable entity)
         {
+            if (!isActivated) return;
             if (entity == null || !(entity is BaseOven)) return;
             if (entity is BaseOven && lights.Contains(entity as BaseOven))
                 lights.Remove(entity as BaseOven);

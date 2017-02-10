@@ -1,12 +1,11 @@
-﻿// Reference: Rust.Global
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Oxide.Core.Plugins;
 using UnityEngine;
 using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("RainOfFire", "emu / k1lly0u", "0.2.2", ResourceId = 1249)]
+    [Info("RainOfFire", "emu / k1lly0u", "0.2.3", ResourceId = 1249)]
     class RainOfFire : RustPlugin
     {
         #region Fields
@@ -354,7 +353,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("rof.random")]
         private void ccmdEventRandom(ConsoleSystem.Arg arg)
         {
-            if (!arg.isAdmin)
+            if (!arg.IsAdmin)
                 return;
 
             StartRandomOnMap();
@@ -364,7 +363,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("rof.onposition")]
         private void ccmdEventOnPosition(ConsoleSystem.Arg arg)
         {
-            if (!arg.isAdmin)
+            if (!arg.IsAdmin)
                 return;
 
             float x, z;

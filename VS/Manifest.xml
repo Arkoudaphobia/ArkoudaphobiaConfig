@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ArkoudaphobiaConfig xmlns="http://schema.utmonline.net/xml/2016/RustModuleManafest2">
   <ModFiles>
-    <Mod Name="AFK.CS" Enabled="false"/>
     <Mod Name="AutoDoors.cs" Enabled="true" />
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
@@ -19,7 +18,6 @@
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
-    <Mod Name="MagicTeleportation.cs" Enabled="false"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
     <Mod Name="NTeleportation.cs" Enabled="true"/>
@@ -45,7 +43,6 @@
     <Mod Name="ZoneManager.cs" Enabled="true"/>
   </ModFiles>
   <ModConfigFiles>
-    <Config Name="AFK.json" remove="true" />
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
@@ -61,7 +58,6 @@
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
-    <Config Name="MagicTeleportation.json" remove="true"/>
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
     <Config Name="notifier.json" remove="false"/>
