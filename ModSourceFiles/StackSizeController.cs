@@ -134,7 +134,7 @@ namespace Oxide.Plugins
         {
             int stackAmount = 0;
 
-            if(arg.isAdmin != true) { return; }
+            if(arg.IsAdmin != true) { return; }
 
             if (arg.Args.Length <= 1)
             {
@@ -172,7 +172,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("stackall")]
         private void StackAllConsoleCommand(ConsoleSystem.Arg arg)
         {
-            if(arg.isAdmin != true) { return; }
+            if(arg.IsAdmin != true) { return; }
 
             if (arg.Args.Length == 0)
 			{

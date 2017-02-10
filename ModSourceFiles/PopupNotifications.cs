@@ -95,7 +95,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("popupmsg.global")]
         private void ConPopupMessageGlobal(ConsoleSystem.Arg arg)
         {
-			if(!arg.isAdmin)
+			if(!arg.IsAdmin)
 				return;
 		
 			if(arg.Args.Length == 1)
@@ -118,7 +118,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("popupmsg.toplayer")]
         private void ConPopupMessageToPlayer(ConsoleSystem.Arg arg)
         {
-            if (!arg.isAdmin)
+            if (!arg.IsAdmin)
                 return;
 
             if (arg.Args.Length >= 1)
