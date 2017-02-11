@@ -46,11 +46,11 @@
     "campfire": 2.0,
     "ceilinglight.deployed": 1.0,
     "furnace": 5.0,
-    "furnace.large": 10.0,
+    "furnace.large": 8.0,
     "jackolantern.angry": 1.0,
     "jackolantern.happy": 1.0,
     "lantern.deployed": 1.0,
-    "refinery_small_deployed": 10.0,
+    "refinery_small_deployed": 8.0,
     "tunalight.deployed": 1.0
   },
   "OvercookMeat": false,
