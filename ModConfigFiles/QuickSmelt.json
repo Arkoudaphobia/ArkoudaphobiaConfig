@@ -4,7 +4,7 @@
     "can_tuna_empty": 10,
     "chicken_cooked": 1,
     "chicken_raw": 1,
-    "crude_oil": 3,
+    "crude_oil": 2,
     "fish_cooked": 1,
     "fish_raw": 1,
     "hq_metal_ore": 1,
@@ -43,14 +43,14 @@
     "sulfur_ore": 5.0
   },
   "OvenMultipliers": {
-    "campfire": 1.0,
+    "campfire": 2.0,
     "ceilinglight.deployed": 1.0,
-    "furnace": 1.0,
-    "furnace.large": 1.0,
+    "furnace": 5.0,
+    "furnace.large": 10.0,
     "jackolantern.angry": 1.0,
     "jackolantern.happy": 1.0,
     "lantern.deployed": 1.0,
-    "refinery_small_deployed": 1.0,
+    "refinery_small_deployed": 10.0,
     "tunalight.deployed": 1.0
   },
   "OvercookMeat": false,
