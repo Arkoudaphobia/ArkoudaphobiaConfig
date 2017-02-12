@@ -20,7 +20,7 @@
     "metal_ore": 1,
     "sulfur_ore": 1
   },
-  "CharcoalPercentLoss": 25,
+  "CharcoalPercentLoss": 40,
   "CookTimes": {
     "can_beans_empty": 30.0,
     "can_tuna_empty": 30.0,
