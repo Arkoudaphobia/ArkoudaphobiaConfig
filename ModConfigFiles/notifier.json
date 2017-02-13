@@ -7,8 +7,7 @@
     "You are playing on: <lime>{server.hostname}<end>",
     "Check out our GitHub Repository for the latest configuration changes and to make sugestions for changes http://utmo.link/rustconfig",
     "Check out our website for news related to the server and get in touch with other players! https://playrust.utmonline.net",
-    "Visit http://utmo.link/rustvote to cast your vote on server changes to make your voice heard in how the server is run!",
-    "On 2/12/2017 @ 5 AM  PST the server will be going down for physical upgrades.  Please be signed out by 4:45 to ensure your progress is saved."
+    "Visit http://utmo.link/rustvote to cast your vote on server changes to make your voice heard in how the server is run!"
   ],
   "Commands": {
     "Settings": {
