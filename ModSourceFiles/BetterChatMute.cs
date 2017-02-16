@@ -7,7 +7,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.1", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.2", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
@@ -15,36 +15,15 @@ namespace Oxide.Plugins
 
         #region Classes
 
-        public class Date
-        {
-            public string _value = "00/00/00/01/01/0001";
-            private DateTime _cachedDateTime = DateTime.MinValue;
-
-            internal DateTime value
-            {
-                get
-                {
-                    return _cachedDateTime;
-                }
-                set
-                {
-                    _value = $"{value.Second}/{value.Minute}/{value.Hour}/{value.Day}/{value.Month}/{value.Year}";
-
-                    int[] date = (from val in _value.Split('/') select Convert.ToInt32(val)).ToArray();
-                    _cachedDateTime = new DateTime(date[5], date[4], date[3], date[2], date[1], date[0]);
-                }
-            }
-        }
-
         public class MuteInfo
         {
-            public Date ExpireDate = new Date { value = DateTime.MinValue };
+            public DateTime ExpireDate = DateTime.MinValue;
 
             [JsonIgnore]
-            public bool Timed => ExpireDate.value != DateTime.MinValue;
+            public bool Timed => ExpireDate != DateTime.MinValue;
 
             [JsonIgnore]
-            public bool Expired => Timed && ExpireDate.value < DateTime.Now;
+            public bool Expired => Timed && ExpireDate < DateTime.Now;
 
             public static bool IsMuted(IPlayer player) => mutes.ContainsKey(player.Id);
 
@@ -56,7 +35,7 @@ namespace Oxide.Plugins
 
             public MuteInfo(DateTime expireDate)
             {
-                ExpireDate.value = expireDate;
+                ExpireDate = expireDate;
             }
         }
 
@@ -71,9 +50,9 @@ namespace Oxide.Plugins
 
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["Muted"] = "{player} was muted.",
-                ["Muted Time"] = "{player} was muted for {time}.",
-                ["Unmuted"] = "{player} was unmuted.",
+                ["Muted"] = "{player} was muted by {initiator}.",
+                ["Muted Time"] = "{player} was muted by {initiator} for {time}.",
+                ["Unmuted"] = "{player} was unmuted by {initiator}.",
                 ["Not Muted"] = "{player} is currently not muted.",
                 ["You Are Muted"] = "You may not chat, you are muted!",
                 ["Mute Expired"] = "{player} is no longer muted.",
@@ -83,7 +62,11 @@ namespace Oxide.Plugins
                 ["Invalid Syntax Unmute"] = "/unmute <player|steamid>",
                 ["Player Name Not Found"] = "Could not find player with name '{name}'",
                 ["Player ID Not Found"] = "Could not find player with ID '{id}'",
-                ["Multiple Players Found"] = "Multiple matching players found: \n{matches}"
+                ["Multiple Players Found"] = "Multiple matching players found: \n{matches}",
+                ["Time Muted Player Joined"] = "{player} is temporarily muted. Remaining time: {time}",
+                ["Time Muted Player Chat"] = "You may not chat, you are temporarily muted. Remaining time: {time}",
+                ["Muted Player Joined"] = "{player} is permanently muted.",
+                ["Muted Player Chat"] = "You may not chat, you are permanently muted."
             }, this);
 
             timer.Repeat(10, 0, () =>
@@ -93,8 +76,8 @@ namespace Oxide.Plugins
                 foreach (string id in expired)
                 {
                     mutes.Remove(id);
-                    server.Broadcast(lang.GetMessage("Mute Expired", this).Replace("{player}", players.FindPlayerById(id)?.Name));
-                    Puts(lang.GetMessage("Mute Expired", this).Replace("{player}", players.FindPlayerById(id)?.Name));
+                    PublicMessage("Mute Expired", new KeyValuePair<string, string>("player", players.FindPlayerById(id)?.Name));
+                    SaveData(mutes);
                 }
             });
         }
@@ -106,9 +89,29 @@ namespace Oxide.Plugins
             object result = CheckMuted(player);
 
             if (result is bool && !(bool)result)
-                player.Reply(lang.GetMessage("You Are Muted", this, player.Id));
+            {
+                if (mutes[player.Id].Timed)
+                    player.Reply(lang.GetMessage("Time Muted Player Chat", this, player.Id).Replace("{time}", FormatTime(mutes[player.Id].ExpireDate - DateTime.Now)));
+                else
+                    player.Reply(lang.GetMessage("Muted Player Chat", this, player.Id));
+            }
 
             return result;
+        }
+
+        private void OnUserInit(IPlayer player)
+        {
+            if (MuteInfo.IsMuted(player))
+            {
+                CheckMuted(player);
+
+                if (mutes[player.Id].Timed)
+                    PublicMessage("Time Muted Player Joined",
+                        new KeyValuePair<string, string>("player", player.Name), 
+                        new KeyValuePair<string, string>("time", FormatTime(mutes[player.Id].ExpireDate - DateTime.Now)));
+                else
+                    PublicMessage("Muted Player Joined", new KeyValuePair<string, string>("player", player.Name));
+            }
         }
 
         #endregion
@@ -121,7 +124,7 @@ namespace Oxide.Plugins
             if (mutes.Count == 0)
                 player.Reply(lang.GetMessage("Nobody Muted", this, player.Id));
             else
-                player.Reply(string.Join(Environment.NewLine, mutes.Select(kvp => $"{players.FindPlayerById(kvp.Key).Name}: {FormatTime(kvp.Value.ExpireDate.value - DateTime.Now)}").ToArray()));
+                player.Reply(string.Join(Environment.NewLine, mutes.Select(kvp => $"{players.FindPlayerById(kvp.Key).Name}: {FormatTime(kvp.Value.ExpireDate - DateTime.Now)}").ToArray()));
         }
 
         [Command("mute"), Permission("betterchatmute.use")]
@@ -146,8 +149,10 @@ namespace Oxide.Plugins
                     mutes[target.Id] = MuteInfo.NonTimed;
                     SaveData(mutes);
 
-                    server.Broadcast(lang.GetMessage("Muted", this).Replace("{player}", target.Name));
-                    Puts(lang.GetMessage("Muted", this).Replace("{player}", target.Name));
+                    PublicMessage("Muted",
+                        new KeyValuePair<string, string>("initiator", player.Name),
+                        new KeyValuePair<string, string>("player", target.Name));
+
                     break;
 
                 case 2:
@@ -167,8 +172,11 @@ namespace Oxide.Plugins
                     mutes[target.Id] = new MuteInfo(expireDate);
                     SaveData(mutes);
 
-                    server.Broadcast(lang.GetMessage("Muted Time", this).Replace("{player}", target.Name).Replace("{time}", FormatTime(expireDate - DateTime.Now)));
-                    Puts(lang.GetMessage("Muted Time", this).Replace("{player}", target.Name).Replace("{time}", FormatTime(expireDate - DateTime.Now)));
+                    PublicMessage("Muted Time",
+                        new KeyValuePair<string, string>("initiator", player.Name),
+                        new KeyValuePair<string, string>("player", target.Name),
+                        new KeyValuePair<string, string>("time", FormatTime(expireDate - DateTime.Now)));
+
                     break;
 
                 default:
@@ -200,13 +208,25 @@ namespace Oxide.Plugins
             mutes.Remove(target.Id);
             SaveData(mutes);
 
-            server.Broadcast(lang.GetMessage("Unmuted", this).Replace("{player}", target.Name));
-            Puts(lang.GetMessage("Unmuted", this).Replace("{player}", target.Name));
+            PublicMessage("Unmuted",
+                new KeyValuePair<string, string>("initiator", player.Name),
+                new KeyValuePair<string, string>("player", target.Name));
         }
 
         #endregion
 
         #region Helpers
+
+        private void PublicMessage(string key, params KeyValuePair<string, string>[] replacements)
+        {
+            string message = lang.GetMessage(key, this);
+
+            foreach (var replacement in replacements)
+                message = message.Replace($"{{{replacement.Key}}}", replacement.Value);
+
+            server.Broadcast(message);
+            Puts(message);
+        }
 
         private object CheckMuted(IPlayer player)
         {

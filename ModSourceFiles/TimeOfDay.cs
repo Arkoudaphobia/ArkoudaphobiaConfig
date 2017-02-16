@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("TimeOfDay", "Fujikura", "2.3.1", ResourceId = 1355)]
+    [Info("TimeOfDay", "Fujikura", "2.3.2", ResourceId = 1355)]
     [Description("Does alter day and night duration.")]
     public class TimeOfDay : RustPlugin
     {
@@ -181,7 +181,7 @@ namespace Oxide.Plugins
 			}
 			timeComponent.DayLengthInMinutes = dayLength * (24.0f / (TOD_Sky.Instance.SunsetTime - TOD_Sky.Instance.SunriseTime));
 			if (!activatedDay)
-				Interface.CallHook("OnTimeSunset");
+				Interface.CallHook("OnTimeSunrise");
 			activatedDay = true;
         }
 
