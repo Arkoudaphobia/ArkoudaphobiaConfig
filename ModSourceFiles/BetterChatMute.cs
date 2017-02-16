@@ -7,11 +7,12 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.2", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.3", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
         private static Dictionary<string, MuteInfo> mutes = new Dictionary<string, MuteInfo>();
+        private bool hasExpired = false;
 
         #region Classes
 
@@ -23,7 +24,7 @@ namespace Oxide.Plugins
             public bool Timed => ExpireDate != DateTime.MinValue;
 
             [JsonIgnore]
-            public bool Expired => Timed && ExpireDate < DateTime.Now;
+            public bool Expired => Timed && ExpireDate < DateTime.UtcNow;
 
             public static bool IsMuted(IPlayer player) => mutes.ContainsKey(player.Id);
 
@@ -54,7 +55,6 @@ namespace Oxide.Plugins
                 ["Muted Time"] = "{player} was muted by {initiator} for {time}.",
                 ["Unmuted"] = "{player} was unmuted by {initiator}.",
                 ["Not Muted"] = "{player} is currently not muted.",
-                ["You Are Muted"] = "You may not chat, you are muted!",
                 ["Mute Expired"] = "{player} is no longer muted.",
                 ["Invalid Time Format"] = "Invalid time format. Example: 1d2h3m4s = 1 day, 2 hours, 3 min, 4 sec",
                 ["Nobody Muted"] = "There is nobody muted at the moment.",
@@ -77,7 +77,15 @@ namespace Oxide.Plugins
                 {
                     mutes.Remove(id);
                     PublicMessage("Mute Expired", new KeyValuePair<string, string>("player", players.FindPlayerById(id)?.Name));
+
+                    if (!hasExpired)
+                        hasExpired = true;
+                }
+
+                if (hasExpired)
+                {
                     SaveData(mutes);
+                    hasExpired = false;
                 }
             });
         }
@@ -91,7 +99,7 @@ namespace Oxide.Plugins
             if (result is bool && !(bool)result)
             {
                 if (mutes[player.Id].Timed)
-                    player.Reply(lang.GetMessage("Time Muted Player Chat", this, player.Id).Replace("{time}", FormatTime(mutes[player.Id].ExpireDate - DateTime.Now)));
+                    player.Reply(lang.GetMessage("Time Muted Player Chat", this, player.Id).Replace("{time}", FormatTime(mutes[player.Id].ExpireDate - DateTime.UtcNow)));
                 else
                     player.Reply(lang.GetMessage("Muted Player Chat", this, player.Id));
             }
@@ -108,7 +116,7 @@ namespace Oxide.Plugins
                 if (mutes[player.Id].Timed)
                     PublicMessage("Time Muted Player Joined",
                         new KeyValuePair<string, string>("player", player.Name), 
-                        new KeyValuePair<string, string>("time", FormatTime(mutes[player.Id].ExpireDate - DateTime.Now)));
+                        new KeyValuePair<string, string>("time", FormatTime(mutes[player.Id].ExpireDate - DateTime.UtcNow)));
                 else
                     PublicMessage("Muted Player Joined", new KeyValuePair<string, string>("player", player.Name));
             }
@@ -124,7 +132,7 @@ namespace Oxide.Plugins
             if (mutes.Count == 0)
                 player.Reply(lang.GetMessage("Nobody Muted", this, player.Id));
             else
-                player.Reply(string.Join(Environment.NewLine, mutes.Select(kvp => $"{players.FindPlayerById(kvp.Key).Name}: {FormatTime(kvp.Value.ExpireDate - DateTime.Now)}").ToArray()));
+                player.Reply(string.Join(Environment.NewLine, mutes.Select(kvp => $"{players.FindPlayerById(kvp.Key).Name}: {FormatTime(kvp.Value.ExpireDate - DateTime.UtcNow)}").ToArray()));
         }
 
         [Command("mute"), Permission("betterchatmute.use")]
@@ -175,7 +183,7 @@ namespace Oxide.Plugins
                     PublicMessage("Muted Time",
                         new KeyValuePair<string, string>("initiator", player.Name),
                         new KeyValuePair<string, string>("player", target.Name),
-                        new KeyValuePair<string, string>("time", FormatTime(expireDate - DateTime.Now)));
+                        new KeyValuePair<string, string>("time", FormatTime(expireDate - DateTime.UtcNow)));
 
                     break;
 
@@ -335,7 +343,7 @@ namespace Oxide.Plugins
                 return false;
             }
 
-            date = DateTime.Now + new TimeSpan(days, hours, minutes, seconds);
+            date = DateTime.UtcNow + new TimeSpan(days, hours, minutes, seconds);
 
             return true;
         }
