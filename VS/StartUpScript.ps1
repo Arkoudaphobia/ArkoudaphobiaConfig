@@ -30,7 +30,7 @@ $url = "https://github.com/OxideMod/Snapshots/blob/master/Oxide-Rust.zip?raw=tru
 
 $rustIOUrl = "http://playrust.io/latest/oxide"
 
-$rustIOTarget = "$ENV:Temp\Oxide.ext.RustIO.dll"
+$rustIOTarget = "$ENV:Temp\Oxide.Ext.RustIO.dll"
 
 $file = "$Env:Temp\Oxide-Rust.zip"
 
