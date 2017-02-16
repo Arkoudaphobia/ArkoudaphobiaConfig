@@ -51,7 +51,7 @@ Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -recurse -Force -Confirm:$
 
 (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x64) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x64 -Force -Confirm:$false
 
-Copy-Item -Path $rustIOTarget -Destination $Env:RustOxideLocalDir\RustDedicatedData\Managed -Force -Confirm:$false
+Copy-Item -Path $rustIOTarget -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false
 
 #Done! Proceed to end the log and start the server
 Stop-Transcript
