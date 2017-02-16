@@ -2,6 +2,7 @@
 <ArkoudaphobiaConfig xmlns="http://schema.utmonline.net/xml/2016/RustModuleManafest2">
   <ModFiles>
     <Mod Name="AutoDoors.cs" Enabled="true" />
+    <Mod Name="AbsolutMail.cs" Enabled="true"/>
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
@@ -29,6 +30,7 @@
     <Mod Name="PlayerManager.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
+    <Mod Name="PrivateMessage.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="RustyBearDebug.cs" Enabled="true"/>
@@ -45,6 +47,7 @@
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AutoDoors.json" remove="false"/>
+    <Config Name="AbsolutMail.json" remove"false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
