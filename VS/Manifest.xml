@@ -38,6 +38,7 @@
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="ServerRewards.cs" Enabled="true"/>
+    <Mod Name="Spyon.py" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
     <Mod Name="Quests.cs" Enabled="true"/>

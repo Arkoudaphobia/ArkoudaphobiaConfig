@@ -1,9 +1,47 @@
 {
-  "ByproductModifier": 1.5,
-  "ByproductPercent": 60,
-  "CookedModifier": 1.0,
-  "CookedPercent": 100,
-  "FuelUsageModifier": 1,
+  "AmountsOfBecome": {
+    "can_beans_empty": 15,
+    "can_tuna_empty": 10,
+    "chicken_raw": 1,
+    "crude_oil": 2,
+    "fish_raw": 1,
+    "hq_metal_ore": 1,
+    "humanmeat_raw": 1,
+    "meat.bear.raw": 1,
+    "meat.pork.raw": 1,
+    "meat.wolf.raw": 1,
+    "metal_ore": 1,
+    "sulfur_ore": 1
+  },
+  "CharcoalMultiplier": 1,
+  "CharcoalPercentLoss": 30,
+  "CookInFurnaces": false,
+  "CookTimes": {
+    "can_beans_empty": 30.0,
+    "can_tuna_empty": 30.0,
+    "chicken_raw": 15.0,
+    "crude_oil": 10.0,
+    "fish_raw": 10.0,
+    "hq_metal_ore": 10.0,
+    "humanmeat_raw": 15.0,
+    "meat.bear.raw": 15.0,
+    "meat.pork.raw": 15.0,
+    "meat.wolf.raw": 15.0,
+    "metal_ore": 10.0,
+    "sulfur_ore": 5.0
+  },
+  "OvenMultipliers": {
+    "campfire": 2.0,
+    "ceilinglight.deployed": 1.0,
+    "furnace": 3.0,
+    "furnace.large": 5.0,
+    "jackolantern.angry": 1.0,
+    "jackolantern.happy": 1.0,
+    "lantern.deployed": 1.0,
+    "refinery_small_deployed": 3.0,
+    "tunalight.deployed": 1.0
+  },
   "OvercookMeat": false,
-  "UsePermissions": false
+  "UsePermissions": false,
+  "WoodFuelAmount": 10.0
 }

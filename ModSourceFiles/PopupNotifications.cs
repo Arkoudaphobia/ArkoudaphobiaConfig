@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Popup Notifications", "emu / k1lly0u", "0.1.0", ResourceId = 1252)]
+    [Info("Popup Notifications", "emu / k1lly0u", "0.1.1", ResourceId = 1252)]
     public class PopupNotifications : RustPlugin
     {
         private static Vector2 position;
