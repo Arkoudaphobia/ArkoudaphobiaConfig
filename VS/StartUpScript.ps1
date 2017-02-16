@@ -60,7 +60,7 @@ Write "Deploying latest Oxide files and RustIO to Rust Dedicated Server Director
 
 (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x64) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x64 -Force -Confirm:$false -Verbose
 
-Copy-Item -Path $rustIOTarget -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false
+Copy-Item -Path $rustIOTarget -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false -Verbose
 
 #Done! Proceed to end the log and start the server
 Write "FIN!"
