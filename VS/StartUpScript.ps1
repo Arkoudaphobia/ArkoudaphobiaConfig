@@ -31,11 +31,12 @@ $apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/pr
 
 $LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Managed\Oxide.Core.dll")
 
+$file = "$Env:Temp\Oxide-Rust.zip"
+
 If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.version -and $apiResponse.build.status -eq "success")
 {
     $ShouldCopy = $true
-    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"
-    $file = "$Env:Temp\Oxide-Rust.zip"
+    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"    
     $url = "https://ci.appveyor.com/api/projects/oxidemod/oxide/artifacts/Oxide-Rust.zip"
     $WebClient.DownloadFile($url,$file)
 }
@@ -59,8 +60,11 @@ $OxideTemp = "$Env:temp\RustOxideTempDir"
 Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -recurse -Force -Confirm:$false
 
 #Perform extraction of Oxide files to temp directory
-Write "Extracting Latest Oxide files to Oxide Temp Directory"
-[System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
+If($ShouldCopy -eq $true)
+{
+    Write "Extracting Latest Oxide files to Oxide Temp Directory"
+    [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
+}
 
 #Copy Files from the temp directory to the dedicated server directory
 Write "Deploying latest Oxide files and RustIO to Rust Dedicated Server Directory"
