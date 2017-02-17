@@ -24,19 +24,26 @@ if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true)
     Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
 }
 
-#Setup to perform required file downloads for both Oxide and RustIO (Live Map)
+#Setup and perform required file downloads for both Oxide and RustIO (Live Map)
 Write "Preparing to download latest  Oxide and RustIO files"
-$url = "https://github.com/OxideMod/Snapshots/blob/master/Oxide-Rust.zip?raw=true"
+
+$apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/projects/oxidemod/oxide
+
+$LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Manage\Oxide.Core.dll")
+
+If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.version -and $apiResponse.build.status -eq "success")
+{
+    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"
+    $file = "$Env:Temp\Oxide-Rust.zip"
+    $url = "https://ci.appveyor.com/api/projects/oxidemod/oxide/artifacts/Oxide-Rust.zip"
+    $WebClient.DownloadFile($url,$file)
+}
+
+Write "Downloading RustIO"
 
 $rustIOUrl = "http://playrust.io/latest/oxide"
 
 $rustIOTarget = "$ENV:Temp\Oxide.Ext.RustIO.dll"
-
-$file = "$Env:Temp\Oxide-Rust.zip"
-
-#Download latest files to temp directory
-Write "Downloading Oxide and RustIO files"
-$WebClient.DownloadFile($url,$file)
 
 $WebClient.DownloadFile($rustIOUrl,$rustIOTarget)
 
