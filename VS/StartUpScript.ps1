@@ -29,14 +29,19 @@ Write "Preparing to download latest  Oxide and RustIO files"
 
 $apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/projects/oxidemod/oxide
 
-$LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Manage\Oxide.Core.dll")
+$LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Managed\Oxide.Core.dll")
 
 If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.version -and $apiResponse.build.status -eq "success")
 {
+    $ShouldCopy = $true
     Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"
     $file = "$Env:Temp\Oxide-Rust.zip"
     $url = "https://ci.appveyor.com/api/projects/oxidemod/oxide/artifacts/Oxide-Rust.zip"
     $WebClient.DownloadFile($url,$file)
+}
+else
+{
+    $ShouldCopy = $false    
 }
 
 Write "Downloading RustIO"
@@ -59,13 +64,21 @@ Write "Extracting Latest Oxide files to Oxide Temp Directory"
 
 #Copy Files from the temp directory to the dedicated server directory
 Write "Deploying latest Oxide files and RustIO to Rust Dedicated Server Directory"
-(Get-ChildItem -Path $OxideTemp | ?{$_.PSIsContainer -eq $false}) | Copy-Item -Destination $Env:RustOxideLocalDir -Force -Confirm:$false -Verbose
 
-(Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed | ?{$_.PSIsContainer -eq $False}) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false -Verbose
+If($ShouldCopy -eq $true)
+{
+    (Get-ChildItem -Path $OxideTemp | ?{$_.PSIsContainer -eq $false}) | Copy-Item -Destination $Env:RustOxideLocalDir -Force -Confirm:$false -Verbose
 
-(Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x86) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x86 -Force -Confirm:$false -Verbose
+    (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed | ?{$_.PSIsContainer -eq $False}) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false -Verbose
 
-(Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x64) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x64 -Force -Confirm:$false -Verbose
+    (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x86) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x86 -Force -Confirm:$false -Verbose
+
+    (Get-ChildItem -Path $OxideTemp\RustDedicated_Data\Managed\x64) | Copy-Item -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed\x64 -Force -Confirm:$false -Verbose
+}
+else
+{
+    Write "Skipping Oxide file copy process ... no updates are avalible"    
+}
 
 Copy-Item -Path $rustIOTarget -Destination $Env:RustOxideLocalDir\RustDedicated_Data\Managed -Force -Confirm:$false -Verbose
 
