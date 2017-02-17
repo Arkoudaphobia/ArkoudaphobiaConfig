@@ -33,7 +33,7 @@ $LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env
 
 $file = "$Env:Temp\Oxide-Rust.zip"
 
-If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.version -and $apiResponse.build.status -eq "success")
+If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
 {
     $ShouldCopy = $true
     Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"    
