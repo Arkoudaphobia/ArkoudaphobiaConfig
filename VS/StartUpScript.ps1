@@ -37,7 +37,7 @@ If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
 {
     $ShouldCopy = $true
     Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"    
-    $url = "https://ci.appveyor.com/api/projects/oxidemod/oxide/artifacts/Oxide-Rust.zip"
+    $url = "https://dl.bintray.com/oxidemod/builds/Oxide-Rust.zip"
     $WebClient.DownloadFile($url,$file)
 }
 else
