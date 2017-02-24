@@ -63,7 +63,15 @@ Get-ChildItem -Path $OxideTemp -Recurse | Remove-Item -recurse -Force -Confirm:$
 If($ShouldCopy -eq $true)
 {
     Write "Extracting Latest Oxide files to Oxide Temp Directory"
-    [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
+    try
+    {
+        [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
+    }
+    catch
+    {
+        Write "An error occured during zipe file download aborting oxide update process"
+        $ShouldCopy = $false
+    }
 }
 
 #Copy Files from the temp directory to the dedicated server directory
