@@ -3,12 +3,12 @@ using Oxide.Core.Libraries.Covalence;
 using System.Collections.Generic;
 using Oxide.Core.Plugins;
 using System.Linq;
-using System;
 using Oxide.Core;
+using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "5.0.3", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "5.0.4", ResourceId = 979)]
     [Description("Manage Chat Groups, Customize Colors And Add Titles.")]
     internal class BetterChat : CovalencePlugin
     {
@@ -37,10 +37,12 @@ namespace Oxide.Plugins
         public class ChatGroupField
         {
             public Action<ChatGroup, string> FieldSetter;
+            public Func<ChatGroup, object> FieldGetter;
             public string UserFriendyType;
 
-            public ChatGroupField(Action<ChatGroup, string> fieldSetter, string userFriendyType)
+            public ChatGroupField(Func<ChatGroup, object> fieldGetter, Action<ChatGroup, string> fieldSetter, string userFriendyType)
             {
+                FieldGetter = fieldGetter;
                 FieldSetter = fieldSetter;
                 UserFriendyType = userFriendyType;
             }
@@ -64,22 +66,22 @@ namespace Oxide.Plugins
 
             internal static Dictionary<string, ChatGroupField> Fields = new Dictionary<string, ChatGroupField>(StringComparer.InvariantCultureIgnoreCase)
             {
-                ["Priority"] = new ChatGroupField((g, v) => g.Priority = int.Parse(v), "number"),
+                ["Priority"] = new ChatGroupField(g => g.Priority, (g, v) => g.Priority = int.Parse(v), "number"),
 
-                ["Title"] = new ChatGroupField((g, v) => g.Title.Text = v, "text"),
-                ["TitleColor"] = new ChatGroupField((g, v) => g.Title.Color = v, "color"),
-                ["TitleSize"] = new ChatGroupField((g, v) => g.Title.Size = int.Parse(v), "number"),
-                ["TitleHidden"] = new ChatGroupField((g, v) => g.Title.Hidden = bool.Parse(v), "true/false"),
-                ["TitleHiddenIfNotPrimary"] = new ChatGroupField((g, v) => g.Title.HiddenIfNotPrimary = bool.Parse(v), "true/false"),
+                ["Title"] = new ChatGroupField(g => g.Title.Text, (g, v) => g.Title.Text = v, "text"),
+                ["TitleColor"] = new ChatGroupField(g => g.Title.Color, (g, v) => g.Title.Color = v, "color"),
+                ["TitleSize"] = new ChatGroupField(g => g.Title.Size, (g, v) => g.Title.Size = int.Parse(v), "number"),
+                ["TitleHidden"] = new ChatGroupField(g => g.Title.Hidden, (g, v) => g.Title.Hidden = bool.Parse(v), "true/false"),
+                ["TitleHiddenIfNotPrimary"] = new ChatGroupField(g => g.Title.HiddenIfNotPrimary, (g, v) => g.Title.HiddenIfNotPrimary = bool.Parse(v), "true/false"),
 
-                ["UsernameColor"] = new ChatGroupField((g, v) => g.Username.Color = v, "color"),
-                ["UsernameSize"] = new ChatGroupField((g, v) => g.Username.Size = int.Parse(v), "number"),
+                ["UsernameColor"] = new ChatGroupField(g => g.Username.Color, (g, v) => g.Username.Color = v, "color"),
+                ["UsernameSize"] = new ChatGroupField(g => g.Username.Size, (g, v) => g.Username.Size = int.Parse(v), "number"),
                 
-                ["MessageColor"] = new ChatGroupField((g, v) => g.Message.Color = v, "color"),
-                ["MessageSize"] = new ChatGroupField((g, v) => g.Message.Size = int.Parse(v), "number"),
+                ["MessageColor"] = new ChatGroupField(g => g.Message.Color, (g, v) => g.Message.Color = v, "color"),
+                ["MessageSize"] = new ChatGroupField(g => g.Message.Size, (g, v) => g.Message.Size = int.Parse(v), "number"),
 
-                ["ChatFormat"] = new ChatGroupField((g, v) => g.Format.Chat = v, "text"),
-                ["ConsoleFormat"] = new ChatGroupField((g, v) => g.Format.Console = v, "text")
+                ["ChatFormat"] = new ChatGroupField(g => g.Format.Chat, (g, v) => g.Format.Chat = v, "text"),
+                ["ConsoleFormat"] = new ChatGroupField(g => g.Format.Console, (g, v) => g.Format.Console = v, "text")
             };
 
             public static ChatGroup Find(string name) => ChatGroups.Find(g => g.GroupName == name);
@@ -192,6 +194,16 @@ namespace Oxide.Plugins
                 }
                 
                 return SetFieldResult.Success;
+            }
+
+            public Dictionary<string, object> GetFields()
+            {
+                Dictionary<string, object> fields = new Dictionary<string, object>();
+
+                foreach (KeyValuePair<string,ChatGroupField> field in Fields)
+                    fields.Add(field.Key, field.Value.FieldGetter(this));
+
+                return fields;
             }
 
             public override int GetHashCode() => GroupName.GetHashCode();
@@ -357,6 +369,8 @@ namespace Oxide.Plugins
         private bool API_GroupExists(string group) => ChatGroup.Find(group) != null;
 
         private ChatGroup.SetFieldResult? API_SetGroupField(string group, string field, string value) => ChatGroup.Find(group)?.SetField(field, value);
+
+        private Dictionary<string, object> API_GetGroupFields(string group) => ChatGroup.Find(group)?.GetFields() ?? new Dictionary<string, object>();
 
         private string API_GetFormattedUsername(IPlayer player)
         {
