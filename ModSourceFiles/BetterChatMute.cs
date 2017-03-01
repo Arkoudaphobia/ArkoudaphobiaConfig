@@ -1,13 +1,15 @@
 ﻿using System.Text.RegularExpressions;
 using Oxide.Core.Libraries.Covalence;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Linq;
+using Oxide.Core;
 using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.3", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.4", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
@@ -46,11 +48,14 @@ namespace Oxide.Plugins
 
         private void Loaded()
         {
+            permission.RegisterPermission("betterchatmute.permanent", this);
+
             LoadData(ref mutes);
             SaveData(mutes);
 
             lang.RegisterMessages(new Dictionary<string, string>
             {
+                ["No Permission"] = "You don't have permission to use this command.",
                 ["Muted"] = "{player} was muted by {initiator}.",
                 ["Muted Time"] = "{player} was muted by {initiator} for {time}.",
                 ["Unmuted"] = "{player} was unmuted by {initiator}.",
@@ -90,11 +95,11 @@ namespace Oxide.Plugins
             });
         }
 
-        private object OnUserChat(IPlayer player, string message) => CheckMuted(player);
+        private object OnUserChat(IPlayer player, string message) => HandleChat(player);
 
         private object OnBetterChat(IPlayer player, string message)
         {
-            object result = CheckMuted(player);
+            object result = HandleChat(player);
 
             if (result is bool && !(bool)result)
             {
@@ -109,10 +114,10 @@ namespace Oxide.Plugins
 
         private void OnUserInit(IPlayer player)
         {
+            UpdateMuteStatus(player);
+
             if (MuteInfo.IsMuted(player))
             {
-                CheckMuted(player);
-
                 if (mutes[player.Id].Timed)
                     PublicMessage("Time Muted Player Joined",
                         new KeyValuePair<string, string>("player", player.Name), 
@@ -149,6 +154,12 @@ namespace Oxide.Plugins
             switch (args.Length)
             {
                 case 1:
+                    if (!permission.UserHasPermission(player.Id, "betterchatmute.permanent"))
+                    {
+                        player.Reply(lang.GetMessage("No Permission", this, player.Id));
+                        return;
+                    }
+
                     target = GetPlayer(args[0], player);
 
                     if (target == null)
@@ -156,6 +167,8 @@ namespace Oxide.Plugins
 
                     mutes[target.Id] = MuteInfo.NonTimed;
                     SaveData(mutes);
+
+                    Interface.CallHook("OnBetterChatMuted", target, player);
 
                     PublicMessage("Muted",
                         new KeyValuePair<string, string>("initiator", player.Name),
@@ -179,6 +192,8 @@ namespace Oxide.Plugins
 
                     mutes[target.Id] = new MuteInfo(expireDate);
                     SaveData(mutes);
+
+                    Interface.CallHook("OnBetterChatTimeMuted", target, player, expireDate);
 
                     PublicMessage("Muted Time",
                         new KeyValuePair<string, string>("initiator", player.Name),
@@ -216,6 +231,8 @@ namespace Oxide.Plugins
             mutes.Remove(target.Id);
             SaveData(mutes);
 
+            Interface.CallHook("OnBetterChatUnmuted", target, player);
+
             PublicMessage("Unmuted",
                 new KeyValuePair<string, string>("initiator", player.Name),
                 new KeyValuePair<string, string>("player", target.Name));
@@ -236,21 +253,28 @@ namespace Oxide.Plugins
             Puts(message);
         }
 
-        private object CheckMuted(IPlayer player)
+        private object HandleChat(IPlayer player)
         {
-            if (MuteInfo.IsMuted(player))
-            {
-                if (mutes[player.Id].Expired)
-                {
-                    mutes.Remove(player.Id);
-                    SaveData(mutes);
-                    return null;
-                }
+            UpdateMuteStatus(player);
 
+            var result = Interface.CallHook("OnBetterChatMuteHandle", player, MuteInfo.IsMuted(player) ? JObject.FromObject(mutes[player.Id]) : null);
+
+            if (result != null)
+                return null;
+
+            if (MuteInfo.IsMuted(player))
                 return false;
-            }
 
             return null;
+        }
+
+        private void UpdateMuteStatus(IPlayer player)
+        {
+            if (MuteInfo.IsMuted(player) && mutes[player.Id].Expired)
+            {
+                mutes.Remove(player.Id);
+                SaveData(mutes);
+            }
         }
 
         private IPlayer GetPlayer(string nameOrID, IPlayer player)
