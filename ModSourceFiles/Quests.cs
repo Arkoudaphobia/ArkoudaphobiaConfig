@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("Quests", "k1lly0u", "2.2.0", ResourceId = 1084)]
+    [Info("Quests", "k1lly0u", "2.2.1", ResourceId = 1084)]
     public class Quests : RustPlugin
     {
         #region Fields
@@ -273,6 +273,7 @@ namespace Oxide.Plugins
             ItemDefs = ItemManager.itemList.ToDictionary(i => i.shortname);
             FillObjectiveList();
             serverinput = typeof(BasePlayer).GetField("serverInput", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
+            AddMapIcons();
             timer.Once(900, () => SaveLoop());
         }
         void Unload()
@@ -637,14 +638,10 @@ namespace Oxide.Plugins
                 LustyMap.Call("EnableMaps", player);
             }
         }
-        private void AddMapMarker(float x, float z, string name, string icon = "special")
+        private void AddMapMarker(float x, float z, string name, string icon = "special", float r = 0)
         {
-            if (LustyMap)
-            {
-                LustyMap.Call("AddMarker", x, z, name, icon);
-                LustyMap.Call("addCustom", icon);
-                LustyMap.Call("cacheImages");                
-            }
+            if (LustyMap)            
+                LustyMap.Call("AddMarker", x, z, name, icon); 
         }
         private void RemoveMapMarker(string name)
         {
@@ -753,6 +750,19 @@ namespace Oxide.Plugins
         #endregion
 
         #region Functions
+        void AddMapIcons()
+        {
+            int deliveryCount = 1;
+            foreach(var vendor in vendors.DeliveryVendors)
+            {
+                AddMapMarker(vendor.Value.Info.x, vendor.Value.Info.z, vendor.Value.Info.Name, $"{configData.LustyMapIntegration.Icon_Delivery}_{deliveryCount}.png");
+                ++deliveryCount;
+            }
+            foreach(var vendor in vendors.QuestVendors)
+            {
+                AddMapMarker(vendor.Value.x, vendor.Value.z, vendor.Value.Name, $"{configData.LustyMapIntegration.Icon_Vendor}.png");
+            }
+        }
         private void ProcessProgress(BasePlayer player, QuestType questType, string type, int amount = 0)
         {
             if (string.IsNullOrEmpty(type)) return;
@@ -965,7 +975,7 @@ namespace Oxide.Plugins
                         npc.SendNetworkUpdateImmediate();
                     }
                     vendors.DeliveryVendors.Add(Creator.deliveryInfo.Info.ID, Creator.deliveryInfo);
-                    AddMapMarker(Creator.deliveryInfo.Info.x, Creator.deliveryInfo.Info.z, Creator.deliveryInfo.Info.Name, $"{configData.LustyMapIntegration.Icon_Delivery}_{vendors.DeliveryVendors.Count}");
+                    AddMapMarker(Creator.deliveryInfo.Info.x, Creator.deliveryInfo.Info.z, Creator.deliveryInfo.Info.Name, $"{configData.LustyMapIntegration.Icon_Delivery}_{vendors.DeliveryVendors.Count}.png");
                     AddVendor.Remove(player.userID);
                     SaveVendorData();
                     DestroyUI(player);
@@ -1152,8 +1162,7 @@ namespace Oxide.Plugins
                 foreach(var npc in vendors.QuestVendors)
                 {
                     RemoveMapMarker(npc.Value.Name);
-                    npc.Value.Name = $"QuestVendor_{i}";
-                    AddMapMarker(npc.Value.x, npc.Value.z, npc.Value.Name, $"{configData.LustyMapIntegration.Icon_Vendor}_{i}");
+                    AddMapMarker(npc.Value.x, npc.Value.z, npc.Value.Name, $"{configData.LustyMapIntegration.Icon_Vendor}.png");
                     i++;
                 }                
             }
@@ -1166,8 +1175,7 @@ namespace Oxide.Plugins
                 foreach (var npc in vendors.DeliveryVendors)
                 {
                     RemoveMapMarker(npc.Value.Info.Name);
-                    npc.Value.Info.Name = $"Delivery_{i}";
-                    AddMapMarker(npc.Value.Info.x, npc.Value.Info.z, npc.Value.Info.Name, $"{configData.LustyMapIntegration.Icon_Delivery}_{i}");
+                    AddMapMarker(npc.Value.Info.x, npc.Value.Info.z, npc.Value.Info.Name, $"{configData.LustyMapIntegration.Icon_Delivery}_{i}.png");
                     i++;
                 }
                 foreach (var user in PlayerProgress)
@@ -2752,7 +2760,7 @@ namespace Oxide.Plugins
                             NPCdisplayName.SetValue(NPC, pos.Name);
                             NPC.UpdateNetworkGroup();
                         }
-                        AddMapMarker(pos.x, pos.z, pos.Name, configData.LustyMapIntegration.Icon_Vendor);
+                        AddMapMarker(pos.x, pos.z, pos.Name, configData.LustyMapIntegration.Icon_Vendor + ".png");
                         AddVendor.Remove(player.userID);
                         SaveVendorData();
                         DestroyUI(player);
