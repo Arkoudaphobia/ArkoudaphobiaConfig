@@ -9,7 +9,7 @@ If($QuarterlyClean)
 {
 	$DataDirBasePath = "$BaseServerPath\oxide\data"
 	$BaseDataFiles = Get-ChildItem -Path $DataDirBasePath
-	$BaseDataFiles | ?{$_.Mode -match 'a'} | Remove-Item -Force -Confirm:$false
+	$BaseDataFiles | ?{$_.Mode -match 'a'} | Remove-Item -Force -Confirm:$false -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed files in the data directory"
 	foreach($Directory in ($BaseDataFiles | ?{$_.Mode -match 'd'}))
 	{
