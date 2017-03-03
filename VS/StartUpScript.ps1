@@ -17,13 +17,6 @@ $WebClient = New-Object System.Net.WebClient
 Write "Beginning Update of Rust Dedicated Server"
 cmd.exe /c "$($ENV:SteamCmdDir)\steamcmd.exe +login Anonymous +force_install_dir $($Env:RustOxideLocalDir) +app_update 258550 validate +quit"
 
-#Test if we have an exsisting Oxide-Rust.zip file in the temp directory and delete it if we do
-Write "Cleaning up old oxide zip files"
-if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true)
-{
-    Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
-}
-
 #Setup and perform required file downloads for both Oxide and RustIO (Live Map)
 Write "Preparing to download latest  Oxide and RustIO files"
 
@@ -43,6 +36,13 @@ If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
 else
 {
     $ShouldCopy = $false    
+}
+
+#Test if we have an exsisting Oxide-Rust.zip file in the temp directory and delete it if we do
+if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true -and $ShouldCopy -eq $true)
+{
+    Write "Cleaning up old oxide zip files"
+    Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
 }
 
 Write "Downloading RustIO"
