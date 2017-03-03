@@ -13,12 +13,8 @@ Write "Adding required assemblies and objects to perform our tasks"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $WebClient = New-Object System.Net.WebClient
 
-#Install latest version of the rust dedicated server
-Write "Beginning Update of Rust Dedicated Server"
-cmd.exe /c "$($ENV:SteamCmdDir)\steamcmd.exe +login Anonymous +force_install_dir $($Env:RustOxideLocalDir) +app_update 258550 validate +quit"
-
 #Setup and perform required file downloads for both Oxide and RustIO (Live Map)
-Write "Preparing to download latest  Oxide and RustIO files"
+Write "Checking for a new version of Oxide"
 
 $apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/projects/oxidemod/oxide
 
@@ -31,6 +27,12 @@ If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
     $ShouldCopy = $true
     Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"    
     $url = "https://dl.bintray.com/oxidemod/builds/Oxide-Rust.zip"
+
+    #Install latest version of the rust dedicated server
+    Write "Beginning Update of Rust Dedicated Server"
+    cmd.exe /c "$($ENV:SteamCmdDir)\steamcmd.exe +login Anonymous +force_install_dir $($Env:RustOxideLocalDir) +app_update 258550 validate +quit"
+
+    Write "Downloading The Latest Oxide Bits"
     $WebClient.DownloadFile($url,$file)
 }
 else
