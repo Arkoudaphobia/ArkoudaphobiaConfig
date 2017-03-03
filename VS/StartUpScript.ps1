@@ -20,31 +20,32 @@ $apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/pr
 
 $LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Managed\Oxide.Core.dll")
 
-$file = "$Env:Temp\Oxide-Rust.zip"
+$OxideTargetFile = ($($Env:Temp) + "\Oxide-Rust.zip")
 
 If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
 {
+    #Test if we have an exsisting Oxide-Rust.zip file in the temp directory and delete it if we do
+    if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true -and $ShouldCopy -eq $true)
+    {
+        Write "Cleaning up old oxide zip files"
+        Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
+    }
+
     $ShouldCopy = $true
-    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.version) proceeding with update"    
-    $url = "https://dl.bintray.com/oxidemod/builds/Oxide-Rust.zip"
+    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.buildNumber) proceeding with update"    
+    $OxideTargetUrl = "https://bintray.com/oxidemod/builds/download_file?file_path=Oxide-Rust.zip"
+
+    Write "Downloading The Latest Oxide Bits"
+    $WebClient = New-Object System.Net.WebClient
+    $WebClient.DownloadFile($OxideTargetUrl,$OxideTargetFile)
 
     #Install latest version of the rust dedicated server
     Write "Beginning Update of Rust Dedicated Server"
     cmd.exe /c "$($ENV:SteamCmdDir)\steamcmd.exe +login Anonymous +force_install_dir $($Env:RustOxideLocalDir) +app_update 258550 validate +quit"
-
-    Write "Downloading The Latest Oxide Bits"
-    $WebClient.DownloadFile($url,$file)
 }
 else
 {
     $ShouldCopy = $false    
-}
-
-#Test if we have an exsisting Oxide-Rust.zip file in the temp directory and delete it if we do
-if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true -and $ShouldCopy -eq $true)
-{
-    Write "Cleaning up old oxide zip files"
-    Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
 }
 
 Write "Downloading RustIO"
@@ -67,7 +68,7 @@ If($ShouldCopy -eq $true)
     Write "Extracting Latest Oxide files to Oxide Temp Directory"
     try
     {
-        [System.IO.Compression.Zipfile]::ExtractToDirectory($file,$OxideTemp)
+        [System.IO.Compression.Zipfile]::ExtractToDirectory($OxideTargetFile,$OxideTemp)
     }
     catch
     {
