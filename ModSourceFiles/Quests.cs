@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("Quests", "k1lly0u", "2.2.1", ResourceId = 1084)]
+    [Info("Quests", "k1lly0u", "2.2.2", ResourceId = 1084)]
     public class Quests : RustPlugin
     {
         #region Fields
@@ -1219,7 +1219,7 @@ namespace Oxide.Plugins
                 CreateMenuButton(ref MenuElement, UIMain, LA("Delivery", player.UserIDString), "QUI_ChangeElement delivery", i); i++;
             CreateMenuButton(ref MenuElement, UIMain, LA("Your Quests", player.UserIDString), "QUI_ChangeElement personal", i); i++;
 
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 QUI.CreateButton(ref MenuElement, UIMain, QUI.Color(configData.Colors.Button_Accept.Color, configData.Colors.Button_Accept.Alpha), LA("Create Quest", player.UserIDString), 18, "0.1 0.225", "0.9 0.28", "QUI_ChangeElement creation");
                 QUI.CreateButton(ref MenuElement, UIMain, QUI.Color(configData.Colors.Button_Pending.Color, configData.Colors.Button_Pending.Alpha), LA("Edit Quest", player.UserIDString), 18, "0.1 0.16", "0.9 0.215", "QUI_ChangeElement editor");
@@ -2164,11 +2164,11 @@ namespace Oxide.Plugins
                     PlayerStats(player);
                     return;
                 case "editor":
-                    if (player.IsAdmin())
+                    if (player.IsAdmin)
                         DeletionEditMenu(player, LA("EDITOR", player.UserIDString), "QUI_EditQuest");
                     return;
                 case "creation":
-                    if (player.IsAdmin())
+                    if (player.IsAdmin)
                     {
                         if (ActiveCreations.ContainsKey(player.userID))
                             ActiveCreations.Remove(player.userID);
@@ -2176,7 +2176,7 @@ namespace Oxide.Plugins
                     }
                     return;
                 case "objpage":
-                    if (player.IsAdmin())
+                    if (player.IsAdmin)
                     {
                         var pageNumber = arg.GetString(1);
                         CreateObjectiveMenu(player, int.Parse(pageNumber));
@@ -2220,7 +2220,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var questType = arg.GetString(0);
                 var Type = ConvertStringToType(questType);
@@ -2241,7 +2241,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var vendorType = arg.GetString(0);
                 bool isVendor = false;
@@ -2259,7 +2259,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var questItem = string.Join(" ", arg.Args);
                 QuestCreator Creator;
@@ -2285,7 +2285,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var rewardType = arg.GetString(0);
                 QuestCreator Creator;
@@ -2379,7 +2379,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 QuestCreator Creator;
                 if (ActiveCreations.ContainsKey(player.userID))
@@ -2469,7 +2469,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 if (arg.Args == null || arg.Args.Length == 0)
                 {
@@ -2496,7 +2496,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 DeleteNPCMenu(player);
             }
@@ -2507,7 +2507,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var ID = arg.Args[0];
                 foreach(var npc in vendors.QuestVendors)
@@ -2534,7 +2534,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 var questName = string.Join(" ", arg.Args);
                 DestroyUI(player);
@@ -2547,7 +2547,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 if (ActiveEditors.ContainsKey(player.userID))
                     ActiveEditors.Remove(player.userID);
@@ -2569,7 +2569,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 if (ActiveEditors.ContainsKey(player.userID))
                 {
@@ -2609,7 +2609,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 QuestCreator Creator = ActiveEditors[player.userID];
                 var amount = arg.Args[0];
@@ -2631,7 +2631,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 CreateMenu(player);
                 DeletionEditMenu(player, LA("EDITOR", player.UserIDString), "QUI_EditQuest");
@@ -2643,7 +2643,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 bool creating = false;
                 if (ActiveCreations.ContainsKey(player.userID))
@@ -2657,7 +2657,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 bool creating = false;
                 if (ActiveCreations.ContainsKey(player.userID))
@@ -2671,7 +2671,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 QuestCreator Creator;
                 if (ActiveCreations.ContainsKey(player.userID))
@@ -2687,7 +2687,7 @@ namespace Oxide.Plugins
             var player = arg.Connection.player as BasePlayer;
             if (player == null)
                 return;
-            if (player.IsAdmin())
+            if (player.IsAdmin)
             {
                 CreationHelp(player, 8);
             }
@@ -2712,7 +2712,7 @@ namespace Oxide.Plugins
         void cmdOpenMenu(BasePlayer player, string command, string[] args)
         {
             if (AddVendor.ContainsKey(player.userID)) return;
-            if ((configData.UseNPCVendors && player.IsAdmin()) || !configData.UseNPCVendors)
+            if ((configData.UseNPCVendors && player.IsAdmin) || !configData.UseNPCVendors)
             {
                 CheckPlayerEntry(player);
                 CreateMenu(player);
@@ -2733,7 +2733,7 @@ namespace Oxide.Plugins
         [ChatCommand("questnpc")]
         void cmdQuestNPC(BasePlayer player, string command, string[] args)
         {
-            if (!player.IsAdmin()) return;
+            if (!player.IsAdmin) return;
             var NPC = FindEntity(player);            
             if (NPC != null)
             {

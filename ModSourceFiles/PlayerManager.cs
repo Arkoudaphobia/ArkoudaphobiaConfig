@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("PlayerManager", "Reneb", "1.0.9", ResourceId = 1535)]
+    [Info("PlayerManager", "Reneb", "1.0.10", ResourceId = 1535)]
     class PlayerManager : RustPlugin
     {
         [PluginReference]
@@ -590,7 +590,7 @@ namespace Oxide.Plugins
                         AddUI(player, fctext);
                     }
 
-                    if (targetplayer != null && targetplayer.IsConnected())
+                    if (targetplayer != null && targetplayer.IsConnected)
                     {
                         string lstext = GenerateText("PlayerManagerSelectOverlay", "Last Seen: Player is Connected", "10", "0.31", "0.60", "0.70", "0.75");
                         AddUI(player, lstext);

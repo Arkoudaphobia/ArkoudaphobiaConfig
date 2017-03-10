@@ -16,7 +16,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("NTeleportation", "Nogrod", "1.0.19", ResourceId = 1832)]
+    [Info("NTeleportation", "Nogrod", "1.0.20", ResourceId = 1832)]
     class NTeleportation : RustPlugin
     {
         private const string NewLine = "\n";
@@ -1121,7 +1121,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (player.IsAdmin())
+            if (player.IsAdmin)
                 player.SendConsoleCommand("ddraw.sphere", 60f, Color.blue, GetGround(positionCoordinates), 2.5f);
 
             err = CheckFoundation(player.userID, positionCoordinates);

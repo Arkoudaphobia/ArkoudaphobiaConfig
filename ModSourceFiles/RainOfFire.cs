@@ -5,7 +5,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("RainOfFire", "emu / k1lly0u", "0.2.4", ResourceId = 1249)]
+    [Info("RainOfFire", "emu / k1lly0u", "0.2.5", ResourceId = 1249)]
     class RainOfFire : RustPlugin
     {
         #region Fields
@@ -199,7 +199,7 @@ namespace Oxide.Plugins
         [ChatCommand("rof")]
         private void cmdROF(BasePlayer player, string command, string[] args)
         {
-            if (!player.IsAdmin() || args.Length == 0)
+            if (!player.IsAdmin || args.Length == 0)
             {
                 SendReply(player, msg("help1", player.UserIDString));
                 SendReply(player, msg("help2", player.UserIDString));
