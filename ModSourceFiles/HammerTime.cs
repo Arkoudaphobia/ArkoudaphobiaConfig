@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Hammer Time", "Shady", "1.0.13", ResourceId = 1711)]
+    [Info("Hammer Time", "Shady", "1.0.14", ResourceId = 1711)]
     [Description("Tweak settings for building blocks like demolish time, and rotate time.")]
     class HammerTime : RustPlugin
     {
@@ -162,7 +162,7 @@ namespace Oxide.Plugins
         object OnStructureDemolish(BuildingBlock block, BasePlayer player)
         {
             if (!MustOwnDemolish) return null;
-            if (AuthLevelOverride && player.IsAdmin()) return null;
+            if (AuthLevelOverride && player.IsAdmin) return null;
             if (permission.UserHasPermission(player.userID.ToString(), "hammertime.allowdemo")) return null;
             if (block.OwnerID == 0) return null;
             if (block.OwnerID != player.userID)
