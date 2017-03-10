@@ -11,7 +11,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Notifier", "SkinN", "3.1.3", ResourceId = 797)]
+    [Info("Notifier", "SkinN", "3.1.4", ResourceId = 797)]
     [Description("Server administration tool with chat based notifications")]
 
     class Notifier : RustPlugin
@@ -94,7 +94,7 @@ namespace Oxide.Plugins
             {
                 Name = player.displayName;
                 IpAddress = player.net.connection.ipaddress.Split(':')[0];
-                IsAdmin = player.IsAdmin();
+                IsAdmin = player.IsAdmin;
             }
         }
 
@@ -669,7 +669,7 @@ namespace Oxide.Plugins
 
         private List<string> GetActivePlayersList() { return (from ply in BasePlayer.activePlayerList where (PlayersData.ContainsKey(ply.UserIDString)) select ply.UserIDString).ToList(); }
 
-        private bool NotHide(BasePlayer player) { return (!(HideAdmins && player.IsAdmin())); }
+        private bool NotHide(BasePlayer player) { return (!(HideAdmins && player.IsAdmin)); }
 
         private string Pads(string target, int number = 2) { return target.PadLeft(number, '0'); }
 
@@ -758,7 +758,7 @@ namespace Oxide.Plugins
         private void PlayersList_Command(BasePlayer player, string command, string[] args)
         {
             List<string> Active = GetActivePlayersList();
-            List<string> PlayerNames = (from ply in Active where (!(PlayersData[ply].IsAdmin && HideAdmins) || player.IsAdmin()) select "<lightblue>" + PlayersData[ply].Name + "<end>").ToList();
+            List<string> PlayerNames = (from ply in Active where (!(PlayersData[ply].IsAdmin && HideAdmins) || player.IsAdmin) select "<lightblue>" + PlayersData[ply].Name + "<end>").ToList();
             List<List<string>> Chuncks = SplitList(PlayerNames);
             Tell(player, "<white>" + GetMsg("Players List Title") + "<end>");
 
@@ -853,7 +853,7 @@ namespace Oxide.Plugins
         {
             List<string> Active = GetActivePlayersList();
             List<string> PlayerNames = (from ply in Active where PlayersData[ply].IsAdmin select "<cyan>" + PlayersData[ply].Name + "<end>").ToList();
-            if (HideAdmins && !(player.IsAdmin()))
+            if (HideAdmins && !(player.IsAdmin))
                 Tell(player, GetMsg("No Admins Online"));
             else
             {
