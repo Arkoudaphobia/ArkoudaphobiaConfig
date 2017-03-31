@@ -3,12 +3,11 @@ using Oxide.Core.Libraries.Covalence;
 using System.Collections.Generic;
 using Oxide.Core.Plugins;
 using System.Linq;
-using Oxide.Core;
 using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "5.0.5", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "5.0.10", ResourceId = 979)]
     [Description("Manage Chat Groups, Customize Colors And Add Titles.")]
     internal class BetterChat : CovalencePlugin
     {
@@ -33,7 +32,91 @@ namespace Oxide.Plugins
         #endregion
 
         #region Classes
-        
+
+        public class BetterChatMessage
+        {
+            public IPlayer Player;
+            public string Text;
+            public List<string> Titles;
+            public string PrimaryGroup;
+            public ChatGroup.UsernameSettings Username;
+            public ChatGroup.MessageSettings Message;
+            public ChatGroup.FormatSettings Format;
+
+            public ChatGroup.FormatSettings GetOutput()
+            {
+                ChatGroup.FormatSettings output = new ChatGroup.FormatSettings();
+
+                Dictionary<string, string> replacements = new Dictionary<string, string>
+                {
+                    ["Title"] = string.Join(" ", Titles.ToArray()),
+                    ["Username"] = $"[#{Username.GetUniversalColor()}][+{Username.Size}]{Player.Name}[/+][/#]",
+                    ["Group"] = PrimaryGroup,
+                    ["Message"] = $"[#{Message.GetUniversalColor()}][+{Message.Size}]{Text}[/+][/#]",
+                    ["ID"] = Player.Id,
+                    ["Time"] = DateTime.Now.TimeOfDay.ToString(),
+                    ["Date"] = DateTime.Now.ToString()
+                };
+
+                output.Chat = Format.Chat;
+                output.Console = Format.Console;
+
+                foreach (var replacement in replacements)
+                {
+                    output.Console = Formatter.ToPlaintext(output.Console.Replace($"{{{replacement.Key}}}", replacement.Value));
+                    output.Chat = Instance.covalence.FormatText(output.Chat.Replace($"{{{replacement.Key}}}", replacement.Value));
+                }
+
+                return output;
+            }
+
+            public static BetterChatMessage FromDictionary(Dictionary<string, object> dict) => new BetterChatMessage
+            {
+                Player = (IPlayer)dict["Player"],
+                Text = (string)dict["Text"],
+                Titles = (List<string>)dict["Titles"],
+                PrimaryGroup = (string)dict["PrimaryGroup"],
+                Username = new ChatGroup.UsernameSettings
+                {
+                    Color = (string)((Dictionary<string, object>)dict["Username"])["Color"],
+                    Size = (int)((Dictionary<string, object>)dict["Username"])["Size"]
+                },
+                Message = new ChatGroup.MessageSettings
+                {
+                    Color = (string)((Dictionary<string, object>)dict["Message"])["Color"],
+                    Size = (int)((Dictionary<string, object>)dict["Message"])["Size"]
+                },
+                Format = new ChatGroup.FormatSettings
+                {
+                    Chat = (string)((Dictionary<string, object>)dict["Format"])["Chat"],
+                    Console = (string)((Dictionary<string, object>)dict["Format"])["Console"]
+                },
+            };
+
+            public Dictionary<string, object> ToDictionary() => new Dictionary<string, object>
+            {
+                ["Player"] = Player,
+                ["Text"] = Text,
+                ["Titles"] = Titles,
+                ["PrimaryGroup"] = PrimaryGroup,
+                ["Username"] = new Dictionary<string, object>
+                {
+                    ["Color"] = Username.Color,
+                    ["Size"] = Username.Size
+                },
+                ["Message"] = new Dictionary<string, object>
+                {
+                    ["Color"] = Message.Color,
+                    ["Size"] = Message.Size
+                },
+                ["Format"] = new Dictionary<string, object>
+                {
+                    ["Chat"] = Format.Chat,
+                    ["Console"] = Format.Console
+                },
+            };
+        }
+
         public class ChatGroupField
         {
             public Action<ChatGroup, string> FieldSetter;
@@ -76,7 +159,7 @@ namespace Oxide.Plugins
 
                 ["UsernameColor"] = new ChatGroupField(g => g.Username.Color, (g, v) => g.Username.Color = v, "color"),
                 ["UsernameSize"] = new ChatGroupField(g => g.Username.Size, (g, v) => g.Username.Size = int.Parse(v), "number"),
-                
+
                 ["MessageColor"] = new ChatGroupField(g => g.Message.Color, (g, v) => g.Message.Color = v, "color"),
                 ["MessageSize"] = new ChatGroupField(g => g.Message.Size, (g, v) => g.Message.Size = int.Parse(v), "number"),
 
@@ -112,8 +195,8 @@ namespace Oxide.Plugins
 
                 return primary;
             }
-            
-            public static FormatSettings FormatMessage(IPlayer player, string message)
+
+            public static BetterChatMessage FormatMessage(IPlayer player, string message)
             {
                 ChatGroup primary = GetUserPrimaryGroup(player);
                 List<ChatGroup> groups = GetUserGroups(player);
@@ -126,12 +209,9 @@ namespace Oxide.Plugins
                 string console = primary.Format.Console;
                 string chat = primary.Format.Chat;
 
-                string username = $"[#{primary.Username.GetUniversalColor()}][+{primary.Username.Size}]{player.Name}[/+][/#]";
-                message = $"[#{primary.Message.GetUniversalColor()}][+{primary.Message.Size}]{message}[/+][/#]";
-
                 List<string> titles = (from g in groups
-                    where !g.Title.Hidden && !(g.Title.HiddenIfNotPrimary && primary != g)
-                    select $"[#{g.Title.GetUniversalColor()}][+{g.Title.Size}]{g.Title.Text}[/+][/#]")
+                                       where !g.Title.Hidden && !(g.Title.HiddenIfNotPrimary && primary != g)
+                                       select $"[#{g.Title.GetUniversalColor()}][+{g.Title.Size}]{g.Title.Text}[/+][/#]")
                     .ToList();
 
                 titles = titles.GetRange(0, Math.Min(Configuration.MaxTitles, titles.Count));
@@ -151,27 +231,15 @@ namespace Oxide.Plugins
                     }
                 }
 
-                Dictionary<string, string> replacements = new Dictionary<string, string>
+                return new BetterChatMessage
                 {
-                    ["Title"]   = string.Join(" ", titles.ToArray()),
-                    ["Username"]= username,
-                    ["Group"]   = primary.GroupName,
-                    ["Message"] = message,
-                    ["ID"] = player.Id,
-                    ["Time"] = DateTime.Now.TimeOfDay.ToString(),
-                    ["Date"] = DateTime.Now.ToString()
-                };
-
-                foreach (var replacement in replacements)
-                {
-                    console = console.Replace($"{{{replacement.Key}}}", replacement.Value);
-                    chat = chat.Replace($"{{{replacement.Key}}}", replacement.Value);
-                }
-
-                return new FormatSettings
-                {
-                    Chat = Instance.covalence.FormatText(chat),
-                    Console = Formatter.ToPlaintext(console)
+                    Player = player,
+                    Text = message,
+                    Titles = titles,
+                    PrimaryGroup = primary.GroupName,
+                    Username = primary.Username,
+                    Message = primary.Message,
+                    Format = primary.Format
                 };
             }
 
@@ -192,7 +260,7 @@ namespace Oxide.Plugins
                 {
                     return SetFieldResult.InvalidValue;
                 }
-                
+
                 return SetFieldResult.Success;
             }
 
@@ -200,7 +268,7 @@ namespace Oxide.Plugins
             {
                 Dictionary<string, object> fields = new Dictionary<string, object>();
 
-                foreach (KeyValuePair<string,ChatGroupField> field in Fields)
+                foreach (KeyValuePair<string, ChatGroupField> field in Fields)
                     fields.Add(field.Key, field.Value.FieldGetter(this));
 
                 return fields;
@@ -328,17 +396,31 @@ namespace Oxide.Plugins
 
         object OnUserChat(IPlayer player, string message)
         {
-            object hookResult = Interface.CallHook("OnBetterChat", player, message);
+            BetterChatMessage chatMessage = ChatGroup.FormatMessage(player, message);
+            var chatMessageDict = chatMessage.ToDictionary();
 
-            if (hookResult is string)
-                message = (string) hookResult;
-            else if (hookResult != null)
-                return null;
+            foreach (Plugin plugin in plugins.GetAll())
+            {
+                object hookResult = plugin.CallHook("OnBetterChat", chatMessageDict);
 
-            var output = ChatGroup.FormatMessage(player, message);
+                if (hookResult is Dictionary<string, object>)
+                {
+                    try
+                    {
+                        chatMessageDict = (Dictionary<string, object>)hookResult;
+                    }
+                    catch (Exception e)
+                    {
+                        PrintError($"Failed to load modified OnBetterChat data from plugin '{plugin.Title} ({plugin.Version})':{Environment.NewLine}{e}");
+                        continue;
+                    }
+                }
+                else if (hookResult != null)
+                    return null;
+            }
 
-            if (output == null)
-                return null;
+            chatMessage = BetterChatMessage.FromDictionary(chatMessageDict);
+            var output = chatMessage.GetOutput();
 
 #if RUST
             ConsoleNetwork.BroadcastToAllClients("chat.add", new object[] { player.Id, output.Chat });
@@ -378,7 +460,7 @@ namespace Oxide.Plugins
             return $"[#{primary.Username.GetUniversalColor()}][+{primary.Username.Size}]{player.Name}[/+][/#]";
         }
 
-        private string API_GetFormattedMessage(IPlayer player, string message, bool console = false) => console ? ChatGroup.FormatMessage(player, message).Console : ChatGroup.FormatMessage(player, message).Chat;
+        private string API_GetFormattedMessage(IPlayer player, string message, bool console = false) => console ? ChatGroup.FormatMessage(player, message).GetOutput().Console : ChatGroup.FormatMessage(player, message).GetOutput().Chat;
 
         private void API_RegisterThirdPartyTitle(Plugin plugin, Func<IPlayer, string> titleGetter) => ThirdPartyTitles[plugin] = titleGetter;
 
@@ -564,7 +646,7 @@ namespace Oxide.Plugins
 
         private IPlayer GetPlayer(string nameOrID, IPlayer player)
         {
-            if (IsParseableTo<ulong>(nameOrID) && nameOrID.StartsWith("7656119") && nameOrID.Length == 17)
+            if (IsParseableTo<string, ulong>(nameOrID) && nameOrID.StartsWith("7656119") && nameOrID.Length == 17)
             {
                 IPlayer result = players.All.ToList().Find((p) => p.Id == nameOrID);
 
@@ -607,17 +689,10 @@ namespace Oxide.Plugins
 
         #region Convert Helper
 
-        private bool IsParseableTo<T>(object s)
+        private bool IsParseableTo<S, R>(S s)
         {
-            try
-            {
-                var parsed = (T)Convert.ChangeType(s, typeof(T));
-                return true;
-            }
-            catch
-            {
-                return false;
-            }
+            R result;
+            return TryParse(s, out result);
         }
 
         private bool TryParse<S, R>(S s, out R c)

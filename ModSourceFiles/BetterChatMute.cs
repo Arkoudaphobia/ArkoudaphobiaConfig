@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.4", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.6", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
@@ -80,8 +80,12 @@ namespace Oxide.Plugins
 
                 foreach (string id in expired)
                 {
+                    IPlayer player = players.FindPlayerById(id);
+
                     mutes.Remove(id);
-                    PublicMessage("Mute Expired", new KeyValuePair<string, string>("player", players.FindPlayerById(id)?.Name));
+                    PublicMessage("Mute Expired", new KeyValuePair<string, string>("player", player?.Name));
+
+                    Interface.CallHook("OnBetterChatMuteExpired", player);
 
                     if (!hasExpired)
                         hasExpired = true;
@@ -97,8 +101,9 @@ namespace Oxide.Plugins
 
         private object OnUserChat(IPlayer player, string message) => HandleChat(player);
 
-        private object OnBetterChat(IPlayer player, string message)
+        private object OnBetterChat(Dictionary<string, object> messageData)
         {
+            IPlayer player = (IPlayer) messageData["Player"];
             object result = HandleChat(player);
 
             if (result is bool && !(bool)result)
@@ -154,7 +159,7 @@ namespace Oxide.Plugins
             switch (args.Length)
             {
                 case 1:
-                    if (!permission.UserHasPermission(player.Id, "betterchatmute.permanent"))
+                    if (!permission.UserHasPermission(player.Id, "betterchatmute.permanent") && player.Id != "server_console")
                     {
                         player.Reply(lang.GetMessage("No Permission", this, player.Id));
                         return;
@@ -274,6 +279,10 @@ namespace Oxide.Plugins
             {
                 mutes.Remove(player.Id);
                 SaveData(mutes);
+
+                PublicMessage("Mute Expired", new KeyValuePair<string, string>("player", players.FindPlayerById(player.Id)?.Name));
+
+                Interface.CallHook("OnBetterChatMuteExpired", player);
             }
         }
 

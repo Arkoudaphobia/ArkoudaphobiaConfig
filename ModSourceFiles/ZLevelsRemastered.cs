@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.3", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.4", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -1157,13 +1157,14 @@ namespace Oxide.Plugins
 			}
             return penaltyPercent;
         }
+		
 
 		void levelHandler(BasePlayer player, Item item, string skill)
         {
             var xpPercentBefore = getExperiencePercent(player, skill);
             var Level = getLevel(player.userID, skill);
             var Points = getPoints(player.userID, skill);
-            item.amount = (int)(item.amount * getGathMult(Level, skill));
+            item.amount = Mathf.CeilToInt((float)(item.amount * getGathMult(Level, skill)));
             var pointsToGet = (int)pointsPerHitCurrent[skill];
             var xpMultiplier = Convert.ToInt64(playerPrefs.PlayerInfo[player.userID].XPM);
             Points += Convert.ToInt64(pointsToGet * (xpMultiplier / 100f));

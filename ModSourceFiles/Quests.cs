@@ -12,7 +12,7 @@ using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("Quests", "k1lly0u", "2.2.2", ResourceId = 1084)]
+    [Info("Quests", "k1lly0u", "2.2.3", ResourceId = 1084)]
     public class Quests : RustPlugin
     {
         #region Fields
@@ -427,20 +427,22 @@ namespace Oxide.Plugins
             if (ActiveEditors.ContainsKey(player.userID) || ActiveCreations.ContainsKey(player.userID) || AddVendor.ContainsKey(player.userID))
             {
                 QuestChat(player,arg.Args);
+                
                 return false;
             }
             return null;
         }
-        object OnBetterChat(IPlayer iplayer, string message)
+        object OnBetterChat(Dictionary<string, object> dict)
         {
-            var player = iplayer.Object as BasePlayer;
-            if (player == null) return message;
+            var player = (dict["Player"] as IPlayer).Object as BasePlayer;
+            if (player == null) return null;
+            string message = dict["Text"].ToString();
             if (ActiveEditors.ContainsKey(player.userID) || ActiveCreations.ContainsKey(player.userID) || AddVendor.ContainsKey(player.userID))
             {
-                QuestChat(player, message.Split(' '));
-                return true;
+                QuestChat(player, message.Split(' '));                
+                return false;
             }
-            return message;
+            return dict;
         }
         void QuestChat(BasePlayer player, string[] arg)
         {
