@@ -9,12 +9,13 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.6", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.7", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
         private static Dictionary<string, MuteInfo> mutes = new Dictionary<string, MuteInfo>();
         private bool hasExpired = false;
+        private bool globalMute = false;
 
         #region Classes
 
@@ -71,7 +72,10 @@ namespace Oxide.Plugins
                 ["Time Muted Player Joined"] = "{player} is temporarily muted. Remaining time: {time}",
                 ["Time Muted Player Chat"] = "You may not chat, you are temporarily muted. Remaining time: {time}",
                 ["Muted Player Joined"] = "{player} is permanently muted.",
-                ["Muted Player Chat"] = "You may not chat, you are permanently muted."
+                ["Muted Player Chat"] = "You may not chat, you are permanently muted.",
+                ["Global Mute Enabled"] = "Global mute was enabled. Nobody can chat while global mute is active.",
+                ["Global Mute Disabled"] = "Global mute was disabled. Everybody can chat again.",
+                ["Global Mute Active"] = "Global mute is active, you may not chat."
             }, this);
 
             timer.Repeat(10, 0, () =>
@@ -135,6 +139,17 @@ namespace Oxide.Plugins
         #endregion
 
         #region Commands
+
+        [Command("toggleglobalmute"), Permission("betterchatmute.use.global")]
+        private void CmdGlobalMute(IPlayer player, string cmd, string[] args)
+        {
+            globalMute = !globalMute;
+
+            if (globalMute)
+                PublicMessage("Global Mute Enabled");
+            else
+                PublicMessage("Global Mute Disabled");
+        }
 
         [Command("mutelist"), Permission("betterchatmute.use")]
         private void CmdMuteList(IPlayer player, string cmd, string[] args)
@@ -269,6 +284,12 @@ namespace Oxide.Plugins
 
             if (MuteInfo.IsMuted(player))
                 return false;
+
+            if (globalMute && !permission.UserHasPermission(player.Id, "betterchatmute.use.global"))
+            {
+                player.Reply(lang.GetMessage("Global Mute Active", this, player.Id));
+                return false;
+            }
 
             return null;
         }
