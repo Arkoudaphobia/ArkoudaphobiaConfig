@@ -7,7 +7,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "5.0.10", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "5.0.11", ResourceId = 979)]
     [Description("Manage Chat Groups, Customize Colors And Add Titles.")]
     internal class BetterChat : CovalencePlugin
     {
@@ -66,6 +66,12 @@ namespace Oxide.Plugins
                     output.Console = Formatter.ToPlaintext(output.Console.Replace($"{{{replacement.Key}}}", replacement.Value));
                     output.Chat = Instance.covalence.FormatText(output.Chat.Replace($"{{{replacement.Key}}}", replacement.Value));
                 }
+
+                if (output.Chat.StartsWith(" "))
+                    output.Chat = output.Chat.Remove(0, 1);
+
+                if (output.Console.StartsWith(" "))
+                    output.Console = output.Console.Remove(0, 1);
 
                 return output;
             }
