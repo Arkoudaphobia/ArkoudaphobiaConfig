@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Hammer Time", "Shady", "1.0.15", ResourceId = 1711)]
+    [Info("Hammer Time", "Shady", "1.0.16", ResourceId = 1711)]
     [Description("Tweak settings for building blocks like demolish time, and rotate time.")]
     class HammerTime : RustPlugin
     {
@@ -151,7 +151,7 @@ namespace Oxide.Plugins
        object OnStructureRepair(BaseCombatEntity block, BasePlayer player)
         {
             if (block == null || player == null || !HasPerms(player.UserIDString, "hammertime.repaircooldown") || RepairCooldown == 8f) return null;
-            if (block.TimeSinceAttacked() < RepairCooldown) return false;
+            if (block.SecondsSinceAttacked < RepairCooldown) return false;
             return null;
         }
 
@@ -159,7 +159,7 @@ namespace Oxide.Plugins
         {
             if (!HasPerms(player.UserIDString, "hammertime.repaircooldown")) return null;
             var entity = hitInfo?.HitEntity?.GetComponent<BaseCombatEntity>() ?? null;
-            if (entity != null && entity.TimeSinceAttacked() < RepairCooldown) return false;
+            if (entity != null && entity.SecondsSinceAttacked < RepairCooldown) return false;
             return null;
         }
 

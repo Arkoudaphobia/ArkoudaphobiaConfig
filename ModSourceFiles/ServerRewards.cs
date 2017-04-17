@@ -18,7 +18,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ServerRewards", "k1lly0u", "0.3.92", ResourceId = 1751)]
+    [Info("ServerRewards", "k1lly0u", "0.3.93", ResourceId = 1751)]
     public class ServerRewards : RustPlugin
     {
         #region Fields
@@ -268,20 +268,20 @@ namespace Oxide.Plugins
                 var amount = Economics?.Call("GetPlayerMoney", player.userID);
                 message = message + $" || {configData.Messaging.MSG_MainColor}Economics: {amount}</color>";
             }
-            if (configData.Options.Use_PTT && PlaytimeTracker)
-            {
-                var time = PlaytimeTracker?.Call("GetPlayTime", player.UserIDString);
-                if (time is double)
-                {
-                    var playTime = GetPlaytimeClock((double)time);
-                    if (!string.IsNullOrEmpty(playTime))
-                        message = $"{configData.Messaging.MSG_MainColor}{msg("storePlaytime", player.UserIDString)}: {playTime}</color> || " + message;
-                }
-            }
+            //if (configData.Options.Use_PTT && PlaytimeTracker)
+            //{
+            //    var time = PlaytimeTracker?.Call("GetPlayTime", player.UserIDString);
+            //    if (time is double)
+            //    {
+            //        var playTime = GetPlaytimeClock((double)time);
+            //        if (!string.IsNullOrEmpty(playTime))
+            //            message = $"{configData.Messaging.MSG_MainColor}{msg("storePlaytime", player.UserIDString)}: {playTime}</color> || " + message;
+            //    }
+            //}
 
             SR_UI.CreateLabel(ref element, UIRP, "0 0 0 0", message, 20, "0 0", "1 1", TextAnchor.MiddleCenter, 0f);
             CuiHelper.AddUi(player, element);
-            timer.Once(1, () => DisplayPoints(player));
+            //timer.Once(1, () => DisplayPoints(player));
         }
         private void PopupMessage(BasePlayer player, string msg)
         {
@@ -297,10 +297,11 @@ namespace Oxide.Plugins
         {
             CuiElementContainer element = GetElement(ElementType.Navigation, 0, npcid);
             CuiHelper.AddUi(player, element);
-            DisplayPoints(player);
+            //DisplayPoints(player);
         }
         private void SwitchElement(BasePlayer player, ElementType type, int page = 0, string npcid = null)
         {
+            CuiHelper.DestroyUi(player, UIRP); // Remove this when fixed
             if (!OpenUI.ContainsKey(player.userID))
             {
                 DestroyUI(player);
@@ -328,7 +329,6 @@ namespace Oxide.Plugins
                 OpenUI[player.userID].type = ElementType.Exchange;
                 OpenUI[player.userID].page = 0;
                 CuiHelper.AddUi(player, element);
-                return;
             }
             else
             {
@@ -340,6 +340,7 @@ namespace Oxide.Plugins
                 OpenUI[player.userID].type = type;
                 CuiHelper.AddUi(player, element);
             }
+            DisplayPoints(player); // Remove this when fixed
         }
         private CuiElementContainer GetElement(ElementType type, int page, string npcid = null)
         {
@@ -458,9 +459,9 @@ namespace Oxide.Plugins
         }
         void InitializeAllElements()
         {
-            if (imageData.storedImages.Count > 0 && imageData.instanceId != CommunityEntity.ServerInstance.net.ID)
+            if (imageData.storedImages.Count == 0 || imageData.instanceId != CommunityEntity.ServerInstance.net.ID)
             {
-                RelocateImages();
+                LoadImages();
                 return;
             }
 
@@ -1529,6 +1530,8 @@ namespace Oxide.Plugins
                 AddPoints(player.userID, configData.CurrencyExchange.RP_ExchangeRate);
                 PopupMessage(player, $"{msg("exchange", player.UserIDString)}{configData.CurrencyExchange.Econ_ExchangeRate} {msg("storeCoins", player.UserIDString)} for {configData.CurrencyExchange.RP_ExchangeRate} {msg("storeRP", player.UserIDString)}");
             }
+            CuiHelper.DestroyUi(player, UIRP); // Remove this when fixed
+            DisplayPoints(player); // Remove this when fixed
         }
 
         [ConsoleCommand("SRUI_Transfer")]

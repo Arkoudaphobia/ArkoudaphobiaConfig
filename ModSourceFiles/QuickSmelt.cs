@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("QuickSmelt", "Wulf/Fujikura", "3.0.1", ResourceId = 1067)]
+    [Info("QuickSmelt", "Wulf/Fujikura", "3.0.2", ResourceId = 1067)]
     [Description("Increases the speed of the furnace smelting")]
 
     class QuickSmelt : RustPlugin
@@ -297,10 +297,10 @@ namespace Oxide.Plugins
 					float ovenMultiplier = Convert.ToSingle(checkMultiplier);
 					if (ovenMultiplier > 10f) ovenMultiplier = 10f;
 					if (ovenMultiplier < 0.1f) ovenMultiplier = 0.1f;
-					InvokeHandlerEx.CancelInvoke(oven.GetComponent<MonoBehaviour>(), new Action((oven as BaseOven).Cook));
+					InvokeHandler.CancelInvoke(oven.GetComponent<MonoBehaviour>(), new Action((oven as BaseOven).Cook));
 					(oven as BaseOven).inventory.temperature = CookingTemperature((oven as BaseOven).temperature);
 					(oven as BaseOven).UpdateAttachmentTemperature();
-					InvokeHandlerEx.InvokeRepeating(oven.GetComponent<MonoBehaviour>(), new Action((oven as BaseOven).Cook), 0.5f / ovenMultiplier, 0.5f / ovenMultiplier);
+					InvokeHandler.InvokeRepeating(oven.GetComponent<MonoBehaviour>(), new Action((oven as BaseOven).Cook), 0.5f / ovenMultiplier, 0.5f / ovenMultiplier);
 					
 				}
 			}
@@ -334,8 +334,8 @@ namespace Oxide.Plugins
 				return;
 			oven.inventory.temperature = CookingTemperature(oven.temperature);
 			oven.UpdateAttachmentTemperature();
-			InvokeHandlerEx.CancelInvoke(entity.GetComponent<MonoBehaviour>(), new Action(oven.Cook));
-			InvokeHandlerEx.InvokeRepeating(entity.GetComponent<MonoBehaviour>(), new Action(oven.Cook), 0.5f / ovenMultiplier, 0.5f / ovenMultiplier);
+			InvokeHandler.CancelInvoke(entity.GetComponent<MonoBehaviour>(), new Action(oven.Cook));
+			InvokeHandler.InvokeRepeating(entity.GetComponent<MonoBehaviour>(), new Action(oven.Cook), 0.5f / ovenMultiplier, 0.5f / ovenMultiplier);
 			entity.SetFlag(BaseEntity.Flags.On, true, false);
 		}
 		

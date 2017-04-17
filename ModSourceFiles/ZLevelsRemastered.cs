@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.4", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.6", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -39,11 +39,14 @@ namespace Oxide.Plugins
 		#region Config
 
 		int gameProtocol;
+		int penaltyMinutes;
+		bool penaltyOnDeath;
 		bool wipeDataOnNewSave;
 		bool enablePermission;
 		bool enableNightBonus;
 		bool logEnabledBonusConsole;
 		bool broadcastEnabledBonus;
+		bool enableLevelupBroadcast;
 		string permissionName;
 		string pluginPrefix;
 		Dictionary<string, object> defaultMultipliers;
@@ -93,10 +96,13 @@ namespace Oxide.Plugins
 		void LoadVariables()
 		{
 			gameProtocol = Convert.ToInt32(GetConfig("Generic", "gameProtocol", Rust.Protocol.network));
+			penaltyMinutes = Convert.ToInt32(GetConfig("Generic", "penaltyMinutes", 10));
+			penaltyOnDeath = Convert.ToBoolean(GetConfig("Generic", "penaltyOnDeath", true));
 			wipeDataOnNewSave = Convert.ToBoolean(GetConfig("Generic", "wipeDataOnNewSave", false));
 			enablePermission = Convert.ToBoolean(GetConfig("Generic", "enablePermission", false));
 			permissionName = Convert.ToString(GetConfig("Generic", "permissionName", "zlevelsremastered.use"));
 			pluginPrefix = Convert.ToString(GetConfig("Generic", "pluginPrefix", "<color=orange>ZLevels</color>:"));
+			enableLevelupBroadcast = Convert.ToBoolean(GetConfig("Generic", "enableLevelupBroadcast", false));
 
 			defaultMultipliers = (Dictionary<string, object>)GetConfig("Settings", "DefaultResourceMultiplier", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 1},
@@ -189,6 +195,7 @@ namespace Oxide.Plugins
 				{"StatsHeadline", "Level stats (/statinfo - To get more information about skills)"},
 				{"StatsText",   "-{0}\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3} [{5}].\n<color=red>-{6} XP loose on death.</color>"},
 				{"LevelUpText", "{0} Level up\nLevel: {1} (+{4}% bonus) \nXP: {2}/{3}"},
+				{"LevelUpTextBroadcast", "<color=#5af>{0}</color> has reached level <color=#5af>{1}</color> in <color={2}>{3}</color>"},
 				{"PenaltyText", "<color=orange>You have lost XP for dying:{0}</color>"},
 				{"NoPermission", "You don't have permission to use this command"},
 				{"WCSkill", "Woodcutting"},
@@ -416,7 +423,7 @@ namespace Oxide.Plugins
 
 		void OnEntityDeath(BaseCombatEntity entity, HitInfo hitInfo)
         {
-            if (!initialized || entity == null || !(entity is BasePlayer)) return;
+            if (!initialized || !penaltyOnDeath || entity == null || !(entity is BasePlayer)) return;
 			var player = entity as BasePlayer;
 			PlayerInfo p = null;
 			if (!hasRights(player.UserIDString) || !playerPrefs.PlayerInfo.TryGetValue(player.userID, out p)) return;
@@ -592,15 +599,15 @@ namespace Oxide.Plugins
                 if (!maxLevel)
                 {
                     Level = getPointsLevel(Points, Skills.CRAFTING);
-                    PrintToChat(crafter, string.Format("<color=" + colors[Skills.CRAFTING] + '>' + msg("LevelUpText", crafter.UserIDString) + "</color>",
-                        msg("CSkill", crafter.UserIDString),
-                        Level,
-                        Points,
-                        getLevelPoints(Level + 1),
-                        (getLevel(crafter.userID, Skills.CRAFTING) * Convert.ToDouble(craftingDetails["PercentFasterPerLevel"]))
-                        )
-                    );
-                }
+                    PrintToChat(crafter, string.Format("<color=" + colors[Skills.CRAFTING] + '>' + msg("LevelUpText", crafter.UserIDString) + "</color>", msg("CSkill", crafter.UserIDString), Level, Points, getLevelPoints(Level + 1), (getLevel(crafter.userID, Skills.CRAFTING) * Convert.ToDouble(craftingDetails["PercentFasterPerLevel"]))));
+					if (enableLevelupBroadcast)
+					{
+						foreach (var target in BasePlayer.activePlayerList.Where(x => x.userID != crafter.userID))
+						{
+							PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), crafter.displayName, Level, colors[Skills.CRAFTING], msg("CSkill", crafter.UserIDString)));
+						}
+					}
+				}
             }
             try
             {
@@ -641,10 +648,11 @@ namespace Oxide.Plugins
 			sb.AppendLine("/statsui - Enable/Disable stats UI.");
 			sb.AppendLine("/statinfo - Displays information about skills.");
 			sb.AppendLine("/stathelp - Displays the help.");
-			sb.AppendLine("/topskills - Display max levels reached so far.");
+			//sb.AppendLine("/topskills - Display max levels reached so far.");
 			player.ChatMessage(sb.ToString());
         }
 
+		/*
 		[ChatCommand("topskills")]
         void StatsTopCommand(BasePlayer player, string command, string[] args)
         {
@@ -657,13 +665,12 @@ namespace Oxide.Plugins
 			sb.AppendLine("<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>");
 			sb.AppendLine("Data temporary not available");
 			player.ChatMessage(sb.ToString());
-			/*
 			PrintToChat(player, "Max stats on server so far:");
             foreach (var skill in Skills.ALL)
                 if (!IsSkillDisabled(skill))
                     printMaxSkillDetails(player, skill);
-			*/
         }
+		*/
 		
 		[ConsoleCommand("zl.pointsperhit")]
         void PointsPerHitCommand(ConsoleSystem.Arg arg)
@@ -1149,7 +1156,7 @@ namespace Oxide.Plugins
 			var currentTime = DateTime.UtcNow;
 			var lastDeath = ToDateTimeFromEpoch(details);
 			var timeAlive = currentTime - lastDeath;
-			if (timeAlive.TotalMinutes > 10)
+			if (timeAlive.TotalMinutes >= penaltyMinutes)
 			{
 				penaltyPercent = ((int)percentLostOnDeath[skill] - ((int)timeAlive.TotalHours * (int)percentLostOnDeath[skill] / 10));
 				if (penaltyPercent < 0)
@@ -1177,14 +1184,14 @@ namespace Oxide.Plugins
                     if (!maxLevel)
                     {
                         Level = getPointsLevel(Points, skill);
-                        PrintToChat(player, string.Format("<color=" + colors[skill] + '>' + msg("LevelUpText", player.UserIDString) + "</color>",
-                            msg(skill + "Skill", player.UserIDString),
-                            Level,
-                            Points,
-                            getLevelPoints(Level + 1),
-                            ((getGathMult(Level, skill) - 1) * 100).ToString("0.##")
-                            )
-                        );
+                        PrintToChat(player, string.Format("<color=" + colors[skill] + '>' + msg("LevelUpText", player.UserIDString) + "</color>", msg(skill + "Skill", player.UserIDString), Level, Points, getLevelPoints(Level + 1), ((getGathMult(Level, skill) - 1) * 100).ToString("0.##")));
+						if (enableLevelupBroadcast)
+						{
+							foreach (var target in BasePlayer.activePlayerList.Where(x => x.userID != player.userID))
+							{
+								PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), player.displayName, Level, colors[skill], msg(skill + "Skill", target.UserIDString)));
+							}
+						}
                     }
                 }
             } catch {}
@@ -1300,18 +1307,11 @@ namespace Oxide.Plugins
 
         long getPointsNeededForNextLevel(long level)
         {
-            //var startingPoints = getLevelPoints(level);
-            //var nextLevelPoints = getLevelPoints(level + 1);
-            //var pointsNeeded = nextLevelPoints - startingPoints;
-            //return pointsNeeded;
 			return getLevelPoints(level + 1) - getLevelPoints(level);
         }
 
         long getPercentAmount(long level, int percent)
         {
-            //var points = getPointsNeededForNextLevel(level);
-            //var percentPoints = (points * percent) / 100;
-            //return percentPoints;
 			return (getPointsNeededForNextLevel(level) * percent) / 100;
         }
 

@@ -1,5 +1,3 @@
-// Reference: RustBuild
-
 using System.Collections.Generic;
 using System;
 using System.Globalization;
@@ -20,7 +18,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("ZoneManager", "Reneb / Nogrod", "2.4.11", ResourceId = 739)]
+    [Info("ZoneManager", "Reneb / Nogrod", "2.4.12", ResourceId = 739)]
     public class ZoneManager : RustPlugin
     {
         private const string PermZone = "zonemanager.zone";
@@ -122,7 +120,7 @@ namespace Oxide.Plugins
         private readonly Dictionary<ulong, string> LastZone = new Dictionary<ulong, string>();
         private readonly Dictionary<BasePlayer, HashSet<Zone>> playerZones = new Dictionary<BasePlayer, HashSet<Zone>>();
         private readonly Dictionary<BaseCombatEntity, HashSet<Zone>> buildingZones = new Dictionary<BaseCombatEntity, HashSet<Zone>>();
-        private readonly Dictionary<BaseNPC, HashSet<Zone>> npcZones = new Dictionary<BaseNPC, HashSet<Zone>>();
+        private readonly Dictionary<BaseNpc, HashSet<Zone>> npcZones = new Dictionary<BaseNpc, HashSet<Zone>>();
         private readonly Dictionary<ResourceDispenser, HashSet<Zone>> resourceZones = new Dictionary<ResourceDispenser, HashSet<Zone>>();
         private readonly Dictionary<BaseEntity, HashSet<Zone>> otherZones = new Dictionary<BaseEntity, HashSet<Zone>>();
         private readonly Dictionary<BasePlayer, ZoneFlags> playerTags = new Dictionary<BasePlayer, ZoneFlags>();
@@ -137,7 +135,7 @@ namespace Oxide.Plugins
         private static readonly FieldInfo decayDelayTime = typeof(DecayEntity).GetField("decayDelayTime", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo decayDeltaTime = typeof(DecayEntity).GetField("decayDeltaTime", BindingFlags.Instance | BindingFlags.NonPublic);
 
-        private readonly FieldInfo npcNextTick = typeof(NPCAI).GetField("nextTick", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
+        //private readonly FieldInfo npcNextTick = typeof(NPCAI).GetField("nextTick", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
         //private static readonly int triggerLayer = LayerMask.NameToLayer("Trigger");
         private static readonly int playersMask = LayerMask.GetMask("Player (Server)");
         //private static readonly int buildingMask = LayerMask.GetMask("Deployed", "Player (Server)", "Default", "Prevent Building");
@@ -409,7 +407,7 @@ namespace Oxide.Plugins
                 var player = entity as BasePlayer;
                 if (player != null)
                     players.Remove(player);
-                else if (entity != null && !(entity is LootContainer) && !(entity is BaseHelicopter) && !(entity is BaseNPC))
+                else if (entity != null && !(entity is LootContainer) && !(entity is BaseHelicopter) && !(entity is BaseNpc))
                     buildings.Remove(entity);
             }
 
@@ -432,7 +430,7 @@ namespace Oxide.Plugins
                 }
                 var entity = col.GetComponentInParent<BaseEntity>();
                 if (entity == null) return;
-                var npc = entity as BaseNPC;
+                var npc = entity as BaseNpc;
                 if (npc != null)
                 {
                     ZoneManagerPlugin.OnNpcEnterZone(this, npc);
@@ -466,7 +464,7 @@ namespace Oxide.Plugins
                 }
                 var entity = col.GetComponentInParent<BaseEntity>();
                 if (entity == null) return;
-                var npc = entity as BaseNPC;
+                var npc = entity as BaseNpc;
                 if (npc != null)
                 {
                     ZoneManagerPlugin.OnNpcExitZone(this, npc);
@@ -899,7 +897,7 @@ namespace Oxide.Plugins
                     CancelDamage(hitinfo);
                 return;
             }
-            var npcai = entity as BaseNPC;
+            var npcai = entity as BaseNpc;
             if (npcai != null)
             {
                 HashSet<Zone> zones;
@@ -957,7 +955,7 @@ namespace Oxide.Plugins
                     OnPlayerExitZone(null, player, true);
                 return;
             }
-            var npc = entity as BaseNPC;
+            var npc = entity as BaseNpc;
             if (npc != null)
             {
                 HashSet<Zone> zones;
@@ -1022,9 +1020,10 @@ namespace Oxide.Plugins
                     }
                 }
             }
-            var npcai = entity.GetComponent<NPCAI>();
+            //temp fix
+            /*var npcai = entity.GetComponent<NPCAI>();
             if (npcai != null)
-                npcNextTick.SetValue(npcai, Time.time + 10f);
+                npcNextTick.SetValue(npcai, Time.time + 10f);*/
         }
 
         /////////////////////////////////////////
@@ -1607,22 +1606,23 @@ namespace Oxide.Plugins
             //Puts("OnResourceExitZone: {0}", resource.GetType());
         }
 
-        private void OnNpcEnterZone(Zone zone, BaseNPC entity)
+        private void OnNpcEnterZone(Zone zone, BaseNpc entity)
         {
             HashSet<Zone> zones;
             if (!npcZones.TryGetValue(entity, out zones))
                 npcZones[entity] = zones = new HashSet<Zone>();
             if (!zones.Add(zone)) return;
-            if (HasZoneFlag(zone, ZoneFlags.NpcFreeze))
+            //temp fix
+            /*if (HasZoneFlag(zone, ZoneFlags.NpcFreeze))
             {
                 var npcai = entity.GetComponent<NPCAI>();
                 if (npcai != null)
                     npcNextTick.SetValue(npcai, 999999999999f);
-            }
+            }*/
             //Puts("OnNpcEnterZone: {0}", entity.GetType());
         }
 
-        private void OnNpcExitZone(Zone zone, BaseNPC entity, bool all = false)
+        private void OnNpcExitZone(Zone zone, BaseNpc entity, bool all = false)
         {
             HashSet<Zone> zones;
             if (!npcZones.TryGetValue(entity, out zones)) return;
@@ -1631,7 +1631,8 @@ namespace Oxide.Plugins
                 if (!zones.Remove(zone)) return;
                 if (zones.Count <= 0) npcZones.Remove(entity);
             }
-            else
+            //temp fix
+            /*else 
             {
                 foreach (var zone1 in zones)
                 {
@@ -1642,7 +1643,7 @@ namespace Oxide.Plugins
                     break;
                 }
                 npcZones.Remove(entity);
-            }
+            }*/
             //Puts("OnNpcExitZone: {0}", entity.GetType());
         }
         private void OnBuildingEnterZone(Zone zone, BaseCombatEntity entity)
