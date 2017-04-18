@@ -5,11 +5,14 @@
 
 $BaseServerPath = "$($Env:RustOxideLocalDir)\server\ArkoudaphobiaModded"
 
+#Files to be preserved between wipe cycles & quarterly cleanings
+$ProtectedFiles = @("BetterChat.json","Oxide.Covalence.data","Oxide.Groups.Data","Oxide.lang.data","oxide.users.data")
+
 If($QuarterlyClean)
 {
 	$DataDirBasePath = "$BaseServerPath\oxide\data"
 	$BaseDataFiles = Get-ChildItem -Path $DataDirBasePath
-	$BaseDataFiles | ?{$_.Mode -match 'a'} | Remove-Item -Force -Confirm:$false -ErrorAction SilentlyContinue
+	$BaseDataFiles | ?{$_.Mode -match 'a' -and $ProtectedFiles -notcontains $_.Name} | Remove-Item -Force -Confirm:$false -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed files in the data directory"
 	foreach($Directory in ($BaseDataFiles | ?{$_.Mode -match 'd'}))
 	{
@@ -33,21 +36,16 @@ If($QuarterlyClean)
 	Get-ChildItem -Path "$BaseServerPath\cfg" | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed config items in the cfg directory"
 
-	Get-ChildItem -Path "$BaseServerPath\save" | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
-	Write-Verbose -Message "Removed saves from the save directory"
+	Get-ChildItem -Path "$BaseServerPath\storage" | Remove-Item -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 
-	Remove-Item -Path "$BaseServerPath\Storage.db" -Confirm:$false -Force -ErrorAction SilentlyContinue
-	Write-Verbose -Message "Removed the storage database"
-
-	Remove-Item -Path "$BaseServerPath\UserPersistence.db" -Confirm:$false -Force:$true -ErrorAction SilentlyContinue
-	Write-Verbose -Message "Removed the User Persistence Database"
+	Get-ChildItem -Path $BaseServerPath | ?{$_.Name -match '.map'} | Remove-Item -Force -Confirm:$false -ErrorAction SilentlyContinue
 }
 
 If($MonthlyClean)
 {
 	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json" -ErrorAction SilentlyContinue
 	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsCraftDetails.json" -ErrorAction SilentlyContinue
-	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsRemastered.db" -ErrorAction SilentlyContinue
+	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsRemastered.json" -ErrorAction SilentlyContinue
 	Write-Verbose -Message "Removed Last wipes portal config file"
 }
 
