@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.6", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.7", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -60,6 +60,7 @@ namespace Oxide.Plugins
 		Dictionary<string, object> colors;
 
 		Dictionary<string, object> cuiColors;
+		bool cuiEnabled;
 		int cuiFontSizeLvl;
 		int cuiFontSizeBar;
 		string cuiFontColor;
@@ -159,6 +160,7 @@ namespace Oxide.Plugins
 				{Skills.ACQUIRE, "0 0.8 0 0.5"},
 				{Skills.CRAFTING, "0.2 0.72 0.5 0.5"}
 			});
+			cuiEnabled = Convert.ToBoolean(GetConfig("CUI", "cuiEnabled", true));
 			cuiFontSizeLvl = Convert.ToInt32(GetConfig("CUI", "FontSizeLevel", 12));
 			cuiFontSizeBar = Convert.ToInt32(GetConfig("CUI", "FontSizeBar", 13));
 			cuiTextShadow = Convert.ToBoolean(GetConfig("CUI", "TextShadowEnabled", true));
@@ -265,7 +267,7 @@ namespace Oxide.Plugins
 				if (player != null)
 				{
 					UpdatePlayer(player);
-					RenderUI(player);
+					if (cuiEnabled) RenderUI(player);
 				}
 			}
 		}
@@ -1417,13 +1419,13 @@ namespace Oxide.Plugins
 
         void BlendOutUI(BasePlayer player)
         {
-            if (player.userID < 76560000000000000L || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
+            if (!cuiEnabled || player.userID < 76560000000000000L || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
 			CuiHelper.DestroyUi(player, "StatsUI");
 		}
 
         void RenderUI(BasePlayer player)
         {
-            if (!playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
+            if (!cuiEnabled || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
             var enabledSkillCount = 0;
             foreach (var skill in Skills.ALL)
             {

@@ -119,6 +119,7 @@
     "Message Radius": 300.0,
     "Message Radius Enabled": false,
     "Needs Permission": false,
+    "Show NPC Battles": false,
     "Simple UI Hide Timer": 5.0,
     "Strip Colors from Simple UI": false,
     "Title": "Death Notes",
