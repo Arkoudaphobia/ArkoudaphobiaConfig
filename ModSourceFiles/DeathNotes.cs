@@ -9,7 +9,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.10", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.11", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -668,7 +668,6 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Message Radius Enabled", false);
             SetConfig("Settings", "Message Radius", 300f);
 
-            SetConfig("Settings", "Show NPC Battles", false);
             SetConfig("Settings", "Log to File", false);
             SetConfig("Settings", "Write to Console", true);
             SetConfig("Settings", "Write to Chat", true);
@@ -680,6 +679,7 @@ namespace Oxide.Plugins
             SetConfig("Settings", "Simple UI - Left", 0.1f);
             SetConfig("Settings", "Simple UI - Max Width", 0.8f);
             SetConfig("Settings", "Simple UI - Max Height", 0.05f);
+            SetConfig("Settings", "Show NPC Battles", false);
 
             SetConfig("Settings", "Simple UI Hide Timer", 5f);
 
@@ -1015,7 +1015,7 @@ namespace Oxide.Plugins
             if (corpse != null)
                 return;
 
-            var npc1 = info.Initiator as BaseNpc;
+            var npc1 = info?.Initiator as BaseNpc;
             var npc2 = victim as BaseNpc;
             if (!SnowNpcBattles && npc1 != null && npc2 != null)
                 return;
@@ -1050,7 +1050,8 @@ namespace Oxide.Plugins
 
             data.attacker.type = data.attacker.TryGetType();
             data.attacker.name = StripTags(data.attacker.TryGetName());
-            if (data.attacker.name == "No Attacker")return;
+            if (data.attacker.name == "No Attacker")
+                return;
             data.weapon = info?.Weapon?.GetItem()?.info?.displayName?.english ?? FormatThrownWeapon(info?.WeaponPrefab?.name ?? "No Weapon");
             data.attachments = GetAttachments(info);
             data.damageType = FirstUpper(victim.lastDamage.ToString());
