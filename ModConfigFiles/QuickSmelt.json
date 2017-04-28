@@ -19,16 +19,16 @@
   "CookTimes": {
     "can_beans_empty": 15.0,
     "can_tuna_empty": 15.0,
-    "chicken_raw": 9.0,
-    "crude_oil": 5.0,
+    "chicken_raw": 5.0,
+    "crude_oil": 10.0,
     "fish_raw": 5.0,
-    "hq_metal_ore": 5.0,
-    "humanmeat_raw": 8.0,
-    "meat.bear.raw": 8.0,
-    "meat.pork.raw": 8.0,
-    "meat.wolf.raw": 8.0,
-    "metal_ore": 5.0,
-    "sulfur_ore": 8.0
+    "hq_metal_ore": 10.0,
+    "humanmeat_raw": 5.0,
+    "meat.bear.raw": 5.0,
+    "meat.pork.raw": 5.0,
+    "meat.wolf.raw": 5.0,
+    "metal_ore": 10.0,
+    "sulfur_ore": 10.0
   },
   "OvenMultipliers": {
     "campfire": 1.0,
