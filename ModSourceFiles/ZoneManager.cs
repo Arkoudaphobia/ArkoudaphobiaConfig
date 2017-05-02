@@ -18,7 +18,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("ZoneManager", "Reneb / Nogrod", "2.4.12", ResourceId = 739)]
+    [Info("ZoneManager", "Reneb / Nogrod / Diablo", "2.4.13", ResourceId = 739)]
     public class ZoneManager : RustPlugin
     {
         private const string PermZone = "zonemanager.zone";
@@ -985,47 +985,49 @@ namespace Oxide.Plugins
         /////////////////////////////////////////
         private void OnEntitySpawned(BaseNetworkable entity)
         {
-            try
+            if (entity is BaseCorpse)
             {
-                if (entity is BaseCorpse)
+                timer.Once(2f, () =>
                 {
-                    timer.Once(2f, () =>
+                    HashSet<Zone> zones;
+                    
+                    try
                     {
-                        HashSet<Zone> zones;
                         if (entity.IsDestroyed || !resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones)) return;
-                        foreach (var zone in zones)
-                        {
-                            if (HasZoneFlag(zone, ZoneFlags.NoCorpse))
-                            {
-                                entity.KillMessage();
-                                break;
-                            }
-                        }
-                    });
-                }
-                else if (entity is BuildingBlock && zoneObjects != null)
-                {
-                    var block = (BuildingBlock)entity;
-                    foreach (var zone in zoneObjects)
+                    }
+                    catch (Exception)
                     {
-                        if (HasZoneFlag(zone, ZoneFlags.NoStability))
+                        return;
+                    }
+
+                    foreach (var zone in zones)
+                    {
+                        if (HasZoneFlag(zone, ZoneFlags.NoCorpse))
                         {
-                            if (zone.Info.Size != Vector3.zero)
-                            {
-                                if (!new Bounds(zone.Info.Location, Quaternion.Euler(zone.Info.Rotation) * zone.Info.Size).Contains(block.transform.position))
-                                    continue;
-                            }
-                            else if (Vector3.Distance(block.transform.position, zone.Info.Location) > zone.Info.Radius)
-                                continue;
-                            block.grounded = true;
+                            entity.KillMessage();
                             break;
                         }
                     }
-                }
+                });
             }
-            catch
+            else if (entity is BuildingBlock && zoneObjects != null)
             {
-                return;
+                var block = (BuildingBlock)entity;
+                foreach (var zone in zoneObjects)
+                {
+                    if (HasZoneFlag(zone, ZoneFlags.NoStability))
+                    {
+                        if (zone.Info.Size != Vector3.zero)
+                        {
+                            if (!new Bounds(zone.Info.Location, Quaternion.Euler(zone.Info.Rotation) * zone.Info.Size).Contains(block.transform.position))
+                                continue;
+                        }
+                        else if (Vector3.Distance(block.transform.position, zone.Info.Location) > zone.Info.Radius)
+                            continue;
+                        block.grounded = true;
+                        break;
+                    }
+                }
             }
             //temp fix
             /*var npcai = entity.GetComponent<NPCAI>();
