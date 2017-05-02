@@ -31,7 +31,7 @@
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="PrivateMessage.cs" Enabled="true"/>
-    <Mod Name="Prefabsniffer.cs" Enabled="true"/>
+    <Mod Name="PrefabSniffer.cs" Enabled="true"/>
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="RustyBearDebug.cs" Enabled="true"/>
