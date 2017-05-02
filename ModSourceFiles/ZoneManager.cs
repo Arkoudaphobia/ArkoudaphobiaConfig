@@ -985,40 +985,47 @@ namespace Oxide.Plugins
         /////////////////////////////////////////
         private void OnEntitySpawned(BaseNetworkable entity)
         {
-            if (entity is BaseCorpse)
+            try
             {
-                timer.Once(2f, () =>
+                if (entity is BaseCorpse)
                 {
-                    HashSet<Zone> zones;
-                    if (entity.IsDestroyed || !resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones)) return;
-                    foreach (var zone in zones)
+                    timer.Once(2f, () =>
                     {
-                        if (HasZoneFlag(zone, ZoneFlags.NoCorpse))
+                        HashSet<Zone> zones;
+                        if (entity.IsDestroyed || !resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones)) return;
+                        foreach (var zone in zones)
                         {
-                            entity.KillMessage();
+                            if (HasZoneFlag(zone, ZoneFlags.NoCorpse))
+                            {
+                                entity.KillMessage();
+                                break;
+                            }
+                        }
+                    });
+                }
+                else if (entity is BuildingBlock && zoneObjects != null)
+                {
+                    var block = (BuildingBlock)entity;
+                    foreach (var zone in zoneObjects)
+                    {
+                        if (HasZoneFlag(zone, ZoneFlags.NoStability))
+                        {
+                            if (zone.Info.Size != Vector3.zero)
+                            {
+                                if (!new Bounds(zone.Info.Location, Quaternion.Euler(zone.Info.Rotation) * zone.Info.Size).Contains(block.transform.position))
+                                    continue;
+                            }
+                            else if (Vector3.Distance(block.transform.position, zone.Info.Location) > zone.Info.Radius)
+                                continue;
+                            block.grounded = true;
                             break;
                         }
                     }
-                });
-            }
-            else if (entity is BuildingBlock && zoneObjects != null)
-            {
-                var block = (BuildingBlock)entity;
-                foreach (var zone in zoneObjects)
-                {
-                    if (HasZoneFlag(zone, ZoneFlags.NoStability))
-                    {
-                        if (zone.Info.Size != Vector3.zero)
-                        {
-                            if (!new Bounds(zone.Info.Location, Quaternion.Euler(zone.Info.Rotation) * zone.Info.Size).Contains(block.transform.position))
-                                continue;
-                        }
-                        else if (Vector3.Distance(block.transform.position, zone.Info.Location) > zone.Info.Radius)
-                            continue;
-                        block.grounded = true;
-                        break;
-                    }
                 }
+            }
+            catch
+            {
+                return;
             }
             //temp fix
             /*var npcai = entity.GetComponent<NPCAI>();
