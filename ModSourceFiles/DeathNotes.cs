@@ -9,7 +9,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("Death Notes", "LaserHydra", "5.2.11", ResourceId = 819)]
+    [Info("Death Notes", "LaserHydra", "5.2.12", ResourceId = 819)]
     [Description("Broadcast deaths with many details")]
     class DeathNotes : RustPlugin
     {
@@ -1098,7 +1098,7 @@ namespace Oxide.Plugins
                 Puts(StripTags(GetDeathMessage(newData, true)));
 
             if (LogToFile)
-                ConVar.Server.Log("oxide/logs/Kills.txt", StripTags(GetDeathMessage(newData, true)));
+                LogToFile("kills", StripTags(GetDeathMessage(newData, true)), this);
 
             if (UsePopupNotifications)
                 PopupMessage(GetDeathMessage(newData, false));
