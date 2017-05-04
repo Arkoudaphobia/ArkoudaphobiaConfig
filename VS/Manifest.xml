@@ -6,6 +6,7 @@
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
+    <Mod Name="BlueprintsRevived.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
@@ -17,6 +18,7 @@
     <Mod Name="HumanNpc.cs" Enabled="false"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
+    <Mod Name="ImageLibrary.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
