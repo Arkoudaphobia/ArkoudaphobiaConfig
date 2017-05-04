@@ -6,17 +6,19 @@
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
+    <Mod Name="BlueprintsRevived.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
-    <Mod Name="Economics.cs" Enabled="true"/>
+    <Mod Name="Economics.cs" Enabled="false"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HumanNpc.cs" Enabled="false"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="InfoPanel.cs" Enabled="true"/>
+    <Mod Name="ImageLibrary.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
@@ -38,11 +40,11 @@
     <Mod Name="SleeperAnimalProtection.cs" Enabled="true"/>
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
-    <Mod Name="ServerRewards.cs" Enabled="true"/>
+    <Mod Name="ServerRewards.cs" Enabled="false"/>
     <Mod Name="Spyon.py" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
-    <Mod Name="Quests.cs" Enabled="true"/>
+    <Mod Name="Quests.cs" Enabled="false"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
     <Mod Name="ZoneManager.cs" Enabled="true"/>
   </ModFiles>
@@ -56,7 +58,7 @@
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="EnhancedHammer.json" remove="false"/>
-    <Config Name="Economics.json" remove="false"/>
+    <Config Name="Economics.json" remove="true"/>
     <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
@@ -77,10 +79,10 @@
     <Config Name="SleeperAnimalProtection.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
-    <Config Name="ServerRewards.json" remove="false"/>
+    <Config Name="ServerRewards.json" remove="true"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="Trade.json" remove="false"/>
-    <Config Name="Quests.json" remove="false"/>
+    <Config Name="Quests.json" remove="true"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
   </ModConfigFiles>
 </ArkoudaphobiaConfig>
