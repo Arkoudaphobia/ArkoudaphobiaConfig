@@ -29,7 +29,7 @@
     "meat.pork.raw": 5.0,
     "meat.wolf.raw": 5.0,
     "metal_ore": 10.0,
-    "sulfur_ore": 10.0
+    "sulfur_ore": 15.0
   },
   "OvenMultipliers": {
     "campfire": 1.0,
