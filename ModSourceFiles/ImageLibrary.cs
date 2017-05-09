@@ -13,7 +13,7 @@ using System.Text.RegularExpressions;
 
 namespace Oxide.Plugins
 {
-    [Info("ImageLibrary", "Absolut", "1.8.0", ResourceId = 2193)]
+    [Info("ImageLibrary", "Absolut", "1.8.1", ResourceId = 2193)]
 
     class ImageLibrary : RustPlugin
     {
@@ -355,11 +355,19 @@ namespace Oxide.Plugins
                 else if (filehandler.WorkshopDone && filehandler.BasicDone)
                     filehandler.SaveData();
                 else if (!filehandler.BasicDone)
+                {
                     filehandler.BasicDone = true;
+                    if (!filehandler.configData.UseWorkshopImages)
+                    {
+                        filehandler.WorkshopDone = true;
+                        filehandler.Puts("All Images Done Loading");
+                        filehandler.SaveData();
+                    }
+                }
                 else if (!filehandler.WorkshopLoading && !filehandler.WorkshopDone && filehandler.BasicDone)
                 {
                     filehandler.WorkshopDone = true;
-                    filehandler.timer.Once(20, () => { filehandler.Puts("Workshop Images Loaded"); filehandler.SaveData(); });
+                    filehandler.timer.Once(20, () => { filehandler.Puts("All Images Done Loading"); filehandler.SaveData(); });
                 }
             }
         }
@@ -435,9 +443,9 @@ namespace Oxide.Plugins
             if (!string.IsNullOrEmpty(configData.MapURL))
                 AddImage(configData.MapURL, "worldmap");
             images.Add("http://i.imgur.com/sZepiWv.png", "NONE", 0);
-            Puts($"Current ID: {imageData.CommID} - New Comm: {CommunityEntity.ServerInstance.net.ID}");
+            //Puts($"Current ID: {imageData.CommID} - New Comm: {CommunityEntity.ServerInstance.net.ID}");
             if (imageData.CommID == CommunityEntity.ServerInstance.net.ID) { BasicDone = true; WorkshopDone = true; return; }
-            Puts("Loading Basic Images");
+            Puts("Server Instance ID has changed! Loading Basic Images");
             imageData.Images.Clear();
             imageData.CommID = CommunityEntity.ServerInstance.net.ID;
             webrequest.EnqueueGet("http://s3.amazonaws.com/s3.playrust.com/icons/inventory/rust/schema.json", (code, response) =>
@@ -766,6 +774,11 @@ namespace Oxide.Plugins
                 {0, "http://imgur.com/Sb5cnpz.png" },
                 {10127, "http://imgur.com/ZD3jtRS.png"},
                 {10126, "http://imgur.com/qULrqXO.png" },
+            }
+            },
+            {"wood.armor.helmet", new Dictionary<ulong, string>
+            {
+                {0, "https://vignette1.wikia.nocookie.net/play-rust/images/0/0f/Ef4af380406f0c3385ed80fc87971b60.png/revision/latest/scale-to-width-down/480?cb=20170420184039" },
             }
             },
             {"wood.armor.pants", new Dictionary<ulong, string>
@@ -2260,8 +2273,26 @@ namespace Oxide.Plugins
                 { 0, "http://vignette1.wikia.nocookie.net/play-rust/images/5/51/Spinning_wheel_icon.png/revision/latest/scale-to-width-down/100?cb=20170317173832" }
             }
             },
-
-            
+            {"rug.bear", new Dictionary<ulong, string>
+            {
+                { 0, "https://vignette4.wikia.nocookie.net/play-rust/images/d/d2/Rug_Bear_Skin_icon.png/revision/latest/scale-to-width-down/100?cb=20170301074227" }
+            }
+            },
+            {"scrap", new Dictionary<ulong, string>
+            {
+                { 0, "http://i.imgur.com/vEObM0G.png" }
+            }
+            },
+            {"searchlight", new Dictionary<ulong, string>
+            {
+                { 0, "https://vignette2.wikia.nocookie.net/play-rust/images/c/c6/Search_Light_icon.png/revision/latest/scale-to-width-down/100?cb=20170405133839" }
+            }
+            },
+            {"weapon.mod.simplesight", new Dictionary<ulong, string>
+            {
+                { 0, "https://vignette1.wikia.nocookie.net/play-rust/images/9/93/Simple_Handmade_Sight_icon.png/revision/latest/scale-to-width-down/100?cb=20170405132430" }
+            }
+            },
 };
         #endregion
 
