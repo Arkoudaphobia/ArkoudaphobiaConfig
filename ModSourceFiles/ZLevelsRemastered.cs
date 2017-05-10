@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.7", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.5.8", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
     class ZLevelsRemastered : RustPlugin
@@ -49,6 +49,7 @@ namespace Oxide.Plugins
 		bool enableLevelupBroadcast;
 		string permissionName;
 		string pluginPrefix;
+		bool playerCuiDefaultEnabled;
 		Dictionary<string, object> defaultMultipliers;
         Dictionary<string, object> resourceMultipliers;
         Dictionary<string, object> levelCaps;
@@ -104,6 +105,7 @@ namespace Oxide.Plugins
 			permissionName = Convert.ToString(GetConfig("Generic", "permissionName", "zlevelsremastered.use"));
 			pluginPrefix = Convert.ToString(GetConfig("Generic", "pluginPrefix", "<color=orange>ZLevels</color>:"));
 			enableLevelupBroadcast = Convert.ToBoolean(GetConfig("Generic", "enableLevelupBroadcast", false));
+			playerCuiDefaultEnabled = Convert.ToBoolean(GetConfig("Generic", "playerCuiDefaultEnabled", true));
 
 			defaultMultipliers = (Dictionary<string, object>)GetConfig("Settings", "DefaultResourceMultiplier", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 1},
@@ -320,7 +322,7 @@ namespace Oxide.Plugins
 			public long LD;
 			public long LLD;
 			public long XPM = 100;
-			public bool CUI = true;
+			public bool CUI;
 		}
 
 		#endregion Classes
@@ -359,6 +361,7 @@ namespace Oxide.Plugins
 				var info = new PlayerInfo();
 				info.LD = ToEpochTime(DateTime.UtcNow);
 				info.LLD = ToEpochTime(DateTime.UtcNow);
+				info.CUI = playerCuiDefaultEnabled;
 				playerPrefs.PlayerInfo.Add(player.userID, info);
 				return;
 			}
