@@ -14,6 +14,7 @@
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="Economics.cs" Enabled="false"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
+    <Mod Name="FurnaceSplitter.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HumanNpc.cs" Enabled="false"/>
