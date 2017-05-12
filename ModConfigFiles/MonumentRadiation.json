@@ -21,7 +21,7 @@
   },
   "Zones": {
     "Airfield": {
-      "Activate": true, 
+      "Activate": false, 
       "Name": "Airfield", 
       "Radiation": 20.0, 
       "Radius": 85.0 
@@ -87,7 +87,7 @@
       "Radius": 15.0
     },
     "WaterTreatment": {
-      "Activate": false,
+      "Activate": true,
       "Name": "WaterTreatment",
       "Radiation": 20.0,
       "Radius": 120.0
