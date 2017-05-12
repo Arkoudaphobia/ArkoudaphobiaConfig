@@ -8,5 +8,5 @@
   "Hydration Loss Rate (0.0 - infinite)": 0.0175,
   "Hydration Spawn Value (0.0 - 250.0)": 250.0,
   "Hydration Usage (true/false)": true,
-  "Use Permissions (true/false)": false,
+  "Use Permissions (true/false)": false
 }
