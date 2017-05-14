@@ -10,7 +10,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("BlueprintsRevived", "Jake_Rich", 0.1, ResourceId = 2433)]
+    [Info("BlueprintsRevived", "Jake_Rich", "1.1.1", ResourceId = 2433)]
     [Description("The original Blueprint System and balance changes!")]
 
     public class BlueprintsRevived : RustPlugin
@@ -118,9 +118,6 @@ namespace Oxide.Plugins
             Settings_BlueprintTiers.Instance.itemLevels["heavy.plate.jacket"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
             Settings_BlueprintTiers.Instance.itemLevels["heavy.plate.pants"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
 
-            Settings_BlueprintTiers.Instance.Initalize();
-            Settings_BlueprintTiers.Save();
-
             //I dont know why the fuck it won't use the values..
             /* 
             string overrideFileName = $"server/{ConVar.Server.identity}/oxide/config/BlueprintsRevived-BlueprintTiers_Override.json"; //Override for blueprint tiers
@@ -179,7 +176,7 @@ namespace Oxide.Plugins
         public void ReloadSettings()
         {
             Settings_BlueprintTiers.Reload();
-            Settings_BlueprintTiers.Instance.Initalize();
+            Settings_BlueprintTiers.Instance.Initialize();
             Settings_BlueprintTiers.Save();
 
             Settings = Config.ReadObject<SavedSettings>(); //Finally converted to a configuration file in the right place! Wulf will love me!
@@ -194,7 +191,7 @@ namespace Oxide.Plugins
 
         #region Configuration classes
 
-        public class GithubConfig<Type> : ConfigurationAccessor<Type> where Type : class
+        public class GithubConfig<Type> : ConfigurationAccessor<Type> where Type : BaseConfigClass
         {
             public GithubConfig(string name) : base(name)
             {
@@ -203,7 +200,6 @@ namespace Oxide.Plugins
 
             public override void Init()
             {
-                base.Init();
                 Download();
             }
 
@@ -236,6 +232,9 @@ namespace Oxide.Plugins
                      {
                          _plugin.Puts($"Failed to download {name} settings!");
                      }
+                     base.Init();
+                     Instance.Initialize();
+                     Save();
                  }, _plugin, headers, 60);
             }
         }
@@ -291,6 +290,14 @@ namespace Oxide.Plugins
         public Dictionary<BPType, int> bpCount { get; set; } = new Dictionary<BPType, int>();
 
         public Database database { get; set; }
+
+        public class BaseConfigClass
+        {
+            public virtual void Initialize()
+            {
+
+            }
+        }
 
         public class SpawnPointConfiguration
         {
@@ -368,7 +375,7 @@ namespace Oxide.Plugins
             }
         }
 
-        public class SavedLootTables
+        public class SavedLootTables : BaseConfigClass
         {
             public Dictionary<string, string> lootContainerAssignments { get; set; } = new Dictionary<string, string>();
 
@@ -393,13 +400,13 @@ namespace Oxide.Plugins
             public float blueprintRate { get; set; } = 1f;
         }
 
-        public class SavedSettingsNonEdit
+        public class SavedSettingsNonEdit : BaseConfigClass
         {
             public Dictionary<string, SpawnPointConfiguration> monumentResearchBenches { get; set; } = new Dictionary<string, SpawnPointConfiguration>();
 
         }
 
-        public class SavedBlueprintTiers
+        public class SavedBlueprintTiers : BaseConfigClass
         {
             public Dictionary<string, BPType> itemLevels { get; set; } = new Dictionary<string, BPType>();
 
@@ -417,7 +424,7 @@ namespace Oxide.Plugins
                 }
             }
 
-            public void Initalize()
+            public override void Initialize()
             {
                 foreach (var item in ItemManager.itemList)
                 {
@@ -1343,7 +1350,7 @@ namespace Oxide.Plugins
             }
             return null;
         }
-
+        
         void OnPlayerInput(BasePlayer player, InputState input)
         {
             if (input.IsDown(BUTTON.USE))
@@ -1657,13 +1664,19 @@ namespace Oxide.Plugins
             StopResearch(player);
         }
 
-        void OnLootEntity(BasePlayer player, BaseEntity entity)
+        object OnLootEntity(BasePlayer player, BaseEntity entity)
         {
-            var data = GetResearchData(player);
-            if (data.usingResearchTable)
+            if (entity is ResearchTable)
+            {
+                player.EndLooting();
+                StartResearch(player);
+                return true;
+            }
+            else
             {
                 StopResearch(player);
             }
+            return null;
         }
 
         #endregion
@@ -1846,27 +1859,27 @@ namespace Oxide.Plugins
                 recycler.StopRecycling();
                 return true;
             }
-
-            if (item.info.Blueprint.ingredients.Any(x=>componentList.Contains(x.itemDef.shortname))) //If item contains a component we give unlimited of (this technically only applys to uncraftables)
+            if (item.info.Blueprint != null)
             {
-                shouldOverride = true; //Prevent components from being given after recycled (need to override)
-                foreach (var itemAmount in item.info.Blueprint.ingredients)
+                if (item.info.Blueprint.ingredients.Any(x => componentList.Contains(x?.itemDef?.shortname))) //If item contains a component we give unlimited of (this technically only applys to uncraftables)
                 {
-                    if (!componentList.Contains(itemAmount.itemDef.shortname))
+                    shouldOverride = true; //Prevent components from being given after recycled (need to override)
+                    foreach (var itemAmount in item.info.Blueprint.ingredients)
                     {
-                        recycler.MoveItemToOutput(ItemManager.Create(itemAmount.itemDef, Mathf.CeilToInt(itemAmount.amount * recycler.recycleEfficiency))); //Give normal items
-                        continue;
+                        if (!componentList.Contains(itemAmount.itemDef.shortname))
+                        {
+                            recycler.MoveItemToOutput(ItemManager.Create(itemAmount.itemDef, Mathf.CeilToInt(itemAmount.amount * recycler.recycleEfficiency))); //Give normal items
+                            continue;
+                        }
+                        foreach (var componentIngredient in itemAmount.itemDef.Blueprint.ingredients) //Directly convert components into sub materials
+                        {
+                            Item newItem = ItemManager.Create(componentIngredient.itemDef, Mathf.CeilToInt((componentIngredient.amount * recycler.recycleEfficiency)) * Mathf.CeilToInt(itemAmount.amount * recycler.recycleEfficiency), 0uL);
+                            recycler.MoveItemToOutput(newItem);
+                        }
                     }
-
-                    foreach (var componentIngredient in itemAmount.itemDef.Blueprint.ingredients) //Directly convert components into sub materials
-                    {
-                        Item newItem = ItemManager.Create(componentIngredient.itemDef, Mathf.CeilToInt((componentIngredient.amount * recycler.recycleEfficiency)) * Mathf.CeilToInt(itemAmount.amount * recycler.recycleEfficiency), 0uL);
-                        recycler.MoveItemToOutput(newItem);
-                    }
+                    item.UseItem();
                 }
-                item.UseItem();
             }
-
             if (shouldOverride)
             {
                 return true;
@@ -3213,6 +3226,7 @@ namespace Oxide.Plugins
             public override void Init()
             {
                 base.Init();
+                gameObject.GetComponent<StorageContainer>().isLootable = false;
                 _plugin.SafeSetTimerEvery(_timer, 0.2f, TimerLoop);
             }
 
@@ -3256,14 +3270,14 @@ namespace Oxide.Plugins
                     bool looking = LookingAtObject<ResearchTable>(player);
                     var data = _plugin.GetResearchData(player);
                     data.lookingAtTable = looking;
-                    if (looking)
+                    /*if (looking)
                     {
                         _plugin.openIconPanel.Show(player);
                     }
                     else
                     {
                         _plugin.openIconPanel.Hide(player);
-                    }
+                    }*/
                 }
             }
 
@@ -3307,6 +3321,8 @@ namespace Oxide.Plugins
                     _plugin.openIconPanel.Hide(player);
                     _plugin.StopResearch(player);
                 }
+
+                gameObject.GetComponent<StorageContainer>().isLootable = true;
             }
         }
 
