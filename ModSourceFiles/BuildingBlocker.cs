@@ -2,16 +2,15 @@ using System;
 using System.Collections.Generic;
 using Facepunch;
 using UnityEngine;
+using System.Reflection;
 
 namespace Oxide.Plugins
 {
-    [Info("BuildingBlocker", "Vlad-00003", "2.1.3", ResourceId = 2456)]
+    [Info("BuildingBlocker", "Vlad-00003", "2.1.5", ResourceId = 2456)]
     [Description("Blocks building in the building privilage zone. Deactivates raids update.")]
 
     class BuildingBlocker : RustPlugin
-    {
-		private readonly int triggerLayer = LayerMask.GetMask("Trigger");
-		
+    {		
         #region Config setup
         private string BypassPrivilage = "buildingblocker.bypass";
         private string Prefix = "[BuildingBlocker]";
@@ -21,6 +20,8 @@ namespace Oxide.Plugins
 
         #region Vars
         private static float CupRadius = 1.8f;
+        private readonly int triggerLayer = LayerMask.GetMask("Trigger");
+        Collider[] colBuffer = (Collider[])typeof(Vis).GetField("colBuffer", (BindingFlags.Static | BindingFlags.NonPublic))?.GetValue(null);
         #endregion
 
         #region Localization
@@ -64,18 +65,12 @@ namespace Oxide.Plugins
         #endregion
 
         #region Main
-        object CanBuild(Planner plan, Construction prefab, Vector3 location)
+        object CanBuild(Planner plan, Construction prefab)
         {
             BasePlayer player = plan.GetOwnerPlayer();
             if (!player) return null;
-            if (permission.UserHasPermission(player.UserIDString, BypassPrivilage)) return null;
-            if (LadderBuilding && prefab.fullName.Contains("ladder.wooden")) return null;
-            
-            var pos = player.ServerPosition;
-            pos.y += player.GetHeight();
-            var buildPos = pos + (player.eyes.BodyForward() * 4f);
-
-            if (!CanBuildHere(player, buildPos))
+            object Block = BuildingBlocked(plan, prefab);
+            if (Block != null && (bool)Block)
             {
                 SendToChat(player, GetMsg("Building blocked", player.UserIDString));
                 return false;
@@ -83,31 +78,52 @@ namespace Oxide.Plugins
             return null;
         }
 
-        private bool CanBuildHere(BasePlayer player, Vector3 targetLocation)
+        //private bool CanBuildHere(BasePlayer player, Vector3 targetLocation)
+        public object BuildingBlocked(Planner plan, Construction prefab)
         {
-            var entities = Pool.GetList<BaseCombatEntity>();
-            Vis.Entities(targetLocation, CupRadius, entities, triggerLayer);
-            if (entities.Count > 0)
-            {
-                foreach (var entity in entities)
-                {
-                    var cup = entity.GetComponentInParent<BuildingPrivlidge>();
-                    if (cup == null) continue;
+            BasePlayer player = plan.GetOwnerPlayer();
+            if (!player) return null;
+            if (permission.UserHasPermission(player.UserIDString, BypassPrivilage)) return null;
+            if (LadderBuilding && prefab.fullName.Contains("ladder.wooden")) return null;
 
-                    if (cup.IsAuthed(player))
-                    {
-                        Pool.FreeList(ref entities);
-                        return true;
-                    }
-                    else
-                    {
-                        Pool.FreeList(ref entities);
-                        return false;
-                    }
+            var pos = player.ServerPosition;
+            pos.y += player.GetHeight();
+            var targetLocation = pos + (player.eyes.BodyForward() * 4f);
+
+            //var entities = Pool.GetList<BaseCombatEntity>();
+            //Vis.Entities(targetLocation, CupRadius, entities, triggerLayer);
+            //if (entities.Count > 0)
+            //{
+            //    foreach (var entity in entities)
+            //    {
+            //        var cup = entity.GetComponentInParent<BuildingPrivlidge>();
+            //        if (cup == null) continue;
+
+            //        if (cup.IsAuthed(player))
+            //        {
+            //            Pool.FreeList(ref entities);
+            //            return true;
+            //        }
+            //        else
+            //        {
+            //            Pool.FreeList(ref entities);
+            //            return false;
+            //        }
+            //    }
+            //}
+            //Pool.FreeList(ref entities);
+            //return true;
+            int entities = Physics.OverlapSphereNonAlloc(targetLocation, CupRadius, colBuffer, triggerLayer);
+            for (var i = 0; i < entities; i++)
+            {
+                var cup = colBuffer[i].GetComponentInParent<BuildingPrivlidge>();
+                if (cup == null) continue;
+                if (!cup.IsAuthed(player))
+                {
+                    return true;
                 }
             }
-            Pool.FreeList(ref entities);
-            return true;
+            return null;
         }
         #endregion
 
