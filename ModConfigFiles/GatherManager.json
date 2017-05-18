@@ -34,9 +34,7 @@
     },
     "QuarryResourceModifiers": {
       "Crude Oil": 1.0,
-      "Stones": 10.0,
-      "High Quality Metal Ore": 5.0,
-      "*": 30.0
+      "*": 4.0
     },
     "SurveyResourceModifiers": {}
   },
