@@ -43,6 +43,7 @@
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="ServerRewards.cs" Enabled="false"/>
+    <Mod Name="SurveyInfo.cs" Enabled="true"/>
     <Mod Name="Spyon.py" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
@@ -82,6 +83,7 @@
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="ServerRewards.json" remove="true"/>
+    <Config Name="SurveyInfo.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="Trade.json" remove="false"/>
     <Config Name="Quests.json" remove="true"/>
