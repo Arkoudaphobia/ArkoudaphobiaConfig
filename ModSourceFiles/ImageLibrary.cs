@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ImageLibrary", "k1lly0u & Absolut", "2.0.0", ResourceId = 0)]
+    [Info("ImageLibrary", "Absolut & K1lly0u", "2.0.2", ResourceId = 2193)]
     class ImageLibrary : RustPlugin
     {
         #region Fields
@@ -102,7 +102,8 @@ namespace Oxide.Plugins
                                     {"votesdown", 0 },
                                     {"description", item.description },
                                     {"score", 0 },
-                                    {"views", 0 }
+                                    {"views", 0 },
+                                    {"created", new DateTime() },
                                 };
                             }
 
@@ -159,7 +160,8 @@ namespace Oxide.Plugins
                                     {"votesdown", item.VotesDown },
                                     {"description", item.Description },
                                     {"score", item.Score },
-                                    {"views", item.WebsiteViews }
+                                    {"views", item.WebsiteViews },
+                                    {"created", item.Created },
                                 };
                             }
 
@@ -601,6 +603,7 @@ namespace Oxide.Plugins
             {"deermeat.cooked","http://imgur.com/e5Z6w1y.png"},
             {"searchlight", "https://vignette2.wikia.nocookie.net/play-rust/images/c/c6/Search_Light_icon.png" },
             {"weapon.mod.simplesight", "https://vignette1.wikia.nocookie.net/play-rust/images/9/93/Simple_Handmade_Sight_icon.png" },
+            {"guntrap", "http://i.imgur.com/iNFOxbT.png" },
         };
         #endregion
 
@@ -721,7 +724,7 @@ namespace Oxide.Plugins
         }
 
         [HookMethod("LoadImageList")]
-        public void LoadImageList(string title, Dictionary<string, ulong> imageList)
+        public void LoadImageList(string title, List<KeyValuePair<string, ulong>> imageList)
         {
             Dictionary<string, string> newLoadOrder = new Dictionary<string, string>();
             foreach (var image in imageList)
