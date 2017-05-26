@@ -18,7 +18,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("ZoneManager", "Reneb / Nogrod / Diablo", "2.4.13", ResourceId = 739)]
+    [Info("ZoneManager", "Reneb / Nogrod", "2.4.18", ResourceId = 739)]
     public class ZoneManager : RustPlugin
     {
         private const string PermZone = "zonemanager.zone";
@@ -98,6 +98,7 @@ namespace Oxide.Plugins
         {
             AutolightOnTime = Convert.ToSingle(GetConfig("AutoLights", "Lights On Time", "18.0"));
             AutolightOffTime = Convert.ToSingle(GetConfig("AutoLights", "Lights Off Time", "8.0"));
+            usePopups = Convert.ToBoolean(GetConfig("Notifications", "Use Popup Notifications", true));
             prefix = Convert.ToString(GetConfig("Chat", "Prefix", "<color=#FA58AC>ZoneManager:</color> "));
 
             if (!Changed) return;
@@ -131,9 +132,7 @@ namespace Oxide.Plugins
         private Zone[] zoneObjects = new Zone[0];
 
         private static readonly FieldInfo decay = typeof(DecayEntity).GetField("decay", BindingFlags.Instance | BindingFlags.NonPublic);
-        private static readonly FieldInfo decayTimer = typeof(DecayEntity).GetField("decayTimer", BindingFlags.Instance | BindingFlags.NonPublic);
-        private static readonly FieldInfo decayDelayTime = typeof(DecayEntity).GetField("decayDelayTime", BindingFlags.Instance | BindingFlags.NonPublic);
-        private static readonly FieldInfo decayDeltaTime = typeof(DecayEntity).GetField("decayDeltaTime", BindingFlags.Instance | BindingFlags.NonPublic);
+        
 
         //private readonly FieldInfo npcNextTick = typeof(NPCAI).GetField("nextTick", (BindingFlags.Public | BindingFlags.Static | BindingFlags.Instance | BindingFlags.NonPublic));
         //private static readonly int triggerLayer = LayerMask.NameToLayer("Trigger");
@@ -416,11 +415,8 @@ namespace Oxide.Plugins
                 if (ZoneManagerPlugin.HasZoneFlag(this, ZoneFlags.NoDecay))
                 {
                     var decayEntity = col.GetComponentInParent<DecayEntity>();
-                    if (decayEntity != null && decay.GetValue(decayEntity) != null)
-                    {
-                        decayEntity.CancelInvoke("RunDecay");
-                        decayTimer.SetValue(decayEntity, 0f);
-                    }
+                    if (decayEntity != null && decay.GetValue(decayEntity) != null && BuildingManager.DecayEntities.Contains(decayEntity))                    
+                        BuildingManager.DecayEntities.Remove(decayEntity);                    
                 }
                 var resourceDispenser = col.GetComponentInParent<ResourceDispenser>();
                 if (resourceDispenser != null) //also BaseCorpse
@@ -453,8 +449,8 @@ namespace Oxide.Plugins
                 if (ZoneManagerPlugin.HasZoneFlag(this, ZoneFlags.NoDecay))
                 {
                     var decayEntity = col.GetComponentInParent<DecayEntity>();
-                    if (decayEntity != null && decay.GetValue(decayEntity) != null && !decayEntity.IsInvoking("RunDecay"))
-                        decayEntity.InvokeRepeating("RunDecay", (float) decayDelayTime.GetValue(decayEntity), (float) decayDeltaTime.GetValue(decayEntity));
+                    if (decayEntity != null && decay.GetValue(decayEntity) != null && !BuildingManager.DecayEntities.Contains(decayEntity))
+                        BuildingManager.DecayEntities.Add(decayEntity);                        
                 }
                 var resourceDispenser = col.GetComponentInParent<ResourceDispenser>();
                 if (resourceDispenser != null)
@@ -739,7 +735,8 @@ namespace Oxide.Plugins
             foreach (var flagse in values)
             {
                 Puts("{0} {1}", flagse, (ulong)flagse);
-            }
+            }            
+            
             timer.In(1, () => {
                 SetupCollectibleEntity();
                 foreach (var zoneDefinition in ZoneDefinitions.Values)
@@ -990,21 +987,12 @@ namespace Oxide.Plugins
                 timer.Once(2f, () =>
                 {
                     HashSet<Zone> zones;
-                    
-                    try
-                    {
-                        if (entity.IsDestroyed || !resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones)) return;
-                    }
-                    catch (Exception)
-                    {
-                        return;
-                    }
-
+                    if (entity == null || entity.IsDestroyed || !entity.GetComponent<ResourceDispenser>() || !resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones)) return;
                     foreach (var zone in zones)
                     {
                         if (HasZoneFlag(zone, ZoneFlags.NoCorpse))
                         {
-                            entity.KillMessage();
+                            entity.Kill(BaseNetworkable.DestroyMode.None);
                             break;
                         }
                     }
@@ -1127,8 +1115,14 @@ namespace Oxide.Plugins
                         editvalue = zone.Radius = Convert.ToSingle(args[i + 1]);
                         break;
                     case "rotation":
-                        zone.Rotation = player?.GetNetworkRotation() ?? Vector3.zero;/* + Quaternion.AngleAxis(90, Vector3.up).eulerAngles*/
-                        zone.Rotation.x = 0;
+                        float rotation = Convert.ToSingle(args[i + 1]);
+                        if (rotation != null)
+                            zone.Rotation = Quaternion.AngleAxis(rotation, Vector3.up).eulerAngles;
+                        else
+                        {
+                            zone.Rotation = player?.GetNetworkRotation() ?? Vector3.zero;
+                            zone.Rotation.x = 0;
+                        }
                         editvalue = zone.Rotation;
                         break;
                     case "location":
@@ -1320,7 +1314,6 @@ namespace Oxide.Plugins
             if (targetZone == null) return;
             if (targetZone.Info.Size != Vector3.zero)
             {
-                //player.SendConsoleCommand("ddraw.box", 10f, Color.blue, targetZone.Info.Location, targetZone.Info.Size.magnitude);
                 var center = targetZone.Info.Location;
                 var rotation = Quaternion.Euler(targetZone.Info.Rotation);
                 var size = targetZone.Info.Size / 2;
@@ -1525,6 +1518,32 @@ namespace Oxide.Plugins
                 break;
             }
         }
+       
+        private bool EntityHasFlag(BaseEntity entity, string flagString)
+        {
+            var flag = (ZoneFlags)Enum.Parse(typeof(ZoneFlags), flagString, true);
+            HashSet<Zone> zones;
+
+            if (entity is BasePlayer)
+                playerZones.TryGetValue(entity as BasePlayer, out zones);            
+            else if (entity is BaseNpc)
+                npcZones.TryGetValue(entity as BaseNpc, out zones);
+            else if (entity.GetComponent<ResourceDispenser>())
+                resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones);
+            else if (entity is BaseCombatEntity)
+                buildingZones.TryGetValue(entity as BaseCombatEntity, out zones);
+            else otherZones.TryGetValue(entity, out zones);
+
+            if (zones != null)
+            {
+                foreach (var zone in zones)
+                {
+                    if (HasZoneFlag(zone, flag))
+                        return true;
+                }
+            }
+            return false;
+        }
 
         private static void CancelDamage(HitInfo hitinfo)
         {
@@ -1549,7 +1568,6 @@ namespace Oxide.Plugins
             }
             if (HasZoneFlag(zone, ZoneFlags.Eject)) EjectPlayer(zone, player);
             Interface.Oxide.CallHook("OnEnterZone", zone.Info.Id, player);
-            //Puts("OnPlayerEnterZone: {0}", player.GetType());
 			if (HasPlayerFlag(player, ZoneFlags.Kill) && !isAdmin(player)) player.Die();
         }
 
@@ -1589,7 +1607,6 @@ namespace Oxide.Plugins
                 playerZones.Remove(player);
             }
             UpdateFlags(player);
-            //Puts("OnPlayerExitZone: {0}", player.GetType());
         }
 
         private void OnResourceEnterZone(Zone zone, ResourceDispenser entity)
@@ -1598,7 +1615,6 @@ namespace Oxide.Plugins
             if (!resourceZones.TryGetValue(entity, out zones))
                 resourceZones[entity] = zones = new HashSet<Zone>();
             if (!zones.Add(zone)) return;
-            //Puts("OnResourceEnterZone: {0}", entity.GetType());
         }
 
         private void OnResourceExitZone(Zone zone, ResourceDispenser resource, bool all = false)
@@ -1612,7 +1628,6 @@ namespace Oxide.Plugins
             }
             else
                 resourceZones.Remove(resource);
-            //Puts("OnResourceExitZone: {0}", resource.GetType());
         }
 
         private void OnNpcEnterZone(Zone zone, BaseNpc entity)
@@ -1621,14 +1636,9 @@ namespace Oxide.Plugins
             if (!npcZones.TryGetValue(entity, out zones))
                 npcZones[entity] = zones = new HashSet<Zone>();
             if (!zones.Add(zone)) return;
-            //temp fix
-            /*if (HasZoneFlag(zone, ZoneFlags.NpcFreeze))
-            {
-                var npcai = entity.GetComponent<NPCAI>();
-                if (npcai != null)
-                    npcNextTick.SetValue(npcai, 999999999999f);
-            }*/
-            //Puts("OnNpcEnterZone: {0}", entity.GetType());
+
+            if (HasZoneFlag(zone, ZoneFlags.NpcFreeze))            
+                entity.CancelInvoke(new Action(entity.TickAi)); 
         }
 
         private void OnNpcExitZone(Zone zone, BaseNpc entity, bool all = false)
@@ -1640,20 +1650,15 @@ namespace Oxide.Plugins
                 if (!zones.Remove(zone)) return;
                 if (zones.Count <= 0) npcZones.Remove(entity);
             }
-            //temp fix
-            /*else 
+            else 
             {
                 foreach (var zone1 in zones)
                 {
                     if (!HasZoneFlag(zone1, ZoneFlags.NpcFreeze)) continue;
-                    var npcai = entity.GetComponent<NPCAI>();
-                    if (npcai != null)
-                        npcNextTick.SetValue(npcai, Time.time);
-                    break;
+                    entity.InvokeRandomized(new Action(entity.TickAi), 0.1f, 0.1f, 0.00500000035f);                   
                 }
                 npcZones.Remove(entity);
-            }*/
-            //Puts("OnNpcExitZone: {0}", entity.GetType());
+            }
         }
         private void OnBuildingEnterZone(Zone zone, BaseCombatEntity entity)
         {
@@ -1672,7 +1677,6 @@ namespace Oxide.Plugins
                 if (door == null) return;
                 door.pickup.enabled = false;
             }
-            //Puts("OnBuildingEnterZone: {0}", entity.GetType());
         }
 
         private void OnBuildingExitZone(Zone zone, BaseCombatEntity entity, bool all = false)
@@ -1713,7 +1717,6 @@ namespace Oxide.Plugins
                 var prefab = GameManager.server.FindPrefab(PrefabAttribute.server.Find<Construction>(door.prefabID).fullName);
                 door.pickup.enabled = prefab?.GetComponent<Door>()?.pickup.enabled ?? true;
             }
-            //Puts("OnBuildingExitZone: {0}", entity.GetType());
         }
 
         private void OnOtherEnterZone(Zone zone, BaseEntity entity)
@@ -1739,7 +1742,6 @@ namespace Oxide.Plugins
                 else if (HasZoneFlag(zone, ZoneFlags.NoPickup))
                     worldItem.allowPickup = false;
             }
-            //Puts("OnOtherEnterZone: {0}", entity.GetType());
         }
 
         private void OnOtherExitZone(Zone zone, BaseEntity entity, bool all = false)
@@ -1776,7 +1778,6 @@ namespace Oxide.Plugins
                 if (worldItem != null && !worldItem.allowPickup)
                     worldItem.allowPickup = GameManager.server.FindPrefab(entity).GetComponent<WorldItem>().allowPickup;
             }
-            //Puts("OnOtherExitZone: {0}", entity.GetType());
         }
 
         private void OnZoneDestroy(Zone zone)
@@ -1804,7 +1805,6 @@ namespace Oxide.Plugins
                 if (zones.Contains(zone))
                     OnOtherExitZone(zone, key);
             }
-            //UpdateAllPlayers();
         }
 
         private static void EjectPlayer(Zone zone, BasePlayer player)
@@ -1846,6 +1846,7 @@ namespace Oxide.Plugins
         {
             return isAdmin(player) || permission.UserHasPermission(player.UserIDString, permname);
         }
+
         //////////////////////////////////////////////////////////////////////////////
         /// Chat Commands
         //////////////////////////////////////////////////////////////////////////////

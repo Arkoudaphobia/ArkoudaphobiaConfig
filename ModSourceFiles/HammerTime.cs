@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Hammer Time", "Shady", "1.0.17", ResourceId = 1711)]
+    [Info("Hammer Time", "Shady", "1.0.18", ResourceId = 1711)]
     [Description("Tweak settings for building blocks like demolish time, and rotate time.")]
     class HammerTime : RustPlugin
     {
@@ -219,11 +219,13 @@ namespace Oxide.Plugins
 
         private void CancelInvoke(string methodName, object obj)
         {
-            var invList = InvokeList;
-            if (invList == null || invList.Count < 1) return;
-            var action = invList.Where(p => (p.Key.action?.Target ?? null) == obj && (p.Key.action?.Method?.Name ?? string.Empty) == methodName).FirstOrDefault().Key;
+            if (string.IsNullOrEmpty(methodName) || obj == null) return;
+            if (!IsInvoking(methodName, obj)) return;
+            var action = InvokeList.Where(p => (p.Key.action?.Target ?? null) == obj && (p.Key.action?.Method?.Name ?? string.Empty) == methodName).FirstOrDefault().Key;
             if (action != null) InvokeHandler.CancelInvoke(action.sender, action.action);
         }
+
+        private bool IsInvoking(string methodName, object obj) { return InvokeList?.Any(p => (p.Key.action?.Method?.Name ?? string.Empty) == methodName && (p.Key.action?.Target ?? null) == obj) ?? false; }
 
         T GetConfig<T>(string name, T defaultValue)
         {

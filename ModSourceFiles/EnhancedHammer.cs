@@ -13,7 +13,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("Enhanced Hammer", "Fuji/Visa", "1.3.2", ResourceId = 1439)]
+    [Info("Enhanced Hammer", "Fuji/Visa", "1.3.3", ResourceId = 1439)]
     public class EnhancedHammer : RustPlugin
     {
         bool Changed = false;
@@ -232,7 +232,7 @@ namespace Oxide.Plugins
 				playersInfo[player.userID].upgradeInfo = BuildingGrade.Enum.Count;
 				return;
 			}
-			if (!CanAffordUpgrade(block, newGrade, player))
+			if (!CanAffordUpgradeInternal(block, newGrade, player))
 			{
 				player.ChatMessage(pluginPrefix + lang.GetMessage("CantAffordUpgrade", this, player.UserIDString));
 				return;
@@ -261,7 +261,7 @@ namespace Oxide.Plugins
 
 		}
 		
-		bool CanAffordUpgrade(BuildingBlock block, BuildingGrade.Enum iGrade, BasePlayer player)
+		bool CanAffordUpgradeInternal(BuildingBlock block, BuildingGrade.Enum iGrade, BasePlayer player)
 		{
 			ConstructionGrade constructionGrade = GetGrade(block, iGrade);
 			foreach (ItemAmount current in constructionGrade.costToBuild)

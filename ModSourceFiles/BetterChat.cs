@@ -7,7 +7,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat", "LaserHydra", "5.0.11", ResourceId = 979)]
+    [Info("Better Chat", "LaserHydra", "5.0.12", ResourceId = 979)]
     [Description("Manage Chat Groups, Customize Colors And Add Titles.")]
     internal class BetterChat : CovalencePlugin
     {
@@ -42,6 +42,7 @@ namespace Oxide.Plugins
             public ChatGroup.UsernameSettings Username;
             public ChatGroup.MessageSettings Message;
             public ChatGroup.FormatSettings Format;
+            public List<string> BlockedReceivers = new List<string>();
 
             public ChatGroup.FormatSettings GetOutput()
             {
@@ -82,6 +83,7 @@ namespace Oxide.Plugins
                 Text = (string)dict["Text"],
                 Titles = (List<string>)dict["Titles"],
                 PrimaryGroup = (string)dict["PrimaryGroup"],
+                BlockedReceivers = (List<string>)dict["BlockedReceivers"],
                 Username = new ChatGroup.UsernameSettings
                 {
                     Color = (string)((Dictionary<string, object>)dict["Username"])["Color"],
@@ -96,7 +98,7 @@ namespace Oxide.Plugins
                 {
                     Chat = (string)((Dictionary<string, object>)dict["Format"])["Chat"],
                     Console = (string)((Dictionary<string, object>)dict["Format"])["Console"]
-                },
+                }
             };
 
             public Dictionary<string, object> ToDictionary() => new Dictionary<string, object>
@@ -105,6 +107,7 @@ namespace Oxide.Plugins
                 ["Text"] = Text,
                 ["Titles"] = Titles,
                 ["PrimaryGroup"] = PrimaryGroup,
+                ["BlockedReceivers"] = BlockedReceivers,
                 ["Username"] = new Dictionary<string, object>
                 {
                     ["Color"] = Username.Color,
@@ -119,7 +122,7 @@ namespace Oxide.Plugins
                 {
                     ["Chat"] = Format.Chat,
                     ["Console"] = Format.Console
-                },
+                }
             };
         }
 
@@ -336,6 +339,7 @@ namespace Oxide.Plugins
         public static class Configuration
         {
             public static int MaxTitles = 3;
+            public static int MaxMessageLength = 128;
         }
 
         #endregion
@@ -345,6 +349,7 @@ namespace Oxide.Plugins
         private new void LoadConfig()
         {
             GetConfig(ref Configuration.MaxTitles, "Maximal Titles");
+            GetConfig(ref Configuration.MaxMessageLength, "Maximal Characters Per Message");
 
             SaveConfig();
         }
@@ -402,8 +407,11 @@ namespace Oxide.Plugins
 
         object OnUserChat(IPlayer player, string message)
         {
+            if (message.Length > Configuration.MaxMessageLength)
+                message = message.Substring(0, Configuration.MaxMessageLength);
+
             BetterChatMessage chatMessage = ChatGroup.FormatMessage(player, message);
-            var chatMessageDict = chatMessage.ToDictionary();
+            Dictionary<string, object> chatMessageDict = chatMessage.ToDictionary();
 
             foreach (Plugin plugin in plugins.GetAll())
             {
@@ -428,10 +436,14 @@ namespace Oxide.Plugins
             chatMessage = BetterChatMessage.FromDictionary(chatMessageDict);
             var output = chatMessage.GetOutput();
 
+            List<string> blockedReceivers = (List<string>)chatMessageDict["BlockedReceivers"];
+
 #if RUST
-            ConsoleNetwork.BroadcastToAllClients("chat.add", new object[] { player.Id, output.Chat });
+            foreach (BasePlayer p in BasePlayer.activePlayerList.Where(p => !blockedReceivers.Contains(p.UserIDString)))
+                p.SendConsoleCommand("chat.add", new object[] { player.Id, output.Chat });
 #else
-            server.Broadcast(output.Chat);
+            foreach (IPlayer p in players.Connected.Where(p => !blockedReceivers.Contains(p.Id)))
+                p.Message(output.Chat);
 #endif
 
             Puts(output.Console);
