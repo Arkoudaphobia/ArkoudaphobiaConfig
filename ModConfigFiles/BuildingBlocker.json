@@ -1,5 +1,5 @@
 {
-  "Allow building ladders in the privilage zone": false,
+  "Allow building ladders in the privilage zone": true,
   "Bypass block privilage": "buildingblocker.bypass",
   "Chat prefix": "[BuildingBlocker]",
   "Prefix color": "#FF3047"
