@@ -23,7 +23,7 @@
       "Duration": 30,
       "FireRocketChance": 10,
       "ItemDropControl": {
-        "EnableItemDrop": false,
+        "EnableItemDrop": true,
         "ItemsToDrop": [
           {
             "Maximum": 400,
