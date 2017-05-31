@@ -6,15 +6,15 @@
 
 "Options": {
     "Broadcast_Timers": true,
-    "Use_RandomTimers": false,
+    "Use_RandomTimers": true,
     "Use_Timers": true,
     "Using_HapisIsland": false,
     "Using_InfoPanel": true
   },
   "Timers": {
-    "Random_OffMax": 60, 
+    "Random_OffMax": 45, 
     "Random_OffMin": 25, 
-    "Random_OnMax": 30, 
+    "Random_OnMax": 240, 
     "Random_OnMin": 5, 
     "Static_Off": 45, 
     "Static_On": 240 
@@ -29,7 +29,7 @@
     "Dome": {
       "Activate": true,
       "Name": "Dome",
-      "Radiation": 30.0,
+      "Radiation": 35.0,
       "Radius": 50.0
     },
     "LargeHarbor": {
