@@ -7,17 +7,21 @@
     <Mod Name="BetterSay.cs" Enabled="true"/>
     <Mod Name="BlueprintsRevived.cs" Enabled="true"/>
     <Mod Name="BuildingBlocker.cs" Enabled="true"/>
+    <Mod Name="Clans.cs" Enabled="true"/>
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
+    <Mod Name="FriendlyFire.cs" Enabled="true"/>
+    <Mod Name="Friends.cs" Enabled="true"/>
     <Mod Name="FurnaceSplitter.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
     <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="ImageLibrary.cs" Enabled="true"/>    
     <Mod Name="InfoPanel.cs" Enabled="true"/>
+    <Mod Name="JPipes.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
@@ -51,15 +55,19 @@
     <Config Name="AbsolutMail.json" remove="true"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
+    <Config Name="Clans.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
+    <Config Name="FriendlyFire.json" remove="false"/>
+    <Config Name="Friends.json" remove="false"/>
     <Config Name="EnhancedHammer.json" remove="false"/>
     <Config Name="GatherManager.json" remove="false"/>
     <Config Name="HammerTime.json" remove="false"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
+    <Config Name="JPipes.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="false"/>

@@ -1,0 +1,22 @@
+{
+  "filtersizes": [
+    0,
+    6,
+    12,
+    18,
+    30
+  ],
+  "flowrates": [
+    1,
+    5,
+    10,
+    30,
+    50
+  ],
+  "maxpipedist": 64.0,
+  "minpipedist": 2.0,
+  "nodecay": true,
+  "permlevels": {},
+  "pipehotkey": "p",
+  "updaterate": 2
+}
