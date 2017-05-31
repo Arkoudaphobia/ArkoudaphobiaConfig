@@ -30,10 +30,10 @@
     "enableNightBonus": true,
     "logEnabledBonusConsole": true,
     "PointsPerHitAtNight": {
-      "A": 60,
-      "M": 60,
-      "S": 60,
-      "WC": 60
+      "A": 90,
+      "M": 90,
+      "S": 90,
+      "WC": 90
     }
   },
   "Settings": {
