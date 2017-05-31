@@ -56,6 +56,7 @@
     <Config Name="AbsolutMail.json" remove="false"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
+    <Config Name="BuildingBlocker.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
