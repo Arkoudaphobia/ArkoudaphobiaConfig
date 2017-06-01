@@ -16,7 +16,7 @@ If($QuarterlyClean)
 	Write-Verbose -Message "Removed files in the data directory"
 	foreach($Directory in ($BaseDataFiles | ?{$_.Mode -match 'd'}))
 	{
-		If($Directory.Name -ne 'PlayerDatabase')
+		If($Directory.Name -ne 'PlayerDatabase' -and $Directory.Name -ne 'LustyMap')
 		{
 			try
 			{
