@@ -22,6 +22,7 @@
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="ImageLibrary.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
+    <Mod Name="LustyMap.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
@@ -68,6 +69,7 @@
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
+    <Config Name="LustyMap.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>
