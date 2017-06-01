@@ -23,6 +23,7 @@
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="JPipes.cs" Enabled="true"/>
     <Mod Name="LimitedSuicide.cs" Enabled="true"/>
+    <Mod Name="LustyMap.cs" Enabled="true"/>
     <Mod Name="Metabolism.cs" Enabled="true"/>
     <Mod Name="MonumentRadiation.cs" Enabled="true"/>
     <Mod Name="NightLantern.cs" Enabled="true"/>
@@ -56,6 +57,7 @@
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterSay.json" remove="false"/>
     <Config Name="Clans.json" remove="false"/>
+    <Config Name="BuildingBlocker.json" remove="false"/>
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
@@ -69,6 +71,7 @@
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="JPipes.json" remove="false"/>
     <Config Name="LimitedSuicide.json" remove="false"/>
+    <Config Name="LustyMap.json" remove="false"/>
     <Config Name="Metabolism.json" remove="false"/>
     <Config Name="MonumentRadiation.json" remove="false"/>
     <Config Name="NightLantern.json" remove="false"/>

@@ -1,0 +1,52 @@
+{
+  "FriendOptions": {
+    "AllowCustomLists": true,
+    "UseClans": true,
+    "UseFriends": true
+  },
+  "MapMarkers": {
+    "ShowAllPlayers": false,
+    "ShowCaves": true,
+    "ShowDebris": false,
+    "ShowFriends": true,
+    "ShowHelicopters": true,
+    "ShowMarkerNames": true,
+    "ShowMonuments": true,
+    "ShowPlanes": true,
+    "ShowPlayer": true,
+    "ShowPublicVendingMachines": true,
+    "ShowSupplyDrops": true
+  },
+  "MapOptions": {
+    "EnableAFKTracking": true,
+    "HideEventPlayers": true,
+    "MapImage": {
+      "APIKey": "7ca7a3f892",
+      "CustomMap_Filename": "",
+      "CustomMap_Use": false
+    },
+    "MinimapOptions": {
+      "ComplexOptions": {
+        "ForcedZoomLevel": 1,
+        "ForceMapZoom": false,
+        "UseComplexMap": true
+      },
+      "HorizontalScale": 1.0,
+      "OffsetSide": 0.0,
+      "OffsetTop": 0.0,
+      "OnLeftSide": true,
+      "UseMinimap": true,
+      "VerticalScale": 1.0
+    },
+    "ShowCompass": false,
+    "StartOpen": true,
+    "UpdateSpeed": 1.0
+  },
+  "SpamOptions": {
+    "DisableAttempts": 10,
+    "DisableSeconds": 120,
+    "Enabled": true,
+    "TimeBetweenAttempts": 3,
+    "WarningAttempts": 5
+  }
+}
