@@ -7,7 +7,7 @@ using ProtoBuf;
 
 namespace Oxide.Plugins
 {
-    [Info("Friends", "Nogrod", "2.2.3", ResourceId = 686)]
+    [Info("Friends", "Nogrod", "2.2.4", ResourceId = 686)]
     [Description("An API to manage a friend list")]
     public class Friends : CovalencePlugin
     {
@@ -357,10 +357,10 @@ namespace Oxide.Plugins
 
                 case "add":
                 case "+":
-                    var foundPlayers = players.FindPlayers(args[1]).ToArray();
+                    var foundPlayers = players.FindPlayers(args[1]).Where(p => p.IsConnected).ToArray();
                     if (foundPlayers.Length > 1)
                     {
-                        Reply(player, "MultipleFound", string.Join(", ", foundPlayers.Select(p => p.Name).ToArray()));
+                        Reply(player, "MultiplePlayers", string.Join(", ", foundPlayers.Select(p => p.Name).Take(10).ToArray()).Truncate(60));
                         return;
                     }
 
