@@ -34,7 +34,7 @@
       "Available": true,
       "BackgroundColor": "0 0 0 0.0",
       "Height": 0.03,
-      "Margin": "0.005 0.175 0.005 0.005",
+      "Margin": "0.025 0.175 0.005 0.005",
       "Width": 0.25
     },
     "TopRightDock": {
