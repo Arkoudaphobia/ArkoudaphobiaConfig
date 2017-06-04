@@ -1,0 +1,13 @@
+{
+  "Word Filter": {
+    "Custom Replacement": "Unicorn",
+    "Enabled": true,
+    "Phrases": [
+        "faggot",
+        "fag",
+        "nigger"
+    ],
+    "Replacement": "|",
+    "Use Custom Replacement": false
+  }
+}

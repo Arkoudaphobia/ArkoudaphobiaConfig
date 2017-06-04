@@ -3,6 +3,7 @@
   <ModFiles>
     <Mod Name="AutoDoors.cs" Enabled="true"/>
     <Mod Name="BetterChat.cs" Enabled="true"/>
+    <Mod Name="BetterChatFilter.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
     <Mod Name="BlueprintsRevived.cs" Enabled="true"/>
@@ -55,6 +56,7 @@
     <Config Name="AutoDoors.json" remove="false"/>
     <Config Name="AbsolutMail.json" remove="true"/>
     <Config Name="BetterChat.json" remove="false"/>
+    <Config Name="BetterChatFilter.json" remove="false">
     <Config Name="BetterSay.json" remove="false"/>
     <Config Name="Clans.json" remove="false"/>
     <Config Name="BuildingBlocker.json" remove="false"/>
