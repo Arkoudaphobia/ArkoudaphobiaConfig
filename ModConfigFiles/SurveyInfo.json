@@ -1,7 +1,16 @@
 {
-  "Settings": {
-    "broadcastScore": false,
-    "icon": "0"
-  }
+  "Colors": {
+    "PlayerColor": "#55aaff",
+    "PrefixColor": "#fa58ac",
+    "ResultResourseNameColor": "#ffa500",
+    "ResultsAmountColor": "#05eb59",
+    "ScoreChatColor": "#ffa500",
+    "ScoreColor": "#05eb59",
+    "SeperatorColor": "#ffa500",
+    "ServerBroadcastColor": "#ffa500"
+  },
+  "Settings": {
+    "BroadcastScore": false,
+    "icon": "0"
+  }
 }
- 
