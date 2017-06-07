@@ -7,7 +7,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("Survey Info", "Diesel_42o", "0.1.3", ResourceId = 2463)]
+    [Info("Survey Info", "Diesel_42o", "0.1.4", ResourceId = 2463)]
     [Description("Displays Loot from Survey Charges")]
 
     class SurveyInfo : RustPlugin
@@ -16,8 +16,16 @@ namespace Oxide.Plugins
         Plugin GatherManager;
 
         private const string UsePermission = "surveyinfo.use";
-        private bool broadcastScore;
-        private string icon;
+        private bool BroadcastScore;
+        private string ServerBroadcastColor;
+        private string Icon;
+        private string PrefixColor;
+        private string ScoreChatColor;
+        private string ResultsAmountColor;
+        private string SeperatorColor;
+        private string ResultResourseNameColor;
+        private string ScoreColor;
+        private string PlayerColor;
         private bool configChanged;
 
         private readonly Hash<int, SurveyData> _activeSurveyCharges = new Hash<int, SurveyData>();
@@ -32,22 +40,30 @@ namespace Oxide.Plugins
             permission.RegisterPermission(UsePermission, this);
         }
 
-        protected override void LoadDefaultConfig() => Puts("New configuration file created.");
+        protected override void LoadDefaultConfig() => Puts("NEW configuration file created.");
 
         void LoadConfigValues()
         {
-            broadcastScore = Convert.ToBoolean(GetConfigValue("Settings", "broadcastScore", true));
-            icon = Convert.ToString(GetConfigValue("Settings", "icon", "0"));
+            BroadcastScore = Convert.ToBoolean(GetConfig("Settings", "BroadcastScore", true));
+            Icon = Convert.ToString(GetConfig("Settings", "icon", "0"));
+            PrefixColor = Convert.ToString(GetConfig("Colors", "PrefixColor", "#fa58ac")); // Pink
+            PlayerColor = Convert.ToString(GetConfig("Colors", "PlayerColor", "#55aaff")); // Player Blue
+            ResultsAmountColor = Convert.ToString(GetConfig("Colors", "ResultsAmountColor", "#05eb59")); // Green
+            ResultResourseNameColor = Convert.ToString(GetConfig("Colors", "ResultResourseNameColor", "#ffa500"));  // Orange			
+            SeperatorColor = Convert.ToString(GetConfig("Colors", "SeperatorColor", "#ffa500"));  // Orange
+            ScoreChatColor = Convert.ToString(GetConfig("Colors", "ScoreChatColor", "#ffa500"));  // Orange
+            ServerBroadcastColor = Convert.ToString(GetConfig("Colors", "ServerBroadcastColor", "#ffa500")); // Orange
+            ScoreColor = Convert.ToString(GetConfig("Colors", "ScoreColor", "#05eb59")); // Green
             SaveConfig();
 
             if (configChanged)
             {
-                Puts("Configuration file updated.");
+                Puts("Configuration file UPDATED.");
                 SaveConfig();
             }
         }
 
-        object GetConfigValue(string category, string setting, object defaultValue)
+        object GetConfig(string category, string setting, object defaultValue)
         {
             var data = Config[category] as Dictionary<string, object>;
             object value;
@@ -70,9 +86,10 @@ namespace Oxide.Plugins
         {
             lang.RegisterMessages(new Dictionary<string, string>
             {
-                ["Prefix"] = "[ Survey Info ]",
-                ["Score"] = "Score",
-                ["Broadcast"] = "received a survey score of",
+                ["Prefix"] = "[ Survey Info ]: ",
+                ["Score"] = "Score: {0}%",
+                ["Broadcast"] = "{0} received a survey score of {1}%",
+                ["Seperator"] = "-------------------------------------",
             }, this);
         }
 
@@ -81,7 +98,7 @@ namespace Oxide.Plugins
             if (GatherManager == null) return;
 
             Dictionary<string, object> defaultSurveyResourceModifiers = new Dictionary<string, object>();
-            Dictionary<string, object> configSurveyResourceModifiers = GetConfigValue(GatherManager, "Options", "SurveyResourceModifiers", defaultSurveyResourceModifiers);
+            Dictionary<string, object> configSurveyResourceModifiers = GetConfig(GatherManager, "Options", "SurveyResourceModifiers", defaultSurveyResourceModifiers);
             Dictionary<string, float> surveyResourceModifiers = new Dictionary<string, float>();
 
             foreach (var entry in configSurveyResourceModifiers)
@@ -172,14 +189,14 @@ namespace Oxide.Plugins
 
         private void DisplaySurveyLoot(BasePlayer player, SurveyData data)
         {
-            if (broadcastScore)
-                rust.BroadcastChat($"<color=#fa58ac>{Lang("Prefix", player.UserIDString)}</color> <color=#55aaff>" + player.displayName + $"</color> <color=#ffa500>{Lang("Broadcast", player.UserIDString)}</color><color=#ffa500>:</color> <color=#05eb59>{data.Score}</color><color=#ffa500>%</color>", null, icon);
+            if (BroadcastScore)
+                rust.BroadcastChat("<color=" + GetConfig("Colors", "PrefixColor", player) + ">" + Lang("Prefix", player.UserIDString) + "</color>" + "<color=" + GetConfig("Colors", "ServerBroadcastColor", player) + ">" + Lang("Broadcast", player.UserIDString, "<color=" + GetConfig("Colors", "PlayerColor", player) + ">" + player.displayName + "</color>", "<color=" + GetConfig("Colors", "ScoreColor", player) + ">" + data.Score + "</color>") + "</color>", null, Icon);
 
-            rust.SendChatMessage(player, $"<color=#fa58ac>{Lang("Prefix", player.UserIDString)}</color> <color=#ffa500>{Lang("Score", player.UserIDString)}</color><color=#ffa500>:</color> <color=#05eb59>{data.Score}</color><color=#ffa500>% \n{new string('-', 36)}</color>", null, icon);
+            rust.SendChatMessage(player, "<color=" + GetConfig("Colors", "SeperatorColor", player) + ">" + Lang("Seperator", player.UserIDString) + "</color>\n" + "<color=" + GetConfig("Colors", "PrefixColor", player) + ">" + Lang("Prefix", player.UserIDString) + "</color>" + "<color=" + GetConfig("Colors", "ScoreChatColor", player) + ">" + Lang("Score", player.UserIDString, "<color=" + GetConfig("Colors", "ScoreColor", player) + ">" + data.Score + "</color>") + "</color>\n" + "<color=" + GetConfig("Colors", "SeperatorColor", player) + ">" + Lang("Seperator", player.UserIDString) + "</color>", null, Icon);
 
             foreach (KeyValuePair<int, SurveyItem> item in data.Items)
             {
-                rust.SendChatMessage(player, $"<color=#05eb59>{item.Value.Amount}</color> <color=#ffa500>x {item.Value.DisplayName}</color>", null, icon);
+                rust.SendChatMessage(player, "<color=" + GetConfig("Colors", "ResultsAmountColor", player) + ">" + item.Value.Amount + " x</color>" + " <color=" + GetConfig("Colors", "ResultResourseNameColor", player) + ">" + item.Value.DisplayName + "</color>", null, Icon);
             }
         }
 
@@ -187,7 +204,7 @@ namespace Oxide.Plugins
 
         private bool HasPermission(BasePlayer player, string perm) => permission.UserHasPermission(player.UserIDString, perm);
 
-        private T GetConfigValue<T>(Plugin plugin, string category, string setting, T defaultValue)
+        private T GetConfig<T>(Plugin plugin, string category, string setting, T defaultValue)
         {
             var data = plugin.Config[category] as Dictionary<string, object>;
             object value;
