@@ -7,7 +7,7 @@ using Oxide.Core.Plugins;
 
 namespace Oxide.Plugins
 {
-    [Info("Survey Info", "Diesel_42o", "0.1.4", ResourceId = 2463)]
+    [Info("Survey Info", "Diesel_42o", "0.1.5", ResourceId = 2463)]
     [Description("Displays Loot from Survey Charges")]
 
     class SurveyInfo : RustPlugin

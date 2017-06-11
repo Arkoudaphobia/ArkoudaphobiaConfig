@@ -10,8 +10,8 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("BlueprintsRevived", "Jake_Rich", "1.1.1", ResourceId = 2433)]
-    [Description("The original Blueprint System and balance changes!")]
+    [Info("BlueprintsRevived", "Jake_Rich", "1.2.1", ResourceId = 2433)]
+    [Description("The original Blueprint System with balance changes!")]
 
     public class BlueprintsRevived : RustPlugin
     {
@@ -36,13 +36,13 @@ namespace Oxide.Plugins
 
             database = new Database(); //Database class has ConfigurationAccessors inside it
 
-            Settings_BlueprintTiers = new GithubConfig<SavedBlueprintTiers>("Blueprint-ItemSettings");
+            DefaultSettings_BlueprintTiers = new GithubConfig<SavedBlueprintTiers>("Blueprint-Default_Blueprint_Tiers");
             LootTables = new GithubConfig<SavedLootTables>("Blueprint-LootTables");
             Settings_DevOnly = new GithubConfig<SavedSettingsNonEdit>("Blueprint-Developer-Settings");
 
             ReloadSettings();
 
-            SetSettings();
+            ApplySettings();
 
             ItemManager.itemList.First(x => x.shortname == "xmas.present.small").stackable = 1000;
             ItemManager.itemList.First(x => x.shortname == "xmas.present.medium").stackable = 100;
@@ -71,13 +71,6 @@ namespace Oxide.Plugins
             AddImage("https://i.gyazo.com/0a3b40b6c84066e1437c9ede8de24ab4.png", "xmas.present.medium", pageSkinID);
             AddImage("http://images.akamai.steamusercontent.com/ugc/172666352576699519/A4B67A925C05035D1E35F6F625319C7C245853C2/?interpolation=lanczos-none", "xmas.present.medium", bookSkinID);
             AddImage("http://images.akamai.steamusercontent.com/ugc/172666352576709367/42AB45CEC824CA43486EFCDF08B19A9C0E2E6558/?interpolation=lanczos-none", "xmas.present.large", librarySkinID);
-
-            SpawnMonumentBenches();
-
-            foreach (var ent in GameObject.FindObjectsOfType<BaseNetworkable>())
-            {
-                OnEntitySpawned(ent);
-            }
 
             //ExportLootTables();
         }
@@ -110,35 +103,13 @@ namespace Oxide.Plugins
             openIconPanel.HideAll();
         }
 
-        void SetSettings()
+        void ApplySettings()
         {
             ConVar.Server.radiation = Settings.radiation;
 
-            Settings_BlueprintTiers.Instance.itemLevels["heavy.plate.helmet"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
-            Settings_BlueprintTiers.Instance.itemLevels["heavy.plate.jacket"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
-            Settings_BlueprintTiers.Instance.itemLevels["heavy.plate.pants"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
-
-            //I dont know why the fuck it won't use the values..
-            /* 
-            string overrideFileName = $"server/{ConVar.Server.identity}/oxide/config/BlueprintsRevived-BlueprintTiers_Override.json"; //Override for blueprint tiers
-            if (!Config.Exists(overrideFileName)) //Init config file when it doesn't exist
-            {
-                Config.WriteObject(Settings_BlueprintTiers.Instance.itemLevels, filename: overrideFileName);
-            }
-            var dict = Config.ReadObject<Dictionary<string, BPType>>(overrideFileName); //Fill override file with all default tiers
-            foreach (var item in Settings_BlueprintTiers.Instance.itemLevels)
-            {
-                if (!dict.ContainsKey(item.Key))
-                {
-                    dict.Add(item.Key, item.Value);
-                }
-            }
-            Config.WriteObject(dict, filename: overrideFileName);
-            Settings_BlueprintTiers.Instance.itemLevels = dict;
-            Settings_BlueprintTiers.Instance.Initalize(); //Apply overrides
-            Puts(string.Join(",", Settings_BlueprintTiers.Instance.BPGroups[BPType.Library].ToArray()));
-            Puts(string.Join(",", Settings_BlueprintTiers.Instance.BPGroups[BPType.Frags].ToArray()));
-            Puts(Settings_BlueprintTiers.Instance.itemLevels["rifle.ak"].ToString());*/
+            Settings.itemLevels["heavy.plate.helmet"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
+            Settings.itemLevels["heavy.plate.jacket"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
+            Settings.itemLevels["heavy.plate.pants"] = Settings.disable_heavyArmour ? BPType.None : BPType.Library;
         }
 
         #region Variables
@@ -149,12 +120,12 @@ namespace Oxide.Plugins
 
         #region Settings
 
-        public GithubConfig<SavedBlueprintTiers> Settings_BlueprintTiers { get; set; }
+        public GithubConfig<SavedBlueprintTiers> DefaultSettings_BlueprintTiers { get; set; }
         public GithubConfig<SavedLootTables> LootTables { get; set; }
         public SavedSettings Settings { get; set; }
         public GithubConfig<SavedSettingsNonEdit> Settings_DevOnly { get; set; }
 
-        public const ulong fragsSkinID = 869862511u; //Uploaded by me through special method
+        public const ulong fragsSkinID = 869862511u; //Uploaded by Jake through special method
         public const ulong pageSkinID = 884147568u; 
         public const ulong bookSkinID = 884151226u;
         public const ulong librarySkinID = 884152141u;
@@ -175,14 +146,27 @@ namespace Oxide.Plugins
 
         public void ReloadSettings()
         {
-            Settings_BlueprintTiers.Reload();
-            Settings_BlueprintTiers.Instance.Initialize();
-            Settings_BlueprintTiers.Save();
+            Settings = Config.ReadObject<SavedSettings>(); //Finally converted to a configuration file in the right place! Wulf will love me!
+            Config.WriteObject(Settings);
+            Settings = Config.ReadObject<SavedSettings>();
+        }
+
+        public void SaveSettings()
+        {
+            Config.WriteObject(Settings);
+            Settings = Config.ReadObject<SavedSettings>();
+        }
+
+        public void ReloadAllSettings()
+        {
+            DefaultSettings_BlueprintTiers.Reload();
+            DefaultSettings_BlueprintTiers.Instance.Initialize();
+            DefaultSettings_BlueprintTiers.Save();
 
             Settings = Config.ReadObject<SavedSettings>(); //Finally converted to a configuration file in the right place! Wulf will love me!
             Config.WriteObject(Settings);
             Settings = Config.ReadObject<SavedSettings>();
-            
+
             Settings_DevOnly.Reload();
             LootTables.Reload();
         }
@@ -221,18 +205,18 @@ namespace Oxide.Plugins
                          }
                          catch
                          {
+                             _plugin.Puts($"Failed to deserialize {name}\n{response}");
                              return;
                          }
                          Instance = deserialize;
                          Save();
-                         Load();
+                         //Load();
                          _plugin.Puts($"Downloaded {name}.json");
                      }
                      else
                      {
                          _plugin.Puts($"Failed to download {name} settings!");
                      }
-                     base.Init();
                      Instance.Initialize();
                      Save();
                  }, _plugin, headers, 60);
@@ -380,6 +364,15 @@ namespace Oxide.Plugins
             public Dictionary<string, string> lootContainerAssignments { get; set; } = new Dictionary<string, string>();
 
             public Dictionary<string, GroupLootDefinition> allLootTables { get; set; } = new Dictionary<string, GroupLootDefinition>();
+
+            public override void Initialize()
+            {
+                base.Initialize();
+                foreach (var ent in GameObject.FindObjectsOfType<BaseNetworkable>())
+                {
+                    _plugin.OnEntitySpawned(ent);
+                }
+            }
         }
 
         public class SavedSettings
@@ -398,12 +391,19 @@ namespace Oxide.Plugins
             public bool blockRecyclingRoadsigns { get; set; } = true;
             public bool p250DamageBuff { get; set; } = true;
             public float blueprintRate { get; set; } = 1f;
+
+            public Dictionary<string, BPType> itemLevels { get; set; } = new Dictionary<string, BPType>();
         }
 
         public class SavedSettingsNonEdit : BaseConfigClass
         {
             public Dictionary<string, SpawnPointConfiguration> monumentResearchBenches { get; set; } = new Dictionary<string, SpawnPointConfiguration>();
 
+            public override void Initialize()
+            {
+                base.Initialize();
+                _plugin.SpawnMonumentBenches();
+            }
         }
 
         public class SavedBlueprintTiers : BaseConfigClass
@@ -430,7 +430,6 @@ namespace Oxide.Plugins
                 {
                     if (!itemLevels.ContainsKey(item.shortname))
                     {
-                        itemLevels[item.shortname] = BPType.None;
                         _plugin.Puts($"Found unassigned item: {item.shortname}");
                     }
                 }
@@ -449,6 +448,15 @@ namespace Oxide.Plugins
                     }
                     BPGroups[item.Value].Add(item.Key);
                 }
+                foreach(var item in itemLevels)
+                {
+                    if (_plugin.Settings.itemLevels.ContainsKey(item.Key))
+                    {
+                        continue;
+                    }
+                    _plugin.Settings.itemLevels.Add(item.Key, item.Value);
+                }
+                _plugin.SaveSettings();
             }
         }
 
@@ -752,7 +760,7 @@ namespace Oxide.Plugins
         public BPType GetItemTier(string shortname)
         {
             BPType type;
-            if (!Settings_BlueprintTiers.Instance.itemLevels.TryGetValue(shortname, out type))
+            if (!Settings.itemLevels.TryGetValue(shortname, out type))
             {
                 return BPType.None;
             }
@@ -904,7 +912,7 @@ namespace Oxide.Plugins
 
         public bool RevealBlueprint(BasePlayer player, BPType type)
         {
-            if (!Settings_BlueprintTiers.Instance.BPGroups.ContainsKey(type))
+            if (type < BPType.Frags || type > BPType.Library)
             {
                 return false;
             }
@@ -929,7 +937,7 @@ namespace Oxide.Plugins
             itemID = -1;
             var playerInventoryBlueprintItemNames = GetBlueprintItemNamesInPlayerInventory(player);
 
-            List<ItemDefinition> unlearnedItems = Settings_BlueprintTiers.Instance.BPGroups[type]
+            List<ItemDefinition> unlearnedItems = DefaultSettings_BlueprintTiers.Instance.BPGroups[type]
                 .Select(itemId => ItemManager.FindItemDefinition(itemId))
                 .Where(itemDef => itemDef != null)
                 .Where(itemDef => !playerInventoryBlueprintItemNames.Contains(itemDef.itemid))
@@ -956,7 +964,7 @@ namespace Oxide.Plugins
 
         int GetRandomBlueprint(BPType type)
         {
-            string itemName = Settings_BlueprintTiers.Instance.BPGroups[type][UnityEngine.Random.Range(0, Settings_BlueprintTiers.Instance.BPGroups[type].Count)];
+            string itemName = DefaultSettings_BlueprintTiers.Instance.BPGroups[type][UnityEngine.Random.Range(0, DefaultSettings_BlueprintTiers.Instance.BPGroups[type].Count)];
             var itemDef = ItemManager.FindItemDefinition(itemName);
             if (itemDef == null)
             {
@@ -1377,7 +1385,7 @@ namespace Oxide.Plugins
         object CanCraft(ItemCrafter crafter, ItemBlueprint blueprint, int amount)
         {
             BasePlayer player = crafter.GetComponentInParent<BasePlayer>();
-            if (Settings_BlueprintTiers.Instance.itemLevels[blueprint.targetItem.shortname] == BPType.Default)
+            if (Settings.itemLevels[blueprint.targetItem.shortname] == BPType.Default)
             {
                 return null;
             }
@@ -1561,12 +1569,13 @@ namespace Oxide.Plugins
             else if (IsLootContainer(entity))
             {
                 LootContainer container = entity as LootContainer;
+                container.lootDefinition = null;
                 NextTick(() =>
                 {
                     AssignLoot(container);
                     container.minSecondsBetweenRefresh = -1;
                     container.maxSecondsBetweenRefresh = 0;
-                    container.CancelInvoke("SpawnLoot");
+                    container.CancelInvoke(container.SpawnLoot);
                 });
             }
             else if (entity is DroppedItem) //Blueprints dropped from barrels would be shown as presents by default
@@ -1779,8 +1788,8 @@ namespace Oxide.Plugins
                 lang.GetMessage("AdminCommand", this, player.UserIDString);
                 return;
             }
-            ReloadSettings();
-            SetSettings();
+            ReloadAllSettings();
+            ApplySettings();
         }
 
         [ChatCommand("resetblueprintloot")]
@@ -3575,17 +3584,14 @@ namespace Oxide.Plugins
 
         public void AssignLoot(LootContainer container)
         {
+            if (!container.initialLootSpawn)
+            {
+                return;
+            }
             if (container.PrefabName == "assets/prefabs/npc/patrol helicopter/heli_crate.prefab") //Ignore heli crates
             {
                 return;
             }
-
-            foreach (var item in container.inventory.itemList)
-            {
-                item.Remove();
-            }
-
-            ItemManager.DoRemoves();
 
             string name = "";
             if (!lootContainerAssignments.TryGetValue(container.name, out name))

@@ -1,13 +1,17 @@
-{
-  "Word Filter": {
-    "Custom Replacement": "Unicorn",
-    "Enabled": true,
-    "Phrases": [
-        "faggot",
-        "fag",
-        "nigger"
-    ],
-    "Replacement": "|",
-    "Use Custom Replacement": false
-  }
+{  
+  "Advanced - Regex to use": "",
+  "Advanced - Use REGEX": false,
+  "Clear Offense After (0 - Disabled, 1 - Both Kick/Mute, 2 - Kick,  3 - Mute": 0,
+  "Offenses - Count To Kick": 3,
+  "Offenses - Count To Mute": 3,
+  "Offenses - Time To Mute": 300,
+  "Word Filter - Custom Replacement": "Unicorn",
+  "Word Filter - Enabled": true,
+  "Word Filter - Phrases": [
+    "fag",
+    "nigger",
+    "faggot"
+  ],
+  "Word Filter - Replacement": " || ",
+  "Word Filter - Use Custom Replacement": false
 }
