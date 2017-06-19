@@ -9,7 +9,7 @@ using System;
 
 namespace Oxide.Plugins
 {
-    [Info("Better Chat Mute", "LaserHydra", "1.0.7", ResourceId = 2272)]
+    [Info("Better Chat Mute", "LaserHydra", "1.0.8", ResourceId = 2272)]
     [Description("Mute plugin, made for use with Better Chat")]
     internal class BetterChatMute : CovalencePlugin
     {
@@ -138,6 +138,79 @@ namespace Oxide.Plugins
 
         #endregion
 
+        #region API
+
+        private void API_Mute(IPlayer target, IPlayer player, bool callHook = true, bool broadcast = true)
+        {
+            mutes[target.Id] = MuteInfo.NonTimed;
+            SaveData(mutes);
+
+            if (callHook)
+                Interface.CallHook("OnBetterChatMuted", target, player);
+
+            if (broadcast)
+            {
+                PublicMessage("Muted",
+                    new KeyValuePair<string, string>("initiator", player.Name),
+                    new KeyValuePair<string, string>("player", target.Name));
+            }
+        }
+
+        private void API_TimeMute(IPlayer target, IPlayer player, TimeSpan timeSpan, bool callHook = true, bool broadcast = true)
+        {
+            mutes[target.Id] = new MuteInfo(DateTime.UtcNow + timeSpan);
+            SaveData(mutes);
+
+            if (callHook)
+                Interface.CallHook("OnBetterChatMuted", target, player);
+
+            if (broadcast)
+            {
+                PublicMessage("Muted",
+                    new KeyValuePair<string, string>("initiator", player.Name),
+                    new KeyValuePair<string, string>("player", target.Name));
+            }
+        }
+
+        private bool API_Unmute(IPlayer target, IPlayer player, bool callHook = true, bool broadcast = true)
+        {
+            if (!MuteInfo.IsMuted(target))
+                return false;
+
+            mutes.Remove(target.Id);
+            SaveData(mutes);
+
+            if (callHook)
+                Interface.CallHook("OnBetterChatUnmuted", target, player);
+
+            if (broadcast)
+            {
+                PublicMessage("Unmuted",
+                    new KeyValuePair<string, string>("initiator", player.Name),
+                    new KeyValuePair<string, string>("player", target.Name));
+            }
+
+            return true;
+        }
+
+        private void API_SetGlobalMute(bool state)
+        {
+            globalMute = state;
+
+            if (globalMute)
+                PublicMessage("Global Mute Enabled");
+            else
+                PublicMessage("Global Mute Disabled");
+        }
+
+        private List<string> API_GetMuteList() => mutes.Keys.ToList();
+
+        private bool API_GetGlobalMuteState() => globalMute;
+
+        private bool API_IsMuted(IPlayer player) => mutes.ContainsKey(player.Id);
+
+        #endregion
+
         #region Commands
 
         [Command("toggleglobalmute"), Permission("betterchatmute.use.global")]
@@ -202,23 +275,23 @@ namespace Oxide.Plugins
                     if (target == null)
                         return;
 
-                    DateTime expireDate;
+                    TimeSpan timeSpan;
 
-                    if (!TryGetDateTime(args[1], out expireDate))
+                    if (!TryParseTimeSpan(args[1], out timeSpan))
                     {
                         player.Reply(lang.GetMessage("Invalid Time Format", this, player.Id));
                         return;
                     }
-
-                    mutes[target.Id] = new MuteInfo(expireDate);
+                    
+                    mutes[target.Id] = new MuteInfo(DateTime.UtcNow + timeSpan);
                     SaveData(mutes);
 
-                    Interface.CallHook("OnBetterChatTimeMuted", target, player, expireDate);
+                    Interface.CallHook("OnBetterChatTimeMuted", target, player, timeSpan);
 
                     PublicMessage("Muted Time",
                         new KeyValuePair<string, string>("initiator", player.Name),
                         new KeyValuePair<string, string>("player", target.Name),
-                        new KeyValuePair<string, string>("time", FormatTime(expireDate - DateTime.UtcNow)));
+                        new KeyValuePair<string, string>("time", FormatTime(timeSpan)));
 
                     break;
 
@@ -365,7 +438,7 @@ namespace Oxide.Plugins
 
         string FormatTime(TimeSpan time) => $"{(time.Days == 0 ? string.Empty : $"{time.Days} day(s)")}{(time.Days != 0 && time.Hours != 0 ? $", " : string.Empty)}{(time.Hours == 0 ? string.Empty : $"{time.Hours} hour(s)")}{(time.Hours != 0 && time.Minutes != 0 ? $", " : string.Empty)}{(time.Minutes == 0 ? string.Empty : $"{time.Minutes} minute(s)")}{(time.Minutes != 0 && time.Seconds != 0 ? $", " : string.Empty)}{(time.Seconds == 0 ? string.Empty : $"{time.Seconds} second(s)")}";
 
-        private bool TryGetDateTime(string source, out DateTime date)
+        private bool TryParseTimeSpan(string source, out TimeSpan timeSpan)
         {
             int seconds = 0, minutes = 0, hours = 0, days = 0;
 
@@ -393,11 +466,11 @@ namespace Oxide.Plugins
 
             if (!string.IsNullOrEmpty(source) || (!s.Success && !m.Success && !h.Success && !d.Success))
             {
-                date = default(DateTime);
+                timeSpan = default(TimeSpan);
                 return false;
             }
 
-            date = DateTime.UtcNow + new TimeSpan(days, hours, minutes, seconds);
+            timeSpan = new TimeSpan(days, hours, minutes, seconds);
 
             return true;
         }
