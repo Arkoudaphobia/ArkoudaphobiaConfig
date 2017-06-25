@@ -3,11 +3,15 @@ using System.Collections.Generic;
 using Facepunch;
 using UnityEngine;
 using System.Reflection;
+using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info("BuildingBlocker", "Vlad-00003", "2.1.5", ResourceId = 2456)]
+    [Info("BuildingBlocker", "Vlad-00003", "2.1.6", ResourceId = 2456)]
     [Description("Blocks building in the building privilage zone. Deactivates raids update.")]
+    //Author info:
+    //E-mail: Vlad-00003@mail.ru
+    //Vk: vk.com/vlad_00003
 
     class BuildingBlocker : RustPlugin
     {		
@@ -118,7 +122,11 @@ namespace Oxide.Plugins
             {
                 var cup = colBuffer[i].GetComponentInParent<BuildingPrivlidge>();
                 if (cup == null) continue;
-                if (!cup.IsAuthed(player))
+                //if (!cup.IsAuthed(player))
+                //{
+                //    return true;
+                //}
+                if (!cup.authorizedPlayers.Any((ProtoBuf.PlayerNameID x) => x.userid == player.userID))
                 {
                     return true;
                 }
