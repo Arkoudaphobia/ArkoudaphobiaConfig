@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Stack Size Controller", "Canopy Sheep", "1.9.4", ResourceId = 2320)]
+    [Info("Stack Size Controller", "Canopy Sheep", "1.9.6", ResourceId = 2320)]
     [Description("Allows you to set the max stack size of every item.")]
     public class StackSizeController : RustPlugin
     {
@@ -37,7 +37,7 @@ namespace Oxide.Plugins
                 {
                     if (Config[item.displayName.english] != null && (int)Config[item.displayName.english] != 1)
                     {
-                        PrintWarning("WARNING: Item '" + item.displayName.english + "' will not stack more than 1 in game. Changing stack size to 1..");
+                        PrintWarning("WARNING: Item '" + item.displayName.english + "' will not stack more than 1 in game because it has durabililty (FACEPUNCH OVERRIDE). Changing stack size to 1..");
                         Config[item.displayName.english] = 1;
                         dirty = true;
                     }
@@ -58,6 +58,83 @@ namespace Oxide.Plugins
 			PrintWarning("Updating configuration file with new values.");
 			SaveConfig();
 		}
+
+        object CanMoveItem(Item item, PlayerInventory inventory, uint container, int slot, uint amount)
+        {
+            if (item.amount < UInt16.MaxValue) { return null; }
+			
+			ItemContainer itemContainer = inventory.FindContainer(container);
+            if (itemContainer == null) { return null; }
+			
+            bool aboveMaxStack = false;
+            int configAmount = (int)Config[item.info.displayName.english];
+
+            if (item.amount > configAmount) { aboveMaxStack = true; }
+
+            if (amount + item.amount / UInt16.MaxValue == item.amount % UInt16.MaxValue)
+            {
+                if (aboveMaxStack)
+                {
+                    Item item2 = item.SplitItem(configAmount);
+                    if (!item2.MoveToContainer(itemContainer, slot, true))
+                    {
+                        item.amount += item2.amount;
+                        item2.Remove(0f);
+                    }
+                    ItemManager.DoRemoves();
+                    inventory.ServerUpdate(0f);
+                    return true;
+                }
+
+                item.MoveToContainer(itemContainer, slot, true);
+                return true;
+            }
+            else if (amount + (item.amount / 2) / UInt16.MaxValue == (item.amount / 2) % UInt16.MaxValue + item.amount % 2)
+            {
+                if (aboveMaxStack)
+                {
+					Item split;
+					if (configAmount > item.amount / 2) { split = item.SplitItem(Convert.ToInt32(item.amount) / 2); }
+                    else { split = item.SplitItem(configAmount); }
+
+                    if (!split.MoveToContainer(itemContainer, slot, true))
+                    {
+                        item.amount += split.amount;
+                        split.Remove(0f);
+                    }
+                    ItemManager.DoRemoves();
+                    inventory.ServerUpdate(0f);
+                    return true;
+                }
+
+                Item item2 = item.SplitItem(item.amount / 2);
+				if (!((item.amount + item2.amount) % 2 == 0)) { item2.amount++; item.amount--; }
+				
+                if (!item2.MoveToContainer(itemContainer, slot, true))
+                {
+                    item.amount += item2.amount;
+                    item2.Remove(0f);
+                }
+                ItemManager.DoRemoves();
+                inventory.ServerUpdate(0f);
+                return true;
+            }
+            else if (item.amount > UInt16.MaxValue && amount != item.amount / 2)
+            {
+                Item item2;
+                if (aboveMaxStack) { item2 = item.SplitItem(configAmount); }
+                else { item2 = item.SplitItem(65000); }
+                if (!item2.MoveToContainer(itemContainer, slot, true))
+                {
+                    item.amount += item2.amount;
+                    item2.Remove(0f);
+                }
+                ItemManager.DoRemoves();
+                inventory.ServerUpdate(0f);
+                return true;
+            }
+            return null;
+        }
 
         [ChatCommand("stack")]
         private void StackCommand(BasePlayer player, string command, string[] args)
