@@ -56,6 +56,12 @@
       "Radiation": 30.0,
       "Radius": 85.0
     },
+    "RocketFactory": { 
+      "Activate": true,
+      "Name": "Rocket Factory",
+      "Radiation": 10.0,
+      "Radius": 140.0
+    },
     "Satellite": {
       "Activate": true,
       "Name": "Satellite",
