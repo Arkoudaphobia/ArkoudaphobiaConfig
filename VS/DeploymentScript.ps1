@@ -43,10 +43,17 @@ If($QuarterlyClean)
 
 If($MonthlyClean)
 {
+	$DataItemsToRemote = `
+	@("ZLevelsCraftDetails.json", 
+	"ZLevelsRemastered.json",
+	"Blueprint-Database.json",
+	"Blueprint-Database-Backup.json",
+	"Jpipes.json",
+	"ZoneManager.json")
+	
 	Remove-Item -Path "$BaseServerPath\oxide\config\Portals.json" -ErrorAction SilentlyContinue
-	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsCraftDetails.json" -ErrorAction SilentlyContinue
-	Remove-Item -Path "$BaseServerPath\oxide\data\ZLevelsRemastered.json" -ErrorAction SilentlyContinue
-	Write-Verbose -Message "Removed Last wipes portal config file"
+
+	$DataItemsToRemote | %{Remove-Item -Path ("$BaseServerPath\oxide\data\" + $_) -ErrorAction SilentlyContinue}	
 }
 
 $ServerConfigFiles = Get-ChildItem -Path .\ServerConfigFiles
