@@ -18,8 +18,8 @@
     <Mod Name="Friends.cs" Enabled="true"/>
     <Mod Name="FurnaceSplitter.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
-    <Mod Name="HammerTime.cs" Enabled="true"/>
-    <Mod Name="HelpText.cs" Enabled="false"/>
+    <Mod Name="HammerTime.cs" Enabled="false"/>
+    <Mod Name="HelpText.cs" Enabled="true"/>
     <Mod Name="ImageLibrary.cs" Enabled="true"/>    
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="JPipes.cs" Enabled="true"/>
