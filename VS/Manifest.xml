@@ -19,7 +19,7 @@
     <Mod Name="FurnaceSplitter.cs" Enabled="true"/>
     <Mod Name="GatherManager.cs" Enabled="true"/>
     <Mod Name="HammerTime.cs" Enabled="true"/>
-    <Mod Name="HelpText.cs" Enabled="true"/>
+    <Mod Name="HelpText.cs" Enabled="false"/>
     <Mod Name="ImageLibrary.cs" Enabled="true"/>    
     <Mod Name="InfoPanel.cs" Enabled="true"/>
     <Mod Name="JPipes.cs" Enabled="true"/>
@@ -69,7 +69,7 @@
     <Config Name="Friends.json" remove="false"/>
     <Config Name="EnhancedHammer.json" remove="false"/>
     <Config Name="GatherManager.json" remove="false"/>
-    <Config Name="HammerTime.json" remove="false"/>
+    <Config Name="HammerTime.json" remove="true"/>
     <Config Name="helptext.json" remove="false"/>
     <Config Name="InfoPanel.json" remove="false"/>
     <Config Name="JPipes.json" remove="false"/>
