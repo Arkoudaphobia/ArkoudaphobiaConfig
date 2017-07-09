@@ -1,0 +1,819 @@
+{
+  "Remove - Access - AuthLevel - Admin": 2,
+  "Remove - Access - AuthLevel - All": 2,
+  "Remove - Access - AuthLevel - Normal": 0,
+  "Remove - Access - AuthLevel - Override": 1,
+  "Remove - Access - AuthLevel - Target": 1,
+  "Remove - Access - Oxide Permissions - Admin": "removertool.admin",
+  "Remove - Access - Oxide Permissions - All": "removertool.all",
+  "Remove - Access - Oxide Permissions - Normal": "removertool.remove",
+  "Remove - Access - Oxide Permissions - Override": "removertool.override",
+  "Remove - Access - Oxide Permissions - Target": "removertool.target",
+  "Remove - Distance - Admin": 20,
+  "Remove - Distance - All/Structure": 100,
+  "Remove - Distance - Normal": 2,
+  "Remove - Gibs - Admin": true,
+  "Remove - Gibs - All": false,
+  "Remove - Gibs - Normal": true,
+  "Remove - GUI - Authorization Check Hightlighting Box": true,
+  "Remove - GUI - Authorization Check Hightlighting Box - Allowed Background": "0.1 1 0.1 0.3",
+  "Remove - GUI - Authorization Check Hightlighting Box - Max Anchor (in Main Box)": "1 0.9",
+  "Remove - GUI - Authorization Check Hightlighting Box - Min Anchor (in Main Box)": "0 0.8",
+  "Remove - GUI - Authorization Check Hightlighting Box - Refused Background": "1 0.1 0.1 0.3",
+  "Remove - GUI - Entity - Box - Background Color": "0.1 0.1 0.1 0.98",
+  "Remove - GUI - Entity - Box - Max Anchor (in Main Box)": "1 0.9",
+  "Remove - GUI - Entity - Box - Min Anchor (in Main Box)": "0 0.8",
+  "Remove - GUI - Entity - Text - Max Anchor (in Entity Box)": "1 1",
+  "Remove - GUI - Entity - Text - Min Anchor (in Entity Box)": "0.05 0",
+  "Remove - GUI - Entity - Text - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Entity - Text - Text Size": 16,
+  "Remove - GUI - Main Box - Background Color": "0.1 0.1 0.1 0",
+  "Remove - GUI - Main Box - Max Anchor (in Rust Window)": "0.4 0.95",
+  "Remove - GUI - Main Box - Min Anchor (in Rust Window)": "0.1 0.65",
+  "Remove - GUI - Price": false,
+  "Remove - GUI - Price - Box - Background Color": "0.1 0.1 0.1 0.98",
+  "Remove - GUI - Price - Box - Max Anchor (in Main Box)": "1 0.80",
+  "Remove - GUI - Price - Box - Min Anchor (in Main Box)": "0 0.60",
+  "Remove - GUI - Price - Text - Max Anchor (in Price Box)": "0.3 1",
+  "Remove - GUI - Price - Text - Min Anchor (in Price Box)": "0.05 0",
+  "Remove - GUI - Price - Text - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Price - Text - Text Size": 16,
+  "Remove - GUI - Price - Text2 - Max Anchor (in Price Box)": "1 1",
+  "Remove - GUI - Price - Text2 - Min Anchor (in Price Box)": "0.35 0",
+  "Remove - GUI - Price - Text2 - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Price - Text2 - Text Size": 16,
+  "Remove - GUI - Refund": false,
+  "Remove - GUI - Refund - Box - Background Color": "0.1 0.1 0.1 0.98",
+  "Remove - GUI - Refund - Box - Max Anchor (in Main Box)": "1 0.60",
+  "Remove - GUI - Refund - Box - Min Anchor (in Main Box)": "0 0.40",
+  "Remove - GUI - Refund - Text - Max Anchor (in Refund Box)": "0.3 1",
+  "Remove - GUI - Refund - Text - Min Anchor (in Refund Box)": "0.05 0",
+  "Remove - GUI - Refund - Text - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Refund - Text - Text Size": 16,
+  "Remove - GUI - Refund - Text2 - Max Anchor (in Refund Box)": "1 1",
+  "Remove - GUI - Refund - Text2 - Min Anchor (in Refund Box)": "0.35 0",
+  "Remove - GUI - Refund - Text2 - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Refund - Text2 - Text Size": 16,
+  "Remove - GUI - Remove - Box - Background Color": "0.1 0.1 0.1 0.98",
+  "Remove - GUI - Remove - Box - Max Anchor (in Main Box)": "0.55 1",
+  "Remove - GUI - Remove - Box - Min Anchor (in Main Box)": "0 0.9",
+  "Remove - GUI - Remove - Text - Max Anchor (in Remove Box)": "1 1",
+  "Remove - GUI - Remove - Text - Min Anchor (in Remove Box)": "0.1 0",
+  "Remove - GUI - Remove - Text - Text Color": "1 0.1 0.1 0.98",
+  "Remove - GUI - Remove - Text - Text Size": 16,
+  "Remove - GUI - Timeleft - Box - Background Color": "0.1 0.1 0.1 0.98",
+  "Remove - GUI - Timeleft - Box - Max Anchor (in Main Box)": "1 1",
+  "Remove - GUI - Timeleft - Box - Min Anchor (in Main Box)": "0.55 0.9",
+  "Remove - GUI - Timeleft - Text - Max Anchor (in Timeleft Box)": "0.9 1",
+  "Remove - GUI - Timeleft - Text - Min Anchor (in Timeleft Box)": "0 0",
+  "Remove - GUI - Timeleft - Text - Text Color": "1 1 1 0.98",
+  "Remove - GUI - Timeleft - Text - Text Size": 16,
+  "Remove - Normal - Allowed Entities": {
+    "A floor grill": true,
+    "Armored Door": true,
+    "Armored Double Door": true,
+    "Auto Turret": true,
+    "Barbed Wooden Barricade": true,
+    "Bed": true,
+    "Camp Fire": true,
+    "Ceiling Light": true,
+    "Chainlink Fence": true,
+    "Chainlink Fence Gate": true,
+    "Code Lock": true,
+    "Concrete Barricade": true,
+    "Corn Seed": true,
+    "Doorway": true,
+    "Double Sign Post": true,
+    "Floor": true,
+    "Floor Frame": true,
+    "Floor Triangle": true,
+    "Foundation": true,
+    "Foundation Steps": true,
+    "Furnace": true,
+    "Hemp Seed": true,
+    "High External Stone Gate": true,
+    "High External Stone Wall": true,
+    "High External Wooden Gate": true,
+    "High External Wooden Wall": true,
+    "Huge Wooden Sign": true,
+    "Jack O Lantern Angry": true,
+    "Jack O Lantern Happy": true,
+    "Ladder Hatch": true,
+    "Land Mine": true,
+    "Landscape Picture Frame": true,
+    "Lantern": true,
+    "Large Banner Hanging": true,
+    "Large Banner on pole": true,
+    "Large Furnace": true,
+    "Large Water Catcher": true,
+    "Large Wood Box": true,
+    "Large Wooden Sign": true,
+    "Lock": true,
+    "Low Wall": true,
+    "Metal": true,
+    "Metal Barricade": true,
+    "Metal horizontal embrasure": true,
+    "Metal Vertical embrasure": true,
+    "Metal Window Bars": true,
+    "Mining Quarry": true,
+    "One Sided Town Sign Post": true,
+    "Pillar": true,
+    "Pookie Bear": true,
+    "Portrait Picture Frame": true,
+    "Prison Cell Gate": true,
+    "Prison Cell Wall": true,
+    "Pump Jack": true,
+    "Pumpkin Seed": true,
+    "Reactive Target": true,
+    "Reinforced Window Bars": true,
+    "Repair Bench": true,
+    "Research Table": true,
+    "Roof": true,
+    "Salvaged Shelves": true,
+    "Sandbag Barricade": true,
+    "Sheet Metal Door": true,
+    "Sheet Metal Double Door": true,
+    "Shop Front": true,
+    "Single Sign Post": true,
+    "Sleeping Bag": true,
+    "Small Oil Refinery": true,
+    "Small Stash": true,
+    "Small Stocking": true,
+    "Small Water Catcher": true,
+    "Small Wooden Sign": true,
+    "Snap Trap": true,
+    "Stairs L Shape": true,
+    "Stone": true,
+    "Stone Barricade": true,
+    "SUPER Stocking": true,
+    "Survival Fish Trap": true,
+    "Tall Picture Frame": true,
+    "Tool Cupboard": true,
+    "TopTier": true,
+    "Triangle Foundation": true,
+    "Twigs": true,
+    "Two Sided Hanging Sign": true,
+    "Two Sided Ornate Hanging Sign": true,
+    "Two Sided Town Sign Post": true,
+    "U Shaped Stairs": true,
+    "Wall": true,
+    "Wall Frame": true,
+    "Water Barrel": true,
+    "Water Purifier": true,
+    "Wind Turbine": true,
+    "Window": true,
+    "Wood": true,
+    "Wood Double Door": true,
+    "Wood Shutters": true,
+    "Wood Storage Box": true,
+    "Wooden Barricade": true,
+    "Wooden Door": true,
+    "Wooden Floor Spikes": true,
+    "Wooden Ladder": true,
+    "Wooden Sign": true,
+    "Wooden Window Bars": true,
+    "XL Picture Frame": true,
+    "XXL Picture Frame": true
+  },
+  "Remove - Normal - Price": {
+    "A floor grill": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Armored Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Armored Double Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Auto Turret": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Barbed Wooden Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Bed": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Camp Fire": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Ceiling Light": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Chainlink Fence": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Chainlink Fence Gate": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Code Lock": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Concrete Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Corn Seed": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Double Sign Post": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Furnace": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Hemp Seed": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "High External Stone Gate": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "High External Stone Wall": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "High External Wooden Gate": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "High External Wooden Wall": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Huge Wooden Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Jack O Lantern Angry": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Jack O Lantern Happy": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Ladder Hatch": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Land Mine": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Landscape Picture Frame": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Lantern": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Banner Hanging": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Banner on pole": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Furnace": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Water Catcher": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Wood Box": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Large Wooden Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Lock": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Metal": {
+      "withdraw": 50
+    },
+    "Metal Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Metal horizontal embrasure": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Metal Vertical embrasure": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Metal Window Bars": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Mining Quarry": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "One Sided Town Sign Post": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Pookie Bear": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Portrait Picture Frame": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Prison Cell Gate": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Prison Cell Wall": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Pump Jack": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Pumpkin Seed": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Reactive Target": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Reinforced Window Bars": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Repair Bench": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Research Table": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Salvaged Shelves": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Sandbag Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Sheet Metal Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Sheet Metal Double Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Shop Front": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Single Sign Post": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Sleeping Bag": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Small Oil Refinery": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Small Stash": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Small Stocking": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Small Water Catcher": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Small Wooden Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Snap Trap": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Stone": {
+      "stones": 50,
+      "wood": 10
+    },
+    "Stone Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "SUPER Stocking": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Survival Fish Trap": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Tall Picture Frame": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Tool Cupboard": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "TopTier": {
+      "xp": 5
+    },
+    "Twigs": {
+      "wood": 1
+    },
+    "Two Sided Hanging Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Two Sided Ornate Hanging Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Two Sided Town Sign Post": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Water Barrel": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Water Purifier": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wind Turbine": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wood": {
+      "wood": 10
+    },
+    "Wood Double Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wood Shutters": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wood Storage Box": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Barricade": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Door": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Floor Spikes": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Ladder": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Sign": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "Wooden Window Bars": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "XL Picture Frame": {
+      "metal fragments": 10,
+      "wood": 75
+    },
+    "XXL Picture Frame": {
+      "metal fragments": 10,
+      "wood": 75
+    }
+  },
+  "Remove - Normal - RaidBlocker": false,
+  "Remove - Normal - RaidBlocker - By Buildings": false,
+  "Remove - Normal - RaidBlocker - By Surrounding Players": false,
+  "Remove - Normal - RaidBlocker - By Surrounding Players - Radius": 120,
+  "Remove - Normal - RaidBlocker - Time": 300,
+  "Remove - Normal - Refund": {
+    "A floor grill": {
+      "a floor grill": 1
+    },
+    "Armored Door": {
+      "armored door": 1
+    },
+    "Armored Double Door": {
+      "armored double door": 1
+    },
+    "Auto Turret": {
+      "auto turret": 1
+    },
+    "Barbed Wooden Barricade": {
+      "barbed wooden barricade": 1
+    },
+    "Bed": {
+      "bed": 1
+    },
+    "Camp Fire": {
+      "camp fire": 1
+    },
+    "Ceiling Light": {
+      "ceiling light": 1
+    },
+    "Chainlink Fence": {
+      "chainlink fence": 1
+    },
+    "Chainlink Fence Gate": {
+      "chainlink fence gate": 1
+    },
+    "Code Lock": {
+      "code lock": 1
+    },
+    "Concrete Barricade": {
+      "concrete barricade": 1
+    },
+    "Corn Seed": {
+      "corn seed": 1
+    },
+    "Double Sign Post": {
+      "double sign post": 1
+    },
+    "Furnace": {
+      "furnace": 1
+    },
+    "Hemp Seed": {
+      "hemp seed": 1
+    },
+    "High External Stone Gate": {
+      "high external stone gate": 1
+    },
+    "High External Stone Wall": {
+      "high external stone wall": 1
+    },
+    "High External Wooden Gate": {
+      "high external wooden gate": 1
+    },
+    "High External Wooden Wall": {
+      "high external wooden wall": 1
+    },
+    "Huge Wooden Sign": {
+      "huge wooden sign": 1
+    },
+    "Jack O Lantern Angry": {
+      "jack o lantern angry": 1
+    },
+    "Jack O Lantern Happy": {
+      "jack o lantern happy": 1
+    },
+    "Ladder Hatch": {
+      "ladder hatch": 1
+    },
+    "Land Mine": {
+      "land mine": 1
+    },
+    "Landscape Picture Frame": {
+      "landscape picture frame": 1
+    },
+    "Lantern": {
+      "lantern": 1
+    },
+    "Large Banner Hanging": {
+      "large banner hanging": 1
+    },
+    "Large Banner on pole": {
+      "large banner on pole": 1
+    },
+    "Large Furnace": {
+      "large furnace": 1
+    },
+    "Large Water Catcher": {
+      "large water catcher": 1
+    },
+    "Large Wood Box": {
+      "large wood box": 1
+    },
+    "Large Wooden Sign": {
+      "large wooden sign": 1
+    },
+    "Lock": {
+      "lock": 1
+    },
+    "Metal": {
+      "metal fragments": 50
+    },
+    "Metal Barricade": {
+      "metal barricade": 1
+    },
+    "Metal horizontal embrasure": {
+      "metal horizontal embrasure": 1
+    },
+    "Metal Vertical embrasure": {
+      "metal vertical embrasure": 1
+    },
+    "Metal Window Bars": {
+      "metal window bars": 1
+    },
+    "Mining Quarry": {
+      "mining quarry": 1
+    },
+    "One Sided Town Sign Post": {
+      "one sided town sign post": 1
+    },
+    "Pookie Bear": {
+      "pookie bear": 1
+    },
+    "Portrait Picture Frame": {
+      "portrait picture frame": 1
+    },
+    "Prison Cell Gate": {
+      "prison cell gate": 1
+    },
+    "Prison Cell Wall": {
+      "prison cell wall": 1
+    },
+    "Pump Jack": {
+      "pump jack": 1
+    },
+    "Pumpkin Seed": {
+      "pumpkin seed": 1
+    },
+    "Reactive Target": {
+      "reactive target": 1
+    },
+    "Reinforced Window Bars": {
+      "reinforced window bars": 1
+    },
+    "Repair Bench": {
+      "repair bench": 1
+    },
+    "Research Table": {
+      "research table": 1
+    },
+    "Salvaged Shelves": {
+      "salvaged shelves": 1
+    },
+    "Sandbag Barricade": {
+      "sandbag barricade": 1
+    },
+    "Sheet Metal Door": {
+      "sheet metal door": 1
+    },
+    "Sheet Metal Double Door": {
+      "sheet metal double door": 1
+    },
+    "Shop Front": {
+      "shop front": 1
+    },
+    "Single Sign Post": {
+      "single sign post": 1
+    },
+    "Sleeping Bag": {
+      "sleeping bag": 1
+    },
+    "Small Oil Refinery": {
+      "small oil refinery": 1
+    },
+    "Small Stash": {
+      "small stash": 1
+    },
+    "Small Stocking": {
+      "small stocking": 1
+    },
+    "Small Water Catcher": {
+      "small water catcher": 1
+    },
+    "Small Wooden Sign": {
+      "small wooden sign": 1
+    },
+    "Snap Trap": {
+      "snap trap": 1
+    },
+    "Stone": 50,
+    "Stone Barricade": {
+      "stone barricade": 1
+    },
+    "SUPER Stocking": {
+      "super stocking": 1
+    },
+    "Survival Fish Trap": {
+      "survival fish trap": 1
+    },
+    "Tall Picture Frame": {
+      "tall picture frame": 1
+    },
+    "Tool Cupboard": {
+      "tool cupboard": 1
+    },
+    "TopTier": {
+      "high quality metal": 2
+    },
+    "Twigs": {
+      "wood": 1
+    },
+    "Two Sided Hanging Sign": {
+      "two sided hanging sign": 1
+    },
+    "Two Sided Ornate Hanging Sign": {
+      "two sided ornate hanging sign": 1
+    },
+    "Two Sided Town Sign Post": {
+      "two sided town sign post": 1
+    },
+    "Water Barrel": {
+      "water barrel": 1
+    },
+    "Water Purifier": {
+      "water purifier": 1
+    },
+    "Wind Turbine": {
+      "wind turbine": 1
+    },
+    "Wood": {
+      "wood": 10
+    },
+    "Wood Double Door": {
+      "wood double door": 1
+    },
+    "Wood Shutters": {
+      "wood shutters": 1
+    },
+    "Wood Storage Box": {
+      "wood storage box": 1
+    },
+    "Wooden Barricade": {
+      "wooden barricade": 1
+    },
+    "Wooden Door": {
+      "wooden door": 1
+    },
+    "Wooden Floor Spikes": {
+      "wooden floor spikes": 1
+    },
+    "Wooden Ladder": {
+      "wooden ladder": 1
+    },
+    "Wooden Sign": {
+      "wooden sign": 1
+    },
+    "Wooden Window Bars": {
+      "wooden window bars": 1
+    },
+    "XL Picture Frame": {
+      "xl picture frame": 1
+    },
+    "XXL Picture Frame": {
+      "xxl picture frame": 1
+    }
+  },
+  "Remove - Normal - Use Building Owners (You will need Building Owners plugin)": true,
+  "Remove - Normal - Use Clans": true,
+  "Remove - Normal - Use Entity Owners": true,
+  "Remove - Normal - Use Friends (Friends)": true,
+  "Remove - Normal - Use Friends (RustIO)": true,
+  "Remove - Normal - Use Tool Cupboards (strongly unrecommended)": false,
+  "Remove - Time - Default": 30,
+  "Remove - Time - Max": 300
+}

@@ -41,6 +41,7 @@
     <Mod Name="PrivateMessage.cs" Enabled="true"/>    
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
+    <Mod Name="RemoverTool.cs" Enabled="true"/>
     <Mod Name="RustyBearDebug.cs" Enabled="true"/>    
     <Mod Name="SignArtist.cs" Enabled="true"/>
     <Mod Name="SleeperAnimalProtection.cs" Enabled="true"/>
@@ -85,6 +86,7 @@
     <Config Name="PopupNotifications.json" remove="false"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
+    <Config Name="RemoverTool.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
     <Config Name="SleeperAnimalProtection.json" remove="false"/>
     <Config Name="SignArtist.json" remove="false"/>
