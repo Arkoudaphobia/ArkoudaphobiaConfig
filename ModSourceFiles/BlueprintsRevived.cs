@@ -3600,6 +3600,10 @@ namespace Oxide.Plugins
             {
                 return;
             }
+            if (container.PrefabName == "assets/bundled/prefabs/radtown/crate_elite.prefab") //Ignore elite crates
+            {
+                return;
+            }
             else
             {
                 container.inventory.Clear();
