@@ -68,6 +68,9 @@
   "Remove - GUI - Timeleft - Text - Min Anchor (in Timeleft Box)": "0 0",
   "Remove - GUI - Timeleft - Text - Text Color": "1 1 1 0.98",
   "Remove - GUI - Timeleft - Text - Text Size": 16,
+  "Remove - Cooldown - Enabled": false,
+  "Remove - Cooldown - ExcludeAdmins": true,
+  "Remove - Cooldown - Time": 60.0,
   "Remove - Normal - Allowed Entities": {
     "A floor grill": true,
     "Armored Door": true,
