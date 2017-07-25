@@ -49,6 +49,7 @@
     <Mod Name="Spyon.py" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="SurveyInfo.cs" Enabled="true"/>  
+    <Mod Name="Timber.cs" Enabled="true"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
@@ -93,6 +94,7 @@
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="SurveyInfo.json" remove="false"/>
+    <Config Name="Timber.json" remove="false"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="Trade.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>
