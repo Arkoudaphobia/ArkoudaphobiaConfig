@@ -1,34 +1,43 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection; // enable for ListComponentDebug
+//using System.Reflection; // enable for ListComponentDebug
 using System.Linq;
 using UnityEngine;
 using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust.Cui;
+using Oxide.Game.Rust.Libraries;
 using Rust;
 using System.Collections;
+using Oxide.Core.Libraries.Covalence;
 
 namespace Oxide.Plugins {
 
-    [Info("JPipes","TheGreatJ","0.4.1",ResourceId = 2402)]
+    [Info("JPipes", "TheGreatJ", "0.5.2", ResourceId = 2402)]
     class JPipes : RustPlugin {
 
         [PluginReference]
         private Plugin FurnaceSplitter;
 
-        private Dictionary<ulong,UserInfo> users;
-        private Dictionary<ulong,jPipe> regpipes = new Dictionary<ulong,jPipe>();
+        private Dictionary<ulong, UserInfo> users;
+        private Dictionary<ulong, jPipe> regpipes = new Dictionary<ulong, jPipe>();
         private PipeSaveData storedData;
-        
+
+        private static Color blue = new Color(0.2f, 0.4f, 1);
+        private static Color orange = new Color(1f, 0.4f, 0.2f);
+        private static string bluestring = "0.5 0.75 1.0 1.0";
+        private static string orangestring = "1.0 0.75 0.5 1.0";
+
         #region Hooks
 
         void Init() {
 
-            lang.RegisterMessages(new Dictionary<string,string> {
+            lang.RegisterMessages(new Dictionary<string, string> {
                 ["ErrorFindFirst"] = "Failed to find first StorageContainer",
                 ["ErrorFindSecond"] = "Failed to find second StorageContainer",
                 ["ErrorAlreadyConnected"] = "Error: StorageContainers are already connected",
+                ["ErrorNotItemCont"] = "Error: Second Container does not accept Items",
+                ["ErrorNotLiquidCont"] = "Error: Second Container does not accept Liquid",
                 ["ErrorTooFar"] = "Error: StorageContainers are too far apart",
                 ["ErrorTooClose"] = "Error: StorageContainers are too close together",
                 ["ErrorPrivilegeAttach"] = "Error: You do not have building privilege to attach a pipe to this StorageContainer",
@@ -40,13 +49,16 @@ namespace Oxide.Plugins {
                 ["SelectFirst"] = "Use the Hammer to select the First Container",
                 ["SelectSecond"] = "Use the Hammer to select the Second Container",
                 //["SelectCancel"] = "Canceled Pipe Creation",
-                ["SelectSubtextBind"] = "Press [P] to Cancel",
-                ["SelectSubtextCmd"] = "Do /p to Cancel",
+                ["SelectSubtextBind"] = "Press [{0}] to Cancel",
+                ["SelectSubtextCmd"] = "Do /{0} to Cancel",
                 ["PipeCreated"] = "Pipe has been created!",
 
                 ["CopyingTextFirst"] = "Use the Hammer to select the jPipe to copy from",
                 ["CopyingText"] = "Use the Hammer to Paste",
-                ["CopyingSubtext"] = "Do /pc to Exit",
+                ["CopyingSubtext"] = "Do /{0} c to Exit",
+                
+                ["RemovingText"] = "Use the Hammer to Remove Pipes",
+                ["RemovingSubtext"] = "Do /{0} r to Exit",
 
                 ["MenuTitle"] = "<color=#80c5ff>j</color>Pipe",
                 ["MenuTurnOn"] = "Turn On",
@@ -59,18 +71,20 @@ namespace Oxide.Plugins {
                 ["MenuInfo"] = "Owner  <color=#80c5ff>{0}</color>\nFlowrate  <color=#80c5ff>{1}/sec</color>\nLength  <color=#80c5ff>{2}</color>",
 
                 ["HelpCmdTitle"] = "<size=28><color=#80c5ff>j</color>Pipes</size> <size=10>by TheGreatJ</size>",
-                ["HelpCmdCommands"] = "<size=18>Commands</size>\n<color=#80c5ff>/p</color> create a pipe",
-                ["HelpCmdMenu"] = "<size=18>Pipe Menu</size><size=12> - hit pipe with hammer to open</size>\n<color=#80c5ff>Turn On / Turn Off</color> toggle item transfer\n<color=#80c5ff>Auto Starter</color> after a pipe sends an item to a furnace, recycler, refinery, mining quarry, or pump jack, it will attempt to start it\n<color=#80c5ff>Change Direction</color> makes the items go the other direction through the pipe\n<color=#80c5ff>Multi Stack / Single Stack</color> Multi Stack mode allows the pipe to create multiple stacks of the same item. Single Stack mode prevents the pipe from creating more than one stack of an item. Single Stack mode is mostly just for fueling furnaces to leave room for other items.\n<color=#80c5ff>Item Filter</color> when items are in the filter, only those items will be transferred through the pipe. When the filter is empty, all items will be transferred.",
+                ["HelpCmdCommands"] = "<size=18>Commands</size>\n<color=#80c5ff>/{0} </color> start or stop placing a pipe\n<color=#80c5ff>/{0} c /{0}copy </color>or<color=#80c5ff> /{0} copy </color> copy pipe settings from one pipe to another\n <color=#80c5ff>/{0} r /{0}remove </color>or<color=#80c5ff> /{0} remove </color> remove pipe with hammer\n <color=#80c5ff>/{0} s /{0}stats </color>or<color=#80c5ff> /{0} stats </color> pipe status with how many pipes you are using\n <color=#80c5ff>/{0} h /{0}help </color>or<color=#80c5ff> /{0} help </color> JPipes in-game help",
+                ["HelpCmdMenu"] = "<size=18>Pipe Menu</size><size=12> - hit pipe with hammer to open</size>\n<color=#80c5ff>Turn On / Turn Off</color> toggle item/liquid transfer\n<color=#80c5ff>Auto Starter</color> after a pipe sends an item to a furnace, recycler, refinery, mining quarry, or pump jack, it will attempt to start it\n<color=#80c5ff>Change Direction</color> makes the items go the other direction through the pipe\n<color=#80c5ff>Multi Stack / Single Stack</color> Multi Stack mode allows the pipe to create multiple stacks of the same item. Single Stack mode prevents the pipe from creating more than one stack of an item. Single Stack mode is mostly just for fueling furnaces to leave room for other items.\n<color=#80c5ff>Item Filter</color> when items are in the filter, only those items will be transferred through the pipe. When the filter is empty, all items will be transferred.",
                 ["HelpCmdUpgrade"] = "<size=18>Upgrading Pipes</size>\nUse a Hammer and upgrade the pipe just like any other building\nEach upgrade level increases the pipe's flow rate and Item Filter size.",
-                ["HelpBindTip"] = "JPipes Tip:\nYou can bind the /p command to a hotkey by putting\n\"bind p jpipes.create\" into the F1 console",
+                ["HelpBindTip"] = "JPipes Tip:\nYou can bind the /{0} command to a hotkey by putting\n\"bind {1} jpipes.create\" into the F1 console",
 
                 ["StatsCmd"] = "<size=20><color=#80c5ff>j</color>Pipes Stats</size>\nYou have {0} jpipes currently in use.",
                 ["StatsCmdLimit"] = "<size=20><color=#80c5ff>j</color>Pipes Stats</size>\nYou have {0} of {1} jpipes currently in use."
-            },this);
+            }, this);
 
             LoadConfig();
+            LoadCommands();
+            maxpipedistsq = (maxpipedist * 0.5f) * (maxpipedist * 0.5f);
 
-            users = new Dictionary<ulong,UserInfo>();
+            users = new Dictionary<ulong, UserInfo>();
             storedData = new PipeSaveData();
         }
 
@@ -79,31 +93,31 @@ namespace Oxide.Plugins {
 
             foreach (var p in storedData.p) {
                 jPipe newpipe = new jPipe();
-                if (newpipe.init(this,p.Key,p.Value,RemovePipe,MoveItem))
+                if (newpipe.init(this, p.Key, p.Value, RemovePipe, MoveItem))
                     RegisterPipe(newpipe);
                 else
                     PrintWarning(newpipe.initerr);
             }
+            
+            UpdateTick();
 
             Puts($"{regpipes.Count} pipes loaded");
         }
 
         private void Loaded() {
-            permission.RegisterPermission("jpipes.use",this);
-            permission.RegisterPermission("jpipes.admin",this);
-
-
+            permission.RegisterPermission("jpipes.use", this);
+            permission.RegisterPermission("jpipes.admin", this);
         }
 
         void Unload() {
             foreach (var player in BasePlayer.activePlayerList) {
                 UserInfo userinfo;
-                if (!users.TryGetValue(player.userID,out userinfo))
+                if (!users.TryGetValue(player.userID, out userinfo))
                     continue;
                 if (!string.IsNullOrEmpty(userinfo.menu))
-                    CuiHelper.DestroyUi(player,userinfo.menu);
+                    CuiHelper.DestroyUi(player, userinfo.menu);
                 if (!string.IsNullOrEmpty(userinfo.overlay))
-                    CuiHelper.DestroyUi(player,userinfo.overlay);
+                    CuiHelper.DestroyUi(player, userinfo.overlay);
             }
 
             SavePipes();
@@ -111,6 +125,43 @@ namespace Oxide.Plugins {
         }
 
         void OnServerSave() => SavePipes();
+        
+        private float animaterate = 0.5f;
+        private float animatelength = 2.5f;
+        private float updatetickrate = 3f; // update without animation
+        private float[] frames = new float[] { 0.1f, 0.3f, 0.5f, 0.7f, 0.9f };
+        private int frame = 0;
+        private float maxpipedistsq = 0;
+        private static bool OnlyShowArrowsForOwner = true;
+
+        void UpdateTick() {
+
+            if (!drawflowarrows)
+                return;
+            
+            if (animatearrows) frame = (frame < 4) ? frame + 1 : 0;
+            
+            foreach (var player in BasePlayer.activePlayerList) {
+
+                var item = player.GetActiveItem();
+                if (item != null && item.info != null && (item.info.name == "hammer.item" || item.info.name == "camera.item")) {
+
+                    var pipes = OnlyShowArrowsForOwner && !permission.UserHasPermission(player.UserIDString, "jpipes.admin") ? GetUserInfo(player).pipes : regpipes;
+
+                    foreach (var pipe in pipes) {
+
+                        if ((pipe.Value.sourcepos - player.transform.position).sqrMagnitude < maxpipedistsq || (pipe.Value.endpos - player.transform.position).sqrMagnitude < maxpipedistsq) {
+                            if (animatearrows)
+                                pipe.Value.DrawArrows(player, animatelength, animaterate, frames[frame]);
+                            else
+                                pipe.Value.DrawArrows(player, updatetickrate, updatetickrate, 0.5f);
+                        }
+                    }
+                }
+            }
+            
+            timer.Once(animatearrows ? animaterate : updatetickrate, UpdateTick);
+        }
 
         void OnPlayerInit(BasePlayer player) {
 
@@ -129,83 +180,87 @@ namespace Oxide.Plugins {
         //    }
         //}
 
-        void OnHammerHit(BasePlayer player,HitInfo hit) {
+        void OnHammerHit(BasePlayer player, HitInfo hit) {
 
             //ListComponentsDebug(player, hit.HitEntity);
 
             UserInfo userinfo = GetUserInfo(player);
 
-            if (hit.HitEntity.GetComponent<StorageContainer>() != null) {
+            if (hit.HitEntity.GetComponent<StorageContainer>() != null) { // if we hit a StorageContainer
 
-                if (userinfo.isPlacing && userinfo.placeend == null && checkcontwhitelist(hit.HitEntity)) {
-                    if (checkcontprivlage(hit.HitEntity,player)) {
+                if (userinfo.state == UserState.placing && userinfo.placeend == null && checkcontwhitelist(hit.HitEntity)) {
+                    if (checkcontprivlage(hit.HitEntity, player)) {
                         // select first
                         if (userinfo.placestart == null) {
                             userinfo.placestart = hit.HitEntity;
 
-                            ShowOverlayText(player,lang.GetMessage("SelectSecond",this,player.UserIDString),lang.GetMessage(userinfo.isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd",this,player.UserIDString));
+                            ShowOverlayText(player, lang.GetMessage("SelectSecond", this, player.UserIDString), string.Format(lang.GetMessage(userinfo.isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd", this, player.UserIDString), userinfo.isUsingBind ? pipehotkey : pipecommandprefix));
                         } else if (userinfo.placestart != null) { // select second
                             userinfo.placeend = hit.HitEntity;
-                            NewPipe(player,userinfo);
+                            NewPipe(player, userinfo);
                         }
                     } else {
-                        ShowOverlayText(player,lang.GetMessage("ErrorPrivilegeAttach",this,player.UserIDString));
-                        timer.Once(2f,() => {
-                            ShowOverlayText(player,lang.GetMessage((userinfo.placestart == null) ? "SelectFirst":"SelectSecond",this,player.UserIDString),lang.GetMessage(userinfo.isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd",this,player.UserIDString));
+                        ShowOverlayText(player, lang.GetMessage("ErrorPrivilegeAttach", this, player.UserIDString));
+                        timer.Once(2f, () => {
+                            ShowOverlayText(player, lang.GetMessage((userinfo.placestart == null) ? "SelectFirst" : "SelectSecond", this, player.UserIDString), string.Format(lang.GetMessage(userinfo.isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd", this, player.UserIDString), userinfo.isUsingBind ? pipehotkey : pipecommandprefix));
                         });
                     }
                 }
             } else {
                 jPipeSegChild s = hit.HitEntity.GetComponent<jPipeSegChild>();
-                if (s != null) {
+                if (s != null) { // if we hit a pipe
                     if (!commandperm(player))
                         return;
                     if (checkbuildingprivlage(player)) {
-                        if (userinfo.isCopying) {
+                        if (userinfo.state == UserState.copying) { // if user is copying
                             if (userinfo.clipboard == null) {
 
                                 userinfo.clipboard = new jPipeData();
                                 userinfo.clipboard.fromPipe(s.pipe);
 
-                                ShowOverlayText(player,lang.GetMessage("CopyingText",this,player.UserIDString),lang.GetMessage("CopyingSubtext",this,player.UserIDString));
+                                ShowOverlayText(player, lang.GetMessage("CopyingText", this, player.UserIDString), string.Format(lang.GetMessage("CopyingSubtext", this, player.UserIDString), pipecommandprefix));
 
                             } else {
-                                s.pipe.Destroy();
-
                                 userinfo.clipboard.s = s.pipe.sourcecont.net.ID;
                                 userinfo.clipboard.d = s.pipe.destcont.net.ID;
+
+                                s.pipe.Destroy();
 
                                 jPipe newpipe = new jPipe();
 
                                 // initalize pipe
-                                if (newpipe.init(this,pipeidgen(),userinfo.clipboard,RemovePipe,MoveItem)) {
+                                if (newpipe.init(this, pipeidgen(), userinfo.clipboard, RemovePipe, MoveItem)) {
                                     // pipe was created so register it
                                     RegisterPipe(newpipe);
                                 } else {
                                     // pipe error
-                                    ShowOverlayText(player,lang.GetMessage(newpipe.initerr,this,player.UserIDString));
+                                    ShowOverlayText(player, lang.GetMessage(newpipe.initerr, this, player.UserIDString));
                                     newpipe = null;
                                 }
                             }
 
-                        } else {
-                            s.pipe.OpenMenu(player,userinfo);
+                        } else if (userinfo.state == UserState.removing) { // if user is removing
+
+                            s.pipe.Destroy();
+
+                        } else if (userinfo.state == UserState.none) { // if user is not in a command
+                            s.pipe.OpenMenu(player, userinfo);
                         }
                     } else {
-                        ShowOverlayText(player,lang.GetMessage("ErrorPrivilegeModify",this,player.UserIDString));
-                        HideOverlayText(player,2f);
+                        ShowOverlayText(player, lang.GetMessage("ErrorPrivilegeModify", this, player.UserIDString));
+                        HideOverlayText(player, 2f);
                     }
                 }
             }
         }
 
-        void OnStructureDemolish(BaseCombatEntity entity,BasePlayer player) {
+        void OnStructureDemolish(BaseCombatEntity entity, BasePlayer player) {
             jPipeSegChild p = entity.GetComponent<jPipeSegChild>();
             if (p != null && p.pipe != null)
                 p.pipe.OnSegmentKilled();
         }
 
-        void OnEntityDeath(BaseCombatEntity entity,HitInfo info) {
+        void OnEntityDeath(BaseCombatEntity entity, HitInfo info) {
             if (entity is BuildingBlock) {
                 jPipeSegChild p = entity.GetComponent<jPipeSegChild>();
                 if (p != null && p.pipe != null)
@@ -213,17 +268,18 @@ namespace Oxide.Plugins {
             }
         }
 
-        bool? OnStructureUpgrade(BaseCombatEntity entity,BasePlayer player,BuildingGrade.Enum grade) {
+        bool? OnStructureUpgrade(BaseCombatEntity entity, BasePlayer player, BuildingGrade.Enum grade) {
             jPipeSegChild p = entity.GetComponent<jPipeSegChild>();
             if (p != null && p.pipe != null) {
-                if (!commandperm(player)) return false;
+                if (!commandperm(player))
+                    return false;
                 int upgradelimit = getplayerupgradelimit(player);
                 if (upgradelimit != -1 && upgradelimit < (int) grade) {
                     Puts(upgradelimit.ToString());
                     Puts(((int) grade).ToString());
 
-                    ShowOverlayText(player,string.Format(lang.GetMessage("ErrorUpgradeLimit",this,player.UserIDString), (BuildingGrade.Enum) upgradelimit));
-                    HideOverlayText(player,2f);
+                    ShowOverlayText(player, string.Format(lang.GetMessage("ErrorUpgradeLimit", this, player.UserIDString), (BuildingGrade.Enum) upgradelimit));
+                    HideOverlayText(player, 2f);
 
                     return false;
                 }
@@ -232,8 +288,9 @@ namespace Oxide.Plugins {
             return null;
         }
 
-        void OnStructureRepair(BaseCombatEntity entity,BasePlayer player) {
-            if (GetUserInfo(player).isPlacing) return;
+        void OnStructureRepair(BaseCombatEntity entity, BasePlayer player) {
+            if (GetUserInfo(player).state != UserState.none)
+                return;
 
             jPipeSegChild p = entity.GetComponent<jPipeSegChild>();
             if (p != null && p.pipe != null)
@@ -241,11 +298,11 @@ namespace Oxide.Plugins {
         }
 
         // pipe damage handling
-        bool? OnEntityTakeDamage(BaseCombatEntity entity,HitInfo hitInfo) {
+        bool? OnEntityTakeDamage(BaseCombatEntity entity, HitInfo hitInfo) {
             jPipeSegChild p = entity.GetComponent<jPipeSegChild>();
             if (p != null && p.pipe != null) {
                 if (nodecay)
-                    hitInfo.damageTypes.Scale(Rust.DamageType.Decay,0f); // no decay damage
+                    hitInfo.damageTypes.Scale(Rust.DamageType.Decay, 0f); // no decay damage
                 float damage = hitInfo.damageTypes.Total();
                 if (damage > 0) {
                     float newhealth = entity.GetComponent<BuildingBlock>().health - damage;
@@ -260,7 +317,7 @@ namespace Oxide.Plugins {
         }
 
         // When item is added to filter
-        object CanAcceptItem(ItemContainer container,Item item) {
+        object CanAcceptItem(ItemContainer container, Item item) {
             if (container == null || item == null || container.entityOwner == null || container.entityOwner.GetComponent<jPipeFilterStash>() == null)
                 return null;
 
@@ -285,14 +342,14 @@ namespace Oxide.Plugins {
         }
 
         // when item is removed from filter it is destroyed
-        void OnItemRemovedFromContainer(ItemContainer container,Item item) {
+        void OnItemRemovedFromContainer(ItemContainer container, Item item) {
             if (container == null || item == null || container.entityOwner == null || container.entityOwner.GetComponent<jPipeFilterStash>() == null)
                 return;
             item.Remove();
         }
 
         // when item is taken from filter, it can't be stacked
-        bool? CanStackItem(Item targetItem,Item item) {
+        bool? CanStackItem(Item targetItem, Item item) {
             if (item.parent == null || item.parent.entityOwner == null || item.parent.entityOwner.GetComponent<jPipeFilterStash>() == null)
                 return null;
             return false;
@@ -303,88 +360,134 @@ namespace Oxide.Plugins {
         #region Commands
 
         private bool commandperm(BasePlayer player) {
-            if (!(permission.UserHasPermission(player.UserIDString,"jpipes.use") || permission.UserHasPermission(player.UserIDString,"jpipes.admin"))) {
-                ShowOverlayText(player,lang.GetMessage("ErrorCmdPerm",this,player.UserIDString));
-                HideOverlayText(player,2f);
+            if (!(permission.UserHasPermission(player.UserIDString, "jpipes.use") || permission.UserHasPermission(player.UserIDString, "jpipes.admin"))) {
+                ShowOverlayText(player, lang.GetMessage("ErrorCmdPerm", this, player.UserIDString));
+                HideOverlayText(player, 2f);
                 return false;
             }
             return true;
         }
+        
+        private void LoadCommands() {
+            AddCovalenceCommand(pipecommandprefix, "pipemainchat");
+            AddCovalenceCommand($"{pipecommandprefix}help", "cmdpipehelp");
+            AddCovalenceCommand($"{pipecommandprefix}copy", "cmdpipecopy");
+            AddCovalenceCommand($"{pipecommandprefix}remove", "cmdpiperemove");
+            AddCovalenceCommand($"{pipecommandprefix}stats", "cmdpipestats");
+            AddCovalenceCommand($"{pipecommandprefix}list", "cmdpipelist");
+        }
+        private void cmdpipehelp(IPlayer cmdplayer, string cmd, string[] args) => pipehelp(BasePlayer.Find(cmdplayer.Id), cmd, args);
+        private void cmdpipecopy(IPlayer cmdplayer, string cmd, string[] args) => pipecopy(BasePlayer.Find(cmdplayer.Id), cmd, args);
+        private void cmdpiperemove(IPlayer cmdplayer, string cmd, string[] args) => piperemove(BasePlayer.Find(cmdplayer.Id), cmd, args);
+        private void cmdpipestats(IPlayer cmdplayer, string cmd, string[] args) => pipestats(BasePlayer.Find(cmdplayer.Id), cmd, args);
+        private void cmdpipelist(IPlayer cmdplayer, string cmd, string[] args) => pipelist(BasePlayer.Find(cmdplayer.Id), cmd, args);
+        
+        // [ChatCommand("p")]
+        private void pipemainchat(IPlayer cmdplayer, string cmd, string[] args) {
+            BasePlayer player = BasePlayer.Find(cmdplayer.Id);
 
-        [ChatCommand("p")]
-        private void pipecreatechat(BasePlayer player,string cmd,string[] args) {
-            if (!commandperm(player)) return;
+            if (!commandperm(player))
+                return;
 
             if (args.Length > 0) {
                 switch (args[0]) {
-                    case "h": pipehelp(player,cmd,args);
+                    case "h":
+                    case "help":
+                        pipehelp(player, cmd, args);
                         break;
-                    case "c": pipecopy(player,cmd,args);
+                    case "c":
+                    case "copy":
+                        pipecopy(player, cmd, args);
                         break;
-                    case "s": pipestats(player,cmd,args);
+                    case "r":
+                    case "remove":
+                        piperemove(player, cmd, args);
                         break;
-                    case "list": pipelist(player,cmd,args);
+                    case "s":
+                    case "stats":
+                        pipestats(player, cmd, args);
+                        break;
+                    case "l":
+                    case "list":
+                        pipelist(player, cmd, args);
                         break;
                 }
             } else {
-                startplacingpipe(player,false);
+                startplacingpipe(player, false);
             }
         }
 
-        [ChatCommand("ph")]
-        private void pipehelp(BasePlayer player,string cmd,string[] args) {
+        //[ChatCommand("phelp")]
+        private void pipehelp(BasePlayer player, string cmd, string[] args) {
             if (!commandperm(player))
                 return;
-            PrintToChat(player,lang.GetMessage("HelpCmdTitle",this,player.UserIDString));
-            PrintToChat(player,lang.GetMessage("HelpCmdCommands",this,player.UserIDString));
-            PrintToChat(player,lang.GetMessage("HelpCmdMenu",this,player.UserIDString));
-            PrintToChat(player,lang.GetMessage("HelpCmdUpgrade",this,player.UserIDString));
+            PrintToChat(player, lang.GetMessage("HelpCmdTitle", this, player.UserIDString));
+            PrintToChat(player, string.Format(lang.GetMessage("HelpCmdCommands", this, player.UserIDString), pipecommandprefix));
+            PrintToChat(player, lang.GetMessage("HelpCmdMenu", this, player.UserIDString));
+            PrintToChat(player, lang.GetMessage("HelpCmdUpgrade", this, player.UserIDString));
         }
 
-        [ChatCommand("pc")]
-        private void pipecopy(BasePlayer player,string cmd,string[] args) {
+        //[ChatCommand("pcopy")]
+        private void pipecopy(BasePlayer player, string cmd, string[] args) {
             if (!commandperm(player))
                 return;
             UserInfo userinfo = GetUserInfo(player);
 
-            userinfo.isPlacing = false;
+            userinfo.state = userinfo.state == UserState.copying ? UserState.none : UserState.copying;
             userinfo.placeend = null;
             userinfo.placestart = null;
 
-            userinfo.isCopying = !userinfo.isCopying;
-
-            if (userinfo.isCopying) {
-                ShowOverlayText(player,lang.GetMessage("CopyingTextFirst",this,player.UserIDString),lang.GetMessage("CopyingSubtext",this,player.UserIDString));
+            if (userinfo.state == UserState.copying) {
+                ShowOverlayText(player, lang.GetMessage("CopyingTextFirst", this, player.UserIDString), string.Format(lang.GetMessage("CopyingSubtext", this, player.UserIDString), pipecommandprefix));
             } else {
-                //ShowOverlayText(player,"",lang.GetMessage("SelectCancel",this,player.UserIDString));
                 HideOverlayText(player);
                 userinfo.clipboard = null;
             }
 
         }
 
-        [ChatCommand("ps")]
-        private void pipestats(BasePlayer player,string cmd,string[] args) {
+        //[ChatCommand("premove")]
+        private void piperemove(BasePlayer player, string cmd, string[] args) {
+            if (!commandperm(player))
+                return;
+            UserInfo userinfo = GetUserInfo(player);
+
+            userinfo.state = userinfo.state == UserState.removing ? UserState.none : UserState.removing;
+            userinfo.placeend = null;
+            userinfo.placestart = null;
+            userinfo.clipboard = null;
+            
+            if (userinfo.state == UserState.removing) {
+                ShowOverlayText(player, lang.GetMessage("RemovingText", this, player.UserIDString), string.Format(lang.GetMessage("RemovingSubtext", this, player.UserIDString), pipecommandprefix));
+            } else {
+                HideOverlayText(player);
+            }
+        }
+
+        //[ChatCommand("pstats")]
+        private void pipestats(BasePlayer player, string cmd, string[] args) {
             if (!commandperm(player))
                 return;
             UserInfo userinfo = GetUserInfo(player);
             int pipelimit = getplayerpipelimit(player);
 
-            if (pipelimit == -1) PrintToChat(player,string.Format(lang.GetMessage("StatsCmd",this,player.UserIDString),userinfo.pipes.Count));
-            else PrintToChat(player,string.Format(lang.GetMessage("StatsCmdLimit",this,player.UserIDString),userinfo.pipes.Count,pipelimit));
+            if (pipelimit == -1)
+                PrintToChat(player, string.Format(lang.GetMessage("StatsCmd", this, player.UserIDString), userinfo.pipes.Count));
+            else
+                PrintToChat(player, string.Format(lang.GetMessage("StatsCmdLimit", this, player.UserIDString), userinfo.pipes.Count, pipelimit));
         }
 
-        [ChatCommand("plist")]
-        private void pipelist(BasePlayer player,string cmd,string[] args) {
+        //[ChatCommand("plist")]
+        private void pipelist(BasePlayer player, string cmd, string[] args) {
 
-            if (!permission.UserHasPermission(player.UserIDString,"jpipes.admin")) {
-                ShowOverlayText(player,lang.GetMessage("ErrorCmdPerm",this,player.UserIDString));
-                HideOverlayText(player,2f);
+            if (!permission.UserHasPermission(player.UserIDString, "jpipes.admin")) {
+                ShowOverlayText(player, lang.GetMessage("ErrorCmdPerm", this, player.UserIDString));
+                HideOverlayText(player, 2f);
                 return;
             }
 
             foreach (var u in users) {
-                PrintToChat(player,$"{u.Value.pipes.Count}");
+                PrintToChat(player, $"{u.Value.pipes.Count}");
             }
         }
 
@@ -393,7 +496,7 @@ namespace Oxide.Plugins {
             BasePlayer p = arg.Player();
             if (!commandperm(p))
                 return;
-            startplacingpipe(p,true);
+            startplacingpipe(p, true);
         }
 
         [ConsoleCommand("jpipes.openmenu")]
@@ -402,17 +505,17 @@ namespace Oxide.Plugins {
             if (!commandperm(p))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe)) {
-                pipe.OpenMenu(p,GetUserInfo(p));
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe)) {
+                pipe.OpenMenu(p, GetUserInfo(p));
             }
         }
 
         [ConsoleCommand("jpipes.closemenu")]
         private void pipeclosemenu(ConsoleSystem.Arg arg) {
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe)) {
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe)) {
                 BasePlayer p = arg.Player();
-                pipe.CloseMenu(p,GetUserInfo(p));
+                pipe.CloseMenu(p, GetUserInfo(p));
             }
         }
 
@@ -422,18 +525,17 @@ namespace Oxide.Plugins {
             UserInfo userinfo = GetUserInfo(p);
 
             if (!string.IsNullOrEmpty(userinfo.menu))
-                CuiHelper.DestroyUi(p,userinfo.menu);
+                CuiHelper.DestroyUi(p, userinfo.menu);
             userinfo.isMenuOpen = false;
         }
 
         [ConsoleCommand("jpipes.refreshmenu")]
         private void piperefreshmenu(ConsoleSystem.Arg arg) {
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe)) {
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe)) {
                 BasePlayer p = arg.Player();
                 UserInfo userinfo = GetUserInfo(p);
-                pipe.CloseMenu(p,userinfo);
-                pipe.OpenMenu(p,userinfo);
+                pipe.OpenMenu(p, userinfo);
             }
         }
 
@@ -442,7 +544,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe)) {
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe)) {
                 pipe.ChangeDirection();
             }
         }
@@ -453,10 +555,10 @@ namespace Oxide.Plugins {
             if (!commandperm(p))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe)) {
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe)) {
                 UserInfo userinfo = GetUserInfo(p);
                 pipe.OpenFilter(p);
-                pipe.CloseMenu(p,userinfo);
+                pipe.CloseMenu(p, userinfo);
             }
         }
 
@@ -466,7 +568,7 @@ namespace Oxide.Plugins {
             if (!commandperm(p))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.mainlogic.pipeEnable(p);
         }
 
@@ -476,7 +578,7 @@ namespace Oxide.Plugins {
             if (!commandperm(p))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.mainlogic.pipeDisable(p);
         }
 
@@ -485,7 +587,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.autostarter = true;
             pipe.RefreshMenu();
         }
@@ -495,7 +597,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.autostarter = false;
             pipe.RefreshMenu();
         }
@@ -505,7 +607,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.singlestack = true;
             pipe.RefreshMenu();
         }
@@ -515,7 +617,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.singlestack = false;
             pipe.RefreshMenu();
         }
@@ -525,7 +627,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.fsplit = true;
             pipe.RefreshMenu();
         }
@@ -535,7 +637,7 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.fsplit = false;
             pipe.RefreshMenu();
         }
@@ -545,19 +647,18 @@ namespace Oxide.Plugins {
             if (!commandperm(arg.Player()))
                 return;
             jPipe pipe;
-            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]),out pipe))
+            if (regpipes.TryGetValue((ulong) int.Parse(arg.Args[0]), out pipe))
                 pipe.fsstacks = int.Parse(arg.Args[1]);
             pipe.RefreshMenu();
         }
-        
+
         #endregion
 
         #region Classes
 
         // user data for chat commands
         private class UserInfo {
-            public bool isPlacing = false;
-            public bool isCopying = false;
+            public UserState state = UserState.none;
             public bool isUsingBind = false;
             public BaseEntity placestart;
             public BaseEntity placeend;
@@ -571,23 +672,30 @@ namespace Oxide.Plugins {
             public string overlaysubtext;
 
             // pipes
-            public Dictionary<ulong,jPipe> pipes = new Dictionary<ulong,jPipe>();
+            public Dictionary<ulong, jPipe> pipes = new Dictionary<ulong, jPipe>();
         }
 
         private UserInfo GetUserInfo(BasePlayer player) => GetUserInfo(player.userID);
 
         private UserInfo GetUserInfo(ulong id) {
             UserInfo userinfo;
-            if (!users.TryGetValue(id,out userinfo))
+            if (!users.TryGetValue(id, out userinfo))
                 users[id] = userinfo = new UserInfo();
             return userinfo;
         }
 
+        private enum UserState {
+            none,
+            placing,
+            copying,
+            removing
+        };
+
         // main pipe class
         private class jPipe {
 
-            public Action<ulong,bool> remover;
-            public Action<Item,int,StorageContainer,int> moveitem;
+            public Action<ulong, bool> remover;
+            public Action<Item, int, StorageContainer, int> moveitem;
 
             private JPipes pipeplugin;
 
@@ -598,6 +706,7 @@ namespace Oxide.Plugins {
             public string ownername;
 
             public bool isEnabled = true;
+            public bool isWaterPipe = false;
 
             public BaseEntity mainparent;
 
@@ -605,10 +714,13 @@ namespace Oxide.Plugins {
             public BaseEntity source;
             public BaseEntity dest;
 
+            public Vector3 sourcepos;
+            public Vector3 endpos;
+
             // storage containers
             public StorageContainer sourcecont;
             public StorageContainer destcont;
-            
+
             // storage container child id
             public uint sourcechild = 0;
             public uint destchild = 0;
@@ -636,16 +748,19 @@ namespace Oxide.Plugins {
             public List<BasePlayer> playerslookingatmenu = new List<BasePlayer>();
             public List<BasePlayer> playerslookingatfilter = new List<BasePlayer>();
 
+            private float distance;
+            private Quaternion rotation;
+
             // constructor
             public jPipe() { }
 
             // init
-            public bool init(JPipes pplug,ulong nid,jPipeData data,Action<ulong,bool> rem,Action<Item,int,StorageContainer,int> mover) {
+            public bool init(JPipes pplug, ulong nid, jPipeData data, Action<ulong, bool> rem, Action<Item, int, StorageContainer, int> mover) {
 
                 pipeplugin = pplug;
 
                 data.toPipe(this);
-                
+
                 if (source == null) {
                     initerr = "ErrorFindFirst";
                     return false;
@@ -654,27 +769,29 @@ namespace Oxide.Plugins {
                     initerr = "ErrorFindSecond";
                     return false;
                 }
-
-                if (dest is BaseOven || dest is Recycler)
-                    destisstartable = true;
+                
+                destisstartable = isStartable(dest);
+                isWaterPipe = dest is LiquidContainer && source is LiquidContainer;
 
                 remover = rem;
                 moveitem = mover;
                 id = nid;
 
-                Vector3 sourcepos = sourcecont.CenterPoint() + containeroffset(sourcecont);
-                Vector3 endpos = destcont.CenterPoint() + containeroffset(destcont);
+                sourcepos = sourcecont.CenterPoint() + containeroffset(sourcecont);
+                endpos = destcont.CenterPoint() + containeroffset(destcont);
 
-                float distance = Vector3.Distance(sourcepos,endpos);
-
-                Quaternion rotation = Quaternion.LookRotation(endpos - sourcepos) * Quaternion.Euler(90,0,0);
+                distance = Vector3.Distance(sourcepos, endpos);
+                rotation = Quaternion.LookRotation(endpos - sourcepos) * Quaternion.Euler(90, 0, 0);
 
                 // create pillars
 
                 int segments = (int) Mathf.Ceil(distance / pipesegdist);
                 float segspace = (distance - pipesegdist) / (segments - 1);
 
-                for (int i = 0;i < segments;i++) {
+                arrowspace = distance / segments;
+                RefreshArrows();
+                
+                for (int i = 0; i < segments; i++) {
 
                     //float offset = (segspace * i);
                     //Vector3 pos = sourcepos + ((rotation * Vector3.up) * offset);
@@ -683,11 +800,11 @@ namespace Oxide.Plugins {
 
                     if (i == 0) {
                         // the position thing centers the pipe if there is only one segment
-                        ent = GameManager.server.CreateEntity("assets/prefabs/building core/pillar/pillar.prefab",(segments == 1) ? (sourcepos + ((rotation * Vector3.up) * ((distance - pipesegdist) * 0.5f))) : sourcepos,rotation);
-                        mainlogic = jPipeLogic.Attach(ent,this,updaterate,pipeplugin.flowrates[0]);
+                        ent = GameManager.server.CreateEntity("assets/prefabs/building core/pillar/pillar.prefab", (segments == 1) ? (sourcepos + ((rotation * Vector3.up) * ((distance - pipesegdist) * 0.5f))) : sourcepos, rotation);
+                        mainlogic = jPipeLogic.Attach(ent, this, updaterate, pipeplugin.flowrates[0]);
                         mainparent = ent;
                     } else {
-                        ent = GameManager.server.CreateEntity("assets/prefabs/building core/pillar/pillar.prefab",Vector3.up * (segspace * i) + ((i % 2 == 0) ? Vector3.zero : pipefightoffset));
+                        ent = GameManager.server.CreateEntity("assets/prefabs/building core/pillar/pillar.prefab", Vector3.up * (segspace * i) + ((i % 2 == 0) ? Vector3.zero : pipefightoffset));
                     }
 
                     ent.enableSaving = false;
@@ -702,7 +819,7 @@ namespace Oxide.Plugins {
                         block.SetHealthToMax();
                     }
 
-                    jPipeSegChild.Attach(ent,this);
+                    jPipeSegChild.Attach(ent, this);
 
                     if (i != 0)
                         ent.SetParent(mainparent);
@@ -710,8 +827,7 @@ namespace Oxide.Plugins {
                     pillars.Add(ent);
                     ent.enableSaving = false;
                 }
-
-                mainlogic.distance = distance;
+                
                 mainlogic.flowrate = ((int) pipegrade == -1) ? pipeplugin.flowrates[0] : pipeplugin.flowrates[(int) pipegrade];
 
                 if (health != 0)
@@ -739,21 +855,33 @@ namespace Oxide.Plugins {
                     //} else {
                     //    return e.transform.rotation * contoffset.pumpoutput;
                     //}
-                } else if (e is AutoTurret) { return contoffset.turret;
-                } else if (e is SearchLight) { return contoffset.searchlight;
+                } else if (e is AutoTurret) {
+                    return contoffset.turret;
+                } else if (e is SearchLight) {
+                    return contoffset.searchlight;
+                } else if (e is WaterCatcher) {
+                    if (e.GetComponent<WaterCatcher>()._collider.ToString().Contains("small"))
+                        return contoffset.smallwatercatcher;
+                    return contoffset.largewatercatcher;
+                } else if (e is LiquidContainer) {
+                    if (e.GetComponent<LiquidContainer>()._collider.ToString().Contains("purifier"))
+                        return contoffset.waterpurifier;
+                    return contoffset.waterbarrel;
                 }
                 return Vector3.zero;
             }
+            private bool isStartable(BaseEntity e) => e is BaseOven || e is Recycler || destchild == 2;
 
             public void OpenFilter(BasePlayer player) {
                 if (filterstash != null) {
-                    LookInFilter(player,filterstash.GetComponent<StashContainer>());
+                    LookInFilter(player, filterstash.GetComponent<StashContainer>());
                     return;
                 }
 
-                if (pipeplugin.filtersizes[(int) pipegrade] == 0) return;
+                if (pipeplugin.filtersizes[(int) pipegrade] == 0)
+                    return;
 
-                filterstash = GameManager.server.CreateEntity("assets/prefabs/deployable/large wood storage/box.wooden.large.prefab",new Vector3(0,0,-10000f),Quaternion.Euler(-90,0,0));
+                filterstash = GameManager.server.CreateEntity("assets/prefabs/deployable/large wood storage/box.wooden.large.prefab", new Vector3(0, 0, -10000f), Quaternion.Euler(-90, 0, 0));
 
                 filterstash.SetParent(mainparent);
 
@@ -767,10 +895,10 @@ namespace Oxide.Plugins {
 
                 // load content
 
-                jPipeFilterStash f = jPipeFilterStash.Attach(filterstash,FilterCallback,UpdateFilterItems);
+                jPipeFilterStash f = jPipeFilterStash.Attach(filterstash, FilterCallback, UpdateFilterItems);
 
                 foreach (int i in filteritems) {
-                    Item item = ItemManager.CreateByItemID(i,1);
+                    Item item = ItemManager.CreateByItemID(i, 1);
                     item.MoveToContainer(stashcont.inventory);
                 }
 
@@ -782,15 +910,15 @@ namespace Oxide.Plugins {
 
                 stashcont.globalBroadcast = true;
 
-                LookInFilter(player,stashcont);
+                LookInFilter(player, stashcont);
             }
 
-            public void LookInFilter(BasePlayer player,StorageContainer stash) {
-                stash.SetFlag(BaseEntity.Flags.Open,true,false);
-                player.inventory.loot.StartLootingEntity(stash,false);
+            public void LookInFilter(BasePlayer player, StorageContainer stash) {
+                stash.SetFlag(BaseEntity.Flags.Open, true, false);
+                player.inventory.loot.StartLootingEntity(stash, false);
                 player.inventory.loot.AddContainer(stash.inventory);
                 player.inventory.loot.SendImmediate();
-                player.ClientRPCPlayer(null,player,"RPC_OpenLootPanel",stash.panelName);
+                player.ClientRPCPlayer(null, player, "RPC_OpenLootPanel", stash.panelName);
                 playerslookingatfilter.Add(player);
             }
 
@@ -818,12 +946,21 @@ namespace Oxide.Plugins {
             }
 
             public void ChangeDirection() {
-                StorageContainer newdest = sourcecont;
+                BaseEntity newdest = source;
+                source = dest;
+                dest = newdest;
+                StorageContainer newdestcont = sourcecont;
                 sourcecont = destcont;
-                destcont = newdest;
+                destcont = newdestcont;
+                uint newdestchild = sourcechild;
+                sourcechild = destchild;
+                destchild = newdestchild;
 
-                destisstartable = ((BaseEntity) destcont is BaseOven || (BaseEntity) destcont is Recycler);
+                invertarrows = !invertarrows;
+
+                destisstartable = isStartable(dest);
                 RefreshMenu();
+                RefreshArrows();
             }
 
             // destroy entire pipe when one segment fails
@@ -838,7 +975,7 @@ namespace Oxide.Plugins {
 
                 DestroyFilter();
 
-                remover(id,removeme);
+                remover(id, removeme);
             }
 
             public void Upgrade(BuildingGrade.Enum grade) {
@@ -853,6 +990,7 @@ namespace Oxide.Plugins {
                 mainlogic.flowrate = ((int) grade == -1) ? pipeplugin.flowrates[0] : pipeplugin.flowrates[(int) grade];
 
                 RefreshMenu();
+                RefreshArrows();
 
                 DestroyFilter();
                 foreach (BasePlayer p in playerslookingatfilter)
@@ -868,11 +1006,13 @@ namespace Oxide.Plugins {
                 health = nhealth;
             }
 
-            public void OpenMenu(BasePlayer player,UserInfo userinfo) {
+            public void OpenMenu(BasePlayer player, UserInfo userinfo) {
+
+                CloseMenu(player, userinfo);
 
                 playerslookingatmenu.Add(player);
 
-                Vector2 size = new Vector2(0.125f,0.175f);
+                Vector2 size = new Vector2(0.125f, 0.175f);
                 float margin = 0.05f;
 
                 var elements = new CuiElementContainer();
@@ -880,7 +1020,7 @@ namespace Oxide.Plugins {
                 userinfo.menu = elements.Add(
                     new CuiPanel {
                         Image = { Color = "0.15 0.15 0.15 0.86" },
-                        RectTransform = { AnchorMin = "0 0",AnchorMax = "1 1" },
+                        RectTransform = { AnchorMin = "0 0", AnchorMax = "1 1" },
                         CursorEnabled = true
                     }
                 );
@@ -888,10 +1028,10 @@ namespace Oxide.Plugins {
                 // close when you click outside of the window
                 elements.Add(
                     new CuiButton {
-                        Button = { Command = $"jpipes.closemenu {id}",Color = "0 0 0 0" },
-                        RectTransform = { AnchorMin = "0 0",AnchorMax = "1 1" },
+                        Button = { Command = $"jpipes.closemenu {id}", Color = "0 0 0 0" },
+                        RectTransform = { AnchorMin = "0 0", AnchorMax = "1 1" },
                         Text = { Text = string.Empty }
-                    },userinfo.menu
+                    }, userinfo.menu
                 );
 
                 string window = elements.Add(new CuiPanel {
@@ -900,7 +1040,7 @@ namespace Oxide.Plugins {
                             AnchorMin = $"{0.5f-size.x} {0.5f-size.y}",
                             AnchorMax = $"{0.5f+size.x} {0.5f+size.y}"
                         }
-                },userinfo.menu
+                }, userinfo.menu
                 );
 
                 string contentleft = elements.Add(new CuiPanel {
@@ -910,7 +1050,7 @@ namespace Oxide.Plugins {
                             AnchorMax = $"{0.5f-margin} {1-margin*0.5f}"
                         },
                     CursorEnabled = false
-                },window
+                }, window
                 );
 
                 string contentright = elements.Add(new CuiPanel {
@@ -919,12 +1059,12 @@ namespace Oxide.Plugins {
                             AnchorMin = "0.5 0",
                             AnchorMax = "1 1"
                         }
-                },window
+                }, window
                 );
 
                 // title
                 elements.Add(
-                    CreateLabel(pipeplugin.lang.GetMessage("MenuTitle",pipeplugin,player.UserIDString),1,1,TextAnchor.UpperLeft,32,"0","1","1 1 1 0.8"),
+                    CreateLabel(pipeplugin.lang.GetMessage("MenuTitle", pipeplugin, player.UserIDString), 1, 1, TextAnchor.UpperLeft, 32, "0", "1", "1 1 1 0.8"),
                     contentleft
                 );
 
@@ -937,7 +1077,7 @@ namespace Oxide.Plugins {
                                AnchorMin = $"{margin*0.5f} 0.33",
                                AnchorMax = $"{0.5f-(margin*0.5f)} 0.76"
                            }
-                    },window
+                    }, window
                     );
 
                     string FShead = elements.Add(new CuiPanel {
@@ -946,11 +1086,11 @@ namespace Oxide.Plugins {
                                AnchorMin = "0 0.775",
                                AnchorMax = "1 1"
                            }
-                    },FSmain
+                    }, FSmain
                     );
 
                     elements.Add(
-                       CreateLabel("Furnace Splitter",1,1,TextAnchor.MiddleCenter,13,"0","1","1 1 1 0.8"),
+                       CreateLabel("Furnace Splitter", 1, 1, TextAnchor.MiddleCenter, 13, "0", "1", "1 1 1 0.8"),
                        FShead
                     );
 
@@ -960,7 +1100,7 @@ namespace Oxide.Plugins {
                                AnchorMin = "0 0",
                                AnchorMax = "1 0.74"
                            }
-                    },FSmain
+                    }, FSmain
                     );
 
                     // elements.Add(
@@ -970,12 +1110,12 @@ namespace Oxide.Plugins {
 
                     if (fsplit) {
                         elements.Add(
-                            CreateButton($"jpipes.fsdisable {id}",1.25f,0.25f,12,pipeplugin.lang.GetMessage("MenuTurnOff",pipeplugin,player.UserIDString),$"{margin}",$"{0.5f - (margin * 0.5f)}","0.59 0.27 0.18 0.8","0.89 0.49 0.31 1"),
+                            CreateButton($"jpipes.fsdisable {id}", 1.25f, 0.25f, 12, pipeplugin.lang.GetMessage("MenuTurnOff", pipeplugin, player.UserIDString), $"{margin}", $"{0.5f - (margin * 0.5f)}", "0.59 0.27 0.18 0.8", "0.89 0.49 0.31 1"),
                             FScontent
                         );
                     } else {
                         elements.Add(
-                            CreateButton($"jpipes.fsenable {id}",1.25f,0.25f,12,pipeplugin.lang.GetMessage("MenuTurnOn",pipeplugin,player.UserIDString),$"{margin}",$"{0.5f - (margin * 0.5f)}","0.43 0.51 0.26 0.8","0.65 0.76 0.47 1"),
+                            CreateButton($"jpipes.fsenable {id}", 1.25f, 0.25f, 12, pipeplugin.lang.GetMessage("MenuTurnOn", pipeplugin, player.UserIDString), $"{margin}", $"{0.5f - (margin * 0.5f)}", "0.43 0.51 0.26 0.8", "0.65 0.76 0.47 1"),
                             FScontent
                         );
                     }
@@ -987,11 +1127,11 @@ namespace Oxide.Plugins {
 
                     float arrowbuttonmargin = 0.1f;
                     elements.Add(
-                        CreateButton($"jpipes.fsstack {id} {fsstacks - 1}",2.5f,0.25f,12,"<",$"{margin}",$"{margin + arrowbuttonmargin}","1 1 1 0.08","1 1 1 0.8"),
+                        CreateButton($"jpipes.fsstack {id} {fsstacks - 1}", 2.5f, 0.25f, 12, "<", $"{margin}", $"{margin + arrowbuttonmargin}", "1 1 1 0.08", "1 1 1 0.8"),
                         FScontent
                     );
                     elements.Add(
-                        CreateLabel($"{fsstacks}",3,0.205f,TextAnchor.MiddleCenter,12,$"{margin + arrowbuttonmargin}",$"{0.5f - (margin * 0.5f) - arrowbuttonmargin}","1 1 1 0.8"),
+                        CreateLabel($"{fsstacks}", 3, 0.205f, TextAnchor.MiddleCenter, 12, $"{margin + arrowbuttonmargin}", $"{0.5f - (margin * 0.5f) - arrowbuttonmargin}", "1 1 1 0.8"),
                         FScontent
                     );
 
@@ -1000,12 +1140,12 @@ namespace Oxide.Plugins {
                     //);
 
                     elements.Add(
-                        CreateButton($"jpipes.fsstack {id} {fsstacks + 1}",2.5f,0.25f,12,">",$"{0.5f - (margin * 0.5f) - arrowbuttonmargin}",$"{0.5f - (margin * 0.5f)}","1 1 1 0.08","1 1 1 0.8"),
+                        CreateButton($"jpipes.fsstack {id} {fsstacks + 1}", 2.5f, 0.25f, 12, ">", $"{0.5f - (margin * 0.5f) - arrowbuttonmargin}", $"{0.5f - (margin * 0.5f)}", "1 1 1 0.08", "1 1 1 0.8"),
                         FScontent
                     );
 
                     elements.Add(
-                        CreateLabel("Total Stacks",3,0.205f,TextAnchor.MiddleLeft,12,$"{(margin * 0.5f) + 0.5f}","1","1 1 1 0.8"),
+                        CreateLabel("Total Stacks", 3, 0.205f, TextAnchor.MiddleLeft, 12, $"{(margin * 0.5f) + 0.5f}", "1", "1 1 1 0.8"),
                         FScontent
                     );
                 }
@@ -1013,9 +1153,9 @@ namespace Oxide.Plugins {
                 // info
                 elements.Add(
                     CreateLabel(
-                        string.Format(pipeplugin.lang.GetMessage("MenuInfo",pipeplugin,player.UserIDString),ownername,mainlogic.flowrate,mainlogic.distance),
-                        1,1,TextAnchor.LowerLeft,16,"0","1","1 1 1 0.4"
-                    ),contentleft
+                        string.Format(pipeplugin.lang.GetMessage("MenuInfo", pipeplugin, player.UserIDString), ownername, isWaterPipe ? $"{mainlogic.flowrate}ml" : mainlogic.flowrate.ToString(), Math.Round(distance, 2)),
+                        1, 1, TextAnchor.LowerLeft, 16, "0", "1", "1 1 1 0.4"
+                    ), contentleft
                 );
 
                 //elements.Add(
@@ -1037,12 +1177,12 @@ namespace Oxide.Plugins {
                 // toggle button
                 if (isEnabled) {
                     elements.Add(
-                        CreateButton($"jpipes.turnoff {id}",1 + buttonoffset * 0,buttonsize,18,pipeplugin.lang.GetMessage("MenuTurnOff",pipeplugin,player.UserIDString),"0","1","0.59 0.27 0.18 0.8","0.89 0.49 0.31 1"),
+                        CreateButton($"jpipes.turnoff {id}", 1 + buttonoffset * 0, buttonsize, 18, pipeplugin.lang.GetMessage("MenuTurnOff", pipeplugin, player.UserIDString), "0", "1", "0.59 0.27 0.18 0.8", "0.89 0.49 0.31 1"),
                         contentright
                     );
                 } else {
                     elements.Add(
-                        CreateButton($"jpipes.turnon {id}",1 + buttonoffset * 0,buttonsize,18,pipeplugin.lang.GetMessage("MenuTurnOn",pipeplugin,player.UserIDString),"0","1","0.43 0.51 0.26 0.8","0.65 0.76 0.47 1"),
+                        CreateButton($"jpipes.turnon {id}", 1 + buttonoffset * 0, buttonsize, 18, pipeplugin.lang.GetMessage("MenuTurnOn", pipeplugin, player.UserIDString), "0", "1", "0.43 0.51 0.26 0.8", "0.65 0.76 0.47 1"),
                         contentright
                     );
                 }
@@ -1050,62 +1190,62 @@ namespace Oxide.Plugins {
                 if (destisstartable) {
                     if (autostarter) {
                         elements.Add(
-                            CreateButton($"jpipes.autostartoff {id}",2 + buttonoffset * 1,buttonsize,18,pipeplugin.lang.GetMessage("MenuAutoStarter",pipeplugin,player.UserIDString),"0","1","0.43 0.51 0.26 0.8","0.65 0.76 0.47 1"),
+                            CreateButton($"jpipes.autostartoff {id}", 2 + buttonoffset * 1, buttonsize, 18, pipeplugin.lang.GetMessage("MenuAutoStarter", pipeplugin, player.UserIDString), "0", "1", "0.43 0.51 0.26 0.8", "0.65 0.76 0.47 1"),
                             contentright
                         );
                     } else {
                         elements.Add(
-                            CreateButton($"jpipes.autostarton {id}",2 + buttonoffset * 1,buttonsize,18,pipeplugin.lang.GetMessage("MenuAutoStarter",pipeplugin,player.UserIDString),"0","1","0.59 0.27 0.18 0.8","0.89 0.49 0.31 1"),
+                            CreateButton($"jpipes.autostarton {id}", 2 + buttonoffset * 1, buttonsize, 18, pipeplugin.lang.GetMessage("MenuAutoStarter", pipeplugin, player.UserIDString), "0", "1", "0.59 0.27 0.18 0.8", "0.89 0.49 0.31 1"),
                             contentright
                         );
                     }
                 }
 
                 elements.Add(
-                    CreateButton($"jpipes.changedir {id}",(destisstartable) ? 3 + buttonoffset * 2 : 2 + buttonoffset * 1,buttonsize,18,pipeplugin.lang.GetMessage("MenuChangeDirection",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.8"),
+                    CreateButton($"jpipes.changedir {id}", (destisstartable) ? 3 + buttonoffset * 2 : 2 + buttonoffset * 1, buttonsize, 18, pipeplugin.lang.GetMessage("MenuChangeDirection", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.8"),
                     contentright
                 );
 
-                if (!fsplit || pipeplugin.FurnaceSplitter == null) {
+                if ((!fsplit || pipeplugin.FurnaceSplitter == null) && !isWaterPipe) {
                     if (singlestack) {
                         elements.Add(
-                            CreateButton($"jpipes.stackoff {id}",(destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2,buttonsize,18,pipeplugin.lang.GetMessage("MenuSingleStack",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.8"),
+                            CreateButton($"jpipes.stackoff {id}", (destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2, buttonsize, 18, pipeplugin.lang.GetMessage("MenuSingleStack", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.8"),
                             contentright
                         );
                     } else {
                         elements.Add(
-                            CreateButton($"jpipes.stackon {id}",(destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2,buttonsize,18,pipeplugin.lang.GetMessage("MenuMultiStack",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.8"),
+                            CreateButton($"jpipes.stackon {id}", (destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2, buttonsize, 18, pipeplugin.lang.GetMessage("MenuMultiStack", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.8"),
                             contentright
                         );
                     }
                 } else {
                     elements.Add(
-                        CreateButton("",(destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2,buttonsize,18,pipeplugin.lang.GetMessage("MenuMultiStack",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.2"),
+                        CreateButton("", (destisstartable) ? 4 + buttonoffset * 3 : 3 + buttonoffset * 2, buttonsize, 18, pipeplugin.lang.GetMessage("MenuMultiStack", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.2"),
                         contentright
                     );
                 }
 
                 // disable filter button if filtersize is 0
-                if (pipeplugin.filtersizes[(int) pipegrade] == 0) {
+                if (pipeplugin.filtersizes[(int) pipegrade] == 0 || isWaterPipe) {
                     elements.Add(
-                        CreateButton("",(destisstartable) ? 5 + buttonoffset * 4 : 4 + buttonoffset * 3,buttonsize,18,pipeplugin.lang.GetMessage("MenuItemFilter",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.2"),
+                        CreateButton("", (destisstartable) ? 5 + buttonoffset * 4 : 4 + buttonoffset * 3, buttonsize, 18, pipeplugin.lang.GetMessage("MenuItemFilter", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.2"),
                         contentright
                     );
                 } else {
                     elements.Add(
-                        CreateButton($"jpipes.openfilter {id}",(destisstartable) ? 5 + buttonoffset * 4 : 4 + buttonoffset * 3,buttonsize,18,pipeplugin.lang.GetMessage("MenuItemFilter",pipeplugin,player.UserIDString),"0","1","1 1 1 0.08","1 1 1 0.8"),
+                        CreateButton($"jpipes.openfilter {id}", (destisstartable) ? 5 + buttonoffset * 4 : 4 + buttonoffset * 3, buttonsize, 18, pipeplugin.lang.GetMessage("MenuItemFilter", pipeplugin, player.UserIDString), "0", "1", "1 1 1 0.08", "1 1 1 0.8"),
                         contentright
                     );
                 }
 
 
-                CuiHelper.AddUi(player,elements);
+                CuiHelper.AddUi(player, elements);
                 userinfo.isMenuOpen = true;
             }
 
-            public void CloseMenu(BasePlayer player,UserInfo userinfo) {
+            public void CloseMenu(BasePlayer player, UserInfo userinfo) {
                 if (!string.IsNullOrEmpty(userinfo.menu))
-                    CuiHelper.DestroyUi(player,userinfo.menu);
+                    CuiHelper.DestroyUi(player, userinfo.menu);
                 userinfo.isMenuOpen = false;
 
                 playerslookingatmenu.Remove(player);
@@ -1117,6 +1257,99 @@ namespace Oxide.Plugins {
                     p.SendConsoleCommand($"jpipes.refreshmenu {id}");
                 }
             }
+
+
+            private float arrowspace;
+            private Color arrowcolor;
+            private bool invertarrows = false;
+            private float arrowoffset;
+            private float arrowsize;
+            private Vector3 arrowup;
+            private Vector3 arroworigin;
+
+            public void RefreshArrows() {
+                float[] arrowoffsets = new float[] { 0.13f, 0.11f, 0.11f, 0.11f, 0.16f };
+                float[] arrowsizes = new float[] { 0.08f, 0.06f, 0.06f, 0.06f, 0.08f };
+                arrowoffset = arrowoffsets[(int) pipegrade];
+                arrowsize = arrowsizes[(int) pipegrade];
+                
+                arrowcolor = isEnabled ? blue : orange;
+
+                arrowup = invertarrows ? Vector3.down : Vector3.up;
+                arroworigin = invertarrows ? endpos : sourcepos;
+            }
+            
+            public void DrawArrows(BasePlayer player, float updaterate, float update, float frame) {
+                //return;
+                if (!isEnabled) {
+                    if (frame != 0.5f)
+                        return;
+                    update = updaterate;
+                }
+
+                for (int i = 0; i < pillars.Count; i++) {
+
+                    Vector3 pos = arroworigin + (rotation * (arrowup * ((arrowspace * i) + (arrowspace * frame))));
+
+                    if ((pos - player.transform.position).sqrMagnitude < 200f) {
+                        
+                        //DrawArrow(player, update, ((rotation * Vector3.back) * arrowoffset) + pos, rotation, arrowup, Vector3.left);
+                        //DrawArrow(player, update, ((rotation * Vector3.forward) * arrowoffset) + pos, rotation, arrowup, Vector3.right);
+                        DrawArrow(player, update, ((rotation * Vector3.left) * arrowoffset) + pos, rotation, arrowup, Vector3.forward);
+                        DrawArrow(player, update, ((rotation * Vector3.right) * arrowoffset) + pos, rotation, arrowup, Vector3.back);
+
+                        //player.SendConsoleCommand("ddraw.arrow", update, arrowcolor, ((rotation * Vector3.back) * arrowoffset) + pos, pos + arrowup, 1f);
+                    }
+                }
+
+            }
+
+            private void DrawArrow(BasePlayer player, float time, Vector3 origin, Quaternion rot, Vector3 up, Vector3 left) {
+                Vector3 right = origin + ((rot * -left) * arrowsize);
+                left = origin + ((rot * left) * arrowsize);
+                up = (rot * up) * arrowsize;
+
+                Vector3 origin1 = ShortVec(origin + up);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(left), origin1);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(right), origin1);
+                
+                if ( pipegrade == 0 ) return;
+
+                Vector3 origin2 = ShortVec(origin);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(left - up), origin2);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(right - up), origin2);
+
+                if ((int) pipegrade == 1 ) return;
+                
+                Vector3 origin3 = ShortVec(origin - up);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(left - up * 2), origin3);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(right - up * 2), origin3);
+
+                if ((int) pipegrade == 2) return;
+
+                Vector3 origin4 = ShortVec(origin + up * 2);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(left + up), origin4);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(right + up), origin4);
+
+                if ((int) pipegrade == 3) return;
+
+                Vector3 origin5 = ShortVec(origin - up * 2);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(left - up * 3), origin5);
+                player.SendConsoleCommand("ddraw.line", time, arrowcolor, ShortVec(right - up * 3), origin5);
+            }
+
+            // rounds vector3 to 3 decimal points to make console commands shorter
+            private static Vector3 ShortVec(Vector3 input) {
+                input.x = (float) Math.Round(input.x, 3);
+                input.y = (float) Math.Round(input.y, 3);
+                input.z = (float) Math.Round(input.z, 3);
+                return input;
+            }
+        }
+
+        // syncbox
+        private class jSyncBox {
+
         }
 
         #endregion
@@ -1127,18 +1360,22 @@ namespace Oxide.Plugins {
         private static float pipesegdist = 3;
 
         // every other pipe segment is offset by this to remove z fighting
-        private static Vector3 pipefightoffset = new Vector3(0.0001f,0,0.0001f);
+        private static Vector3 pipefightoffset = new Vector3(0.0001f, 0, 0.0001f);
 
         // offset of pipe inside different containers
         private static class contoffset {
-            public static Vector3 turret = new Vector3(0,-0.58f,0);
-            public static Vector3 refinery = new Vector3(-1,0,-0.1f);
-            public static Vector3 furnace = new Vector3(0,-0.3f,0);
-            public static Vector3 largefurnace = new Vector3(0,-1.5f,0);
-            public static Vector3 searchlight = new Vector3(0,-0.5f,0);
-            public static Vector3 pumpfuel = new Vector3(0,0,0);
-            public static Vector3 pumpoutput = new Vector3(-1,2,0);
-            public static Vector3 recycler = new Vector3(0,0,0);
+            public static Vector3 turret = new Vector3(0, -0.58f, 0);
+            public static Vector3 refinery = new Vector3(-1, 0, -0.1f);
+            public static Vector3 furnace = new Vector3(0, -0.3f, 0);
+            public static Vector3 largefurnace = new Vector3(0, -1.5f, 0);
+            public static Vector3 searchlight = new Vector3(0, -0.5f, 0);
+            public static Vector3 pumpfuel = Vector3.zero;
+            public static Vector3 pumpoutput = new Vector3(-1, 2, 0);
+            public static Vector3 recycler = Vector3.zero;
+            public static Vector3 largewatercatcher = new Vector3(0,-0.6f,0);
+            public static Vector3 smallwatercatcher = new Vector3(0,-0.6f,0);
+            public static Vector3 waterbarrel = new Vector3(0,0.2f,0);
+            public static Vector3 waterpurifier = new Vector3(0, 0.25f, 0);
             //public static Vector3 quarryfuel = new Vector3(1,-0.2f,0);
             //public static Vector3 quarryoutput = new Vector3(1,0,0);
         }
@@ -1147,29 +1384,28 @@ namespace Oxide.Plugins {
 
         #region Pipe Functions
 
-        private void startplacingpipe(BasePlayer player,bool isUsingBind = false) {
+        private void startplacingpipe(BasePlayer player, bool isUsingBind = false) {
 
             UserInfo userinfo = GetUserInfo(player);
 
             int playerpipelimit;
-            if (!checkplayerpipelimit(player,userinfo,out playerpipelimit)) {
-                ShowOverlayText(player,string.Format(lang.GetMessage("ErrorPipeLimitReached",this,player.UserIDString),playerpipelimit.ToString()));
-                HideOverlayText(player,2f);
+            if (!checkplayerpipelimit(player, userinfo, out playerpipelimit)) {
+                ShowOverlayText(player, string.Format(lang.GetMessage("ErrorPipeLimitReached", this, player.UserIDString), playerpipelimit.ToString()), "", orangestring);
+                HideOverlayText(player, 2f);
                 userinfo.placestart = null;
                 userinfo.placeend = null;
                 return;
             }
 
-            userinfo.isPlacing = !userinfo.isPlacing;
+            userinfo.state = userinfo.state == UserState.placing ? UserState.none : UserState.placing;
             userinfo.isUsingBind = isUsingBind;
-            userinfo.isCopying = false;
             userinfo.clipboard = null;
 
-            if (userinfo.isPlacing) {
+            if (userinfo.state == UserState.placing) {
                 if (!isUsingBind)
-                    PrintToChat(player,lang.GetMessage("HelpBindTip",this,player.UserIDString));
+                    PrintToChat(player, string.Format(lang.GetMessage("HelpBindTip", this, player.UserIDString), pipecommandprefix, pipehotkey));
 
-                ShowOverlayText(player,lang.GetMessage("SelectFirst",this,player.UserIDString),lang.GetMessage(isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd",this,player.UserIDString));
+                ShowOverlayText(player, lang.GetMessage("SelectFirst", this, player.UserIDString), string.Format(lang.GetMessage(userinfo.isUsingBind ? "SelectSubtextBind" : "SelectSubtextCmd", this, player.UserIDString), userinfo.isUsingBind ? pipehotkey : pipecommandprefix));
             } else {
                 //ShowOverlayText(player,"",lang.GetMessage("SelectCancel",this,player.UserIDString));
                 HideOverlayText(player);
@@ -1178,57 +1414,63 @@ namespace Oxide.Plugins {
             }
         }
 
-        private void NewPipe(BasePlayer player,UserInfo userinfo) {
+        // called after second container has been selected
+        private void NewPipe(BasePlayer player, UserInfo userinfo) {
 
             jPipeData newdata = new jPipeData();
             newdata.setContainers(userinfo.placestart, userinfo.placeend);
-
             
-            if (!checkpipeoverlap(regpipes,newdata)) {
+            bool destiswater = userinfo.placeend is LiquidContainer;
 
-                float dist = Vector3.Distance(userinfo.placestart.CenterPoint(),userinfo.placeend.CenterPoint());
+            if (userinfo.placestart is LiquidContainer == destiswater) {
+                if (!checkpipeoverlap(regpipes, newdata)) {
 
-                if (dist > maxpipedist) { ShowOverlayText(player,lang.GetMessage("ErrorTooFar",this,player.UserIDString)); } else if (dist <= minpipedist) { ShowOverlayText(player,lang.GetMessage("ErrorTooClose",this,player.UserIDString)); } else {
+                    float dist = Vector3.Distance(userinfo.placestart.CenterPoint(), userinfo.placeend.CenterPoint());
 
-                    jPipe newpipe = new jPipe();
-                    newdata.o = player.userID;
-                    newdata.on = player.displayName;
+                    if (dist > maxpipedist) { ShowOverlayText(player, lang.GetMessage("ErrorTooFar", this, player.UserIDString), "", orangestring); } else if (dist <= minpipedist) { ShowOverlayText(player, lang.GetMessage("ErrorTooClose", this, player.UserIDString), "", orangestring); } else {
 
-                    // initalize pipe
-                    if (newpipe.init(this,pipeidgen(),newdata,RemovePipe,MoveItem)) {
-                        // pipe was created so register it
-                        RegisterPipe(newpipe);
-                        ShowOverlayText(player,lang.GetMessage("PipeCreated",this,player.UserIDString));
-                    } else {
-                        // pipe error
-                        ShowOverlayText(player,lang.GetMessage(newpipe.initerr,this,player.UserIDString));
-                        newpipe = null;
+                        jPipe newpipe = new jPipe();
+                        newdata.o = player.userID;
+                        newdata.on = player.displayName;
+
+                        // initalize pipe
+                        if (newpipe.init(this, pipeidgen(), newdata, RemovePipe, MoveItem)) {
+                            // pipe was created so register it
+                            RegisterPipe(newpipe);
+                            ShowOverlayText(player, lang.GetMessage("PipeCreated", this, player.UserIDString), "", bluestring);
+                        } else {
+                            // pipe error
+                            ShowOverlayText(player, lang.GetMessage(newpipe.initerr, this, player.UserIDString));
+                            newpipe = null;
+                        }
                     }
+                } else {
+                    ShowOverlayText(player, lang.GetMessage("ErrorAlreadyConnected", this, player.UserIDString), "", orangestring);
                 }
             } else {
-                ShowOverlayText(player,lang.GetMessage("ErrorAlreadyConnected",this,player.UserIDString));
+                ShowOverlayText(player, lang.GetMessage(destiswater ? "ErrorNotItemCont" : "ErrorNotLiquidCont", this, player.UserIDString), "", orangestring);
             }
 
-            HideOverlayText(player,3f);
-            userinfo.isPlacing = false;
+            HideOverlayText(player, 3f);
+            userinfo.state = UserState.none;
             userinfo.placestart = null;
             userinfo.placeend = null;
         }
 
         private System.Random randomidgen = new System.Random();
         private ulong pipeidgen() {
-            ulong id = (ulong) randomidgen.Next(1000000,9999999);
+            ulong id = (ulong) randomidgen.Next(1000000, 9999999);
             if (regpipes.ContainsKey(id))
                 return pipeidgen();
             else
                 return id;
         }
-        
+
         // TODO this could be improved by only compairing ids
-        private static bool checkpipeoverlap(Dictionary<ulong,jPipe> rps,jPipeData data) {
-            StorageContainer s = getcontfromid(data.s,data.cs);
-            StorageContainer e = getcontfromid(data.d,data.cd);
-            
+        private static bool checkpipeoverlap(Dictionary<ulong, jPipe> rps, jPipeData data) {
+            StorageContainer s = getcontfromid(data.s, data.cs);
+            StorageContainer e = getcontfromid(data.d, data.cd);
+
             foreach (var p in rps)
                 if ((p.Value.sourcecont == s && p.Value.destcont == e) || (p.Value.sourcecont == e && p.Value.destcont == s))
                     return true;
@@ -1236,22 +1478,22 @@ namespace Oxide.Plugins {
         }
 
         private static bool checkcontwhitelist(BaseEntity e) =>
-            !(e is BaseFuelLightSource || e is Locker || e is LiquidContainer || e is ShopFront || e is RepairBench);
-        
-        private bool checkcontprivlage(BaseEntity e,BasePlayer p) => e.GetComponent<StorageContainer>().CanOpenLootPanel(p) && checkbuildingprivlage(p); 
+            !(e is BaseFuelLightSource || e is Locker || e is ShopFront || e is RepairBench);
+
+        private bool checkcontprivlage(BaseEntity e, BasePlayer p) => e.GetComponent<StorageContainer>().CanOpenLootPanel(p) && checkbuildingprivlage(p);
 
         private bool checkbuildingprivlage(BasePlayer p) {
-            if (permission.UserHasPermission(p.UserIDString,"jpipes.admin"))
+            if (permission.UserHasPermission(p.UserIDString, "jpipes.admin"))
                 return true;
             BuildingPrivlidge priv = p.GetBuildingPrivilege();
             return (priv != null) ? priv.IsAuthed(p) : true;
         }
 
-        private bool checkplayerpipelimit(BasePlayer p,UserInfo user) {
+        private bool checkplayerpipelimit(BasePlayer p, UserInfo user) {
             int limit = getplayerpipelimit(p);
             return (limit >= (user.pipes.Keys.Count + 1)) || limit == -1;
         }
-        private bool checkplayerpipelimit(BasePlayer p,UserInfo user, out int pipelimit) {
+        private bool checkplayerpipelimit(BasePlayer p, UserInfo user, out int pipelimit) {
             pipelimit = getplayerpipelimit(p);
             return (pipelimit >= (user.pipes.Keys.Count + 1)) || pipelimit == -1;
         }
@@ -1260,7 +1502,7 @@ namespace Oxide.Plugins {
 
         private int getplayerpipelimit(BasePlayer p) {
             string id = p.UserIDString;
-            if (permission.UserHasPermission(id,"jpipes.admin"))
+            if (permission.UserHasPermission(id, "jpipes.admin"))
                 return -1;
 
             List<string> uperms = permission.GetUserPermissions(p.UserIDString).ToList();
@@ -1278,12 +1520,12 @@ namespace Oxide.Plugins {
                     return -1;
                 curlimit = Mathf.Max(curlimit, l);
             }
-            
+
             return curlimit == 0 ? -1 : curlimit;
         }
         private int getplayerupgradelimit(BasePlayer p) {
             string id = p.UserIDString;
-            if (permission.UserHasPermission(id,"jpipes.admin"))
+            if (permission.UserHasPermission(id, "jpipes.admin"))
                 return -1;
 
             List<string> uperms = permission.GetUserPermissions(p.UserIDString).ToList();
@@ -1299,7 +1541,7 @@ namespace Oxide.Plugins {
                 int l = permlevels[s].upgradelimit;
                 if (l == -1)
                     return -1;
-                curlimit = Mathf.Max(curlimit,l);
+                curlimit = Mathf.Max(curlimit, l);
             }
 
             return curlimit > 3 ? -1 : curlimit;
@@ -1309,12 +1551,12 @@ namespace Oxide.Plugins {
         private static StorageContainer getcontfromid(uint id, uint cid = 0) => getchildcont((BaseEntity) BaseNetworkable.serverEntities.Find(id), cid);
 
         // find storage container from parent and child id
-        private static StorageContainer getchildcont(BaseEntity parent,uint id = 0) {
+        private static StorageContainer getchildcont(BaseEntity parent, uint id = 0) {
             if (id != 0) {
                 BaseResourceExtractor ext = parent.GetComponent<BaseResourceExtractor>();
                 if (ext != null) {
                     foreach (var c in ext.children) {
-                        if (c is ResourceExtractorFuelStorage && c.GetComponent<ResourceExtractorFuelStorage>().panelName == ((id == 2) ? "fuelstorage" : "generic")) 
+                        if (c is ResourceExtractorFuelStorage && c.GetComponent<ResourceExtractorFuelStorage>().panelName == ((id == 2) ? "fuelstorage" : "generic"))
                             return c.GetComponent<StorageContainer>();
                     }
                 }
@@ -1324,8 +1566,8 @@ namespace Oxide.Plugins {
         }
 
         private void RegisterPipe(jPipe pipe) {
-            GetUserInfo(pipe.ownerid).pipes.Add(pipe.id,pipe);
-            regpipes.Add(pipe.id,pipe);
+            GetUserInfo(pipe.ownerid).pipes.Add(pipe.id, pipe);
+            regpipes.Add(pipe.id, pipe);
         }
         private void UnRegisterPipe(jPipe pipe) {
             GetUserInfo(pipe.ownerid).pipes.Remove(pipe.id);
@@ -1333,327 +1575,381 @@ namespace Oxide.Plugins {
         }
         private void UnRegisterPipe(ulong id) {
             jPipe pipe;
-            if (regpipes.TryGetValue(id,out pipe)) {
+            if (regpipes.TryGetValue(id, out pipe)) {
                 UnRegisterPipe(pipe);
             }
         }
 
-        public void RemovePipe(ulong id,bool remove = true) {
+        public void RemovePipe(ulong id, bool remove = true) {
 
-			jPipe pipe;
-			if (regpipes.TryGetValue(id,out pipe)) {
-				NextFrame(() => {
-					if (!pipe.mainparent.IsDestroyed)
-						pipe.mainparent.Kill();
-					//Puts($"Pipe {id} removed");
-				});
-			}
+            jPipe pipe;
+            if (regpipes.TryGetValue(id, out pipe)) {
+                NextFrame(() => {
+                    if (!pipe.mainparent.IsDestroyed)
+                        pipe.mainparent.Kill();
+                    //Puts($"Pipe {id} removed");
+                });
+            }
 
             if (remove)
                 UnRegisterPipe(id);
         }
 
-		private void UnloadPipes() {
+        private void UnloadPipes() {
             foreach (var p in regpipes)
                 UnloadPipe(p.Value);
         }
 
-		private void UnloadPipe(jPipe p) {
-			NextFrame(() => {
+        private void UnloadPipe(jPipe p) {
+            NextFrame(() => {
                 if (!p.mainparent.IsDestroyed)
                     p.mainparent.Kill();
-			});
-		}
+            });
+        }
 
-		private void SavePipes() {
-			storedData.p = new Dictionary<ulong,jPipeData>();
+        private void SavePipes() {
+            storedData.p = new Dictionary<ulong, jPipeData>();
 
-			foreach (var p in regpipes) {
+            foreach (var p in regpipes) {
                 if (!p.Value.mainparent.IsDestroyed) {
                     jPipeData d = new jPipeData();
                     d.fromPipe(p.Value);
                     storedData.p[p.Key] = d; // creates or updates 
                 }
-			}
+            }
 
-			SaveData(storedData);
+            SaveData(storedData);
 
-			Puts(storedData.p.Count.ToString() + " pipes saved");
-		}
+            Puts(storedData.p.Count.ToString() + " pipes saved");
+        }
 
-		public void MoveItem(Item itemtomove,int amounttotake,StorageContainer cont,int stacks) {
+        public void MoveItem(Item itemtomove, int amounttotake, StorageContainer cont, int stacks) {
+            
+            if (itemtomove.amount > amounttotake)
+                itemtomove = itemtomove.SplitItem(amounttotake);
 
-			if (itemtomove.amount > amounttotake)
-				itemtomove = itemtomove.SplitItem(amounttotake);
+            if ((BaseEntity) cont is BaseOven && stacks > -1) {
+                if (FurnaceSplitter != null)
+                    FurnaceSplitter?.Call("MoveSplitItem", itemtomove, (BaseEntity) cont, stacks);
+                else
+                    itemtomove.MoveToContainer(cont.inventory);
+            } else {
+                itemtomove.MoveToContainer(cont.inventory);
+            }
+        }
 
-			if ((BaseEntity) cont is BaseOven && stacks > -1) {
-				if (FurnaceSplitter != null)
-					FurnaceSplitter?.Call("MoveSplitItem",itemtomove,(BaseEntity) cont,stacks);
-				else
-					itemtomove.MoveToContainer(cont.inventory);
-			} else {
-				itemtomove.MoveToContainer(cont.inventory);
-			}
-		}
+        #endregion
 
-		#endregion
+        #region Pipe Components
 
-		#region Pipe Components
+        private class jPipeLogic : MonoBehaviour {
 
-		private class jPipeLogic : MonoBehaviour {
+            public jPipe pipe;
+            public int tickdelay;
+            public int flowrate;
 
-			public jPipe pipe;
-			public int tickdelay;
-			public int flowrate;
-			public float distance;
+            public static jPipeLogic Attach(BaseEntity entity, jPipe pipe, int tickdelay, int flowrate) {
+                jPipeLogic n = entity.gameObject.AddComponent<jPipeLogic>();
+                n.pipe = pipe;
+                n.tickdelay = tickdelay;
+                n.flowrate = flowrate;
+                return n;
+            }
 
-			public static jPipeLogic Attach(BaseEntity entity,jPipe pipe,int tickdelay,int flowrate) {
-				jPipeLogic n = entity.gameObject.AddComponent<jPipeLogic>();
-				n.pipe = pipe;
-				n.tickdelay = tickdelay;
-				n.flowrate = flowrate;
-				return n;
-			}
+            private float period = 0f;
 
-			private float period = 0f;
+            void Update() {
 
-			void Update() {
+                // if either container is destroyed
+                if (pipe.sourcecont == null || pipe.destcont == null)
+                    pipe.Destroy();
 
-				// if either container is destroyed
-				if (pipe.sourcecont == null || pipe.destcont == null)
-					pipe.Destroy();
-                
                 if (period > tickdelay) {
 
-					// source isn't empty
-					if (pipe.sourcecont.inventory.itemList.Count > 0 && pipe.sourcecont.inventory.itemList[0] != null && pipe.isEnabled) {
+                    // source isn't empty
+                    if (pipe.isEnabled && pipe.sourcecont.inventory.itemList.Count > 0 && pipe.sourcecont.inventory.itemList[0] != null) {
 
-						Item itemtomove = FindItem();
+                        if (pipe.isWaterPipe) {
 
-						// move the item
-						if (itemtomove != null && pipe.destcont.inventory.CanAcceptItem(itemtomove) == ItemContainer.CanAcceptResult.CanAccept && pipe.destcont.inventory.CanTake(itemtomove)) {
+                            if (pipe.destcont.inventory.itemList.Count == 1) {
 
-							//if ( !((BaseEntity) pipe.destcont is Recycler) || (((BaseEntity) pipe.destcont is Recycler) && (i.position > 5))) {
+                                int amounttotake = tickdelay * flowrate;
+                                Item itemtomove = pipe.sourcecont.inventory.itemList[0];
+                                Item slot = pipe.destcont.inventory.itemList[0];
 
-							int amounttotake = tickdelay * flowrate;
+                                if (slot != null) {
+                                    if (slot.CanStack(itemtomove)) {
 
-							if (pipe.singlestack) {
+                                        int maxstack = slot.MaxStackable();
+                                        if (slot.amount < maxstack) {
+                                            if ((maxstack - slot.amount) < amounttotake)
+                                                amounttotake = maxstack - slot.amount;
+                                            pipe.moveitem(itemtomove, amounttotake, pipe.destcont, -1);
+                                        }
+                                    }
+                                } else {
+                                    pipe.moveitem(itemtomove, amounttotake, pipe.destcont, -1);
+                                }
+                            }
 
-								Item slot = pipe.destcont.inventory.FindItemsByItemID(itemtomove.info.itemid).OrderBy<Item,int>((Func<Item,int>) (x => x.amount)).FirstOrDefault<Item>();
+                            //if (pipe.destcont.inventory.itemList.Count == 1 && pipe.destcont.inventory.itemList[0] != null) {
+                            //    int destamount = pipe.destcont.inventory.itemList[0].amount;
+                            //    int sizeleft = pipe.dest.GetComponent<LiquidContainer>().maxStackSize - destamount;
 
-								if (slot != null) {
-									if (slot.CanStack(itemtomove)) {
+                            //    if (sizeleft > 0) {
+                            //        pipe.moveitem(itemtomove, destamount, pipe.destcont, -1);
+                            //    }
+                            //} else {
+                            //    pipe.moveitem(itemtomove, amounttotake, pipe.destcont, -1);
+                            //}
+                            
+                        } else {  
 
-										int maxstack = slot.MaxStackable();
-										if (slot.amount < maxstack) {
-											if ((maxstack - slot.amount) < amounttotake)
-												amounttotake = maxstack - slot.amount;
-											pipe.moveitem(itemtomove,amounttotake,pipe.destcont,(pipe.fsplit) ? pipe.fsstacks : -1);
-											TurnOnDest();
-										}
-									}
-								} else {
-									pipe.moveitem(itemtomove,amounttotake,pipe.destcont,(pipe.fsplit) ? pipe.fsstacks : -1);
-									TurnOnDest();
-								}
-							} else {
-								pipe.moveitem(itemtomove,amounttotake,pipe.destcont,(pipe.fsplit) ? pipe.fsstacks : -1);
-								TurnOnDest();
-							}
-						}
+                            Item itemtomove = FindItem();
+                            
+                            // move the item
+                            if (itemtomove != null && pipe.destcont.inventory.CanAcceptItem(itemtomove) == ItemContainer.CanAcceptResult.CanAccept && pipe.destcont.inventory.CanTake(itemtomove)) {
 
-					}
-					period = 0;
-				}
-				period += UnityEngine.Time.deltaTime;
-			}
+                                //if ( !((BaseEntity) pipe.destcont is Recycler) || (((BaseEntity) pipe.destcont is Recycler) && (i.position > 5))) {
 
-			public void pipeEnable(BasePlayer player) {
-				if (!pipe.isEnabled)
-					period = 0;
-				pipe.isEnabled = true;
-				pipe.RefreshMenu();
-			}
-			public void pipeDisable(BasePlayer player) {
-				pipe.isEnabled = false;
-				pipe.RefreshMenu();
-			}
+                                int amounttotake = tickdelay * flowrate;
 
-			private static Item FilterItem(List<Item> cont,List<int> filter) {
-				foreach (Item i in cont)
-					if (filter.Contains(i.info.itemid))
-						return i;
-				return null;
-			}
+                                if (pipe.singlestack) {
 
-			private Item FindItem() {
-                
+                                    Item slot = pipe.destcont.inventory.FindItemsByItemID(itemtomove.info.itemid).OrderBy<Item, int>((Func<Item, int>) (x => x.amount)).FirstOrDefault<Item>();
+
+                                    if (slot != null) {
+                                        if (slot.CanStack(itemtomove)) {
+
+                                            int maxstack = slot.MaxStackable();
+                                            if (slot.amount < maxstack) {
+                                                if ((maxstack - slot.amount) < amounttotake)
+                                                    amounttotake = maxstack - slot.amount;
+                                                pipe.moveitem(itemtomove, amounttotake, pipe.destcont, (pipe.fsplit) ? pipe.fsstacks : -1);
+                                                TurnOnDest();
+                                            }
+                                        }
+                                    } else {
+                                        pipe.moveitem(itemtomove, amounttotake, pipe.destcont, (pipe.fsplit) ? pipe.fsstacks : -1);
+                                        TurnOnDest();
+                                    }
+                                } else {
+                                    pipe.moveitem(itemtomove, amounttotake, pipe.destcont, (pipe.fsplit) ? pipe.fsstacks : -1);
+                                    TurnOnDest();
+                                }
+                            }
+
+                        }
+                    }
+                    period = 0;
+                }
+                period += UnityEngine.Time.deltaTime;
+            }
+
+            public void pipeEnable(BasePlayer player) {
+                if (!pipe.isEnabled)
+                    period = 0;
+                pipe.isEnabled = true;
+                pipe.RefreshMenu();
+                pipe.RefreshArrows();
+            }
+            public void pipeDisable(BasePlayer player) {
+                pipe.isEnabled = false;
+                pipe.RefreshMenu();
+                pipe.RefreshArrows();
+            }
+
+            private static Item FilterItem(List<Item> cont, List<int> filter) {
+                foreach (Item i in cont)
+                    if (filter.Contains(i.info.itemid))
+                        return i;
+                return null;
+            }
+
+            private Item FindItem() {
+
                 foreach (Item i in pipe.sourcecont.inventory.itemList) {
-					if (pipe.filteritems.Count == 0 || pipe.filteritems.Contains(i.info.itemid)) {
-						if (!((BaseEntity) pipe.sourcecont is Recycler) || (((BaseEntity) pipe.sourcecont is Recycler) && (i.position > 5))) {
+                    if (pipe.filteritems.Count == 0 || pipe.filteritems.Contains(i.info.itemid)) {
+                        if (!((BaseEntity) pipe.sourcecont is Recycler) || (((BaseEntity) pipe.sourcecont is Recycler) && (i.position > 5))) {
 
-							if ((BaseEntity) pipe.destcont is BaseOven) {
-								if ((bool) ((UnityEngine.Object) i.info.GetComponent<ItemModBurnable>()) || (bool) ((UnityEngine.Object) i.info.GetComponent<ItemModCookable>()))
-									return i;
-							} else if ((BaseEntity) pipe.destcont is Recycler) {
-								if ((UnityEngine.Object) i.info.Blueprint != (UnityEngine.Object) null)
-									return i;
-							} else {
-								return i;
-							}
-						}
-					}
-				}
-				return null;
-			}
+                            if ((BaseEntity) pipe.destcont is BaseOven) {
+                                if ((bool) ((UnityEngine.Object) i.info.GetComponent<ItemModBurnable>()) || (bool) ((UnityEngine.Object) i.info.GetComponent<ItemModCookable>()))
+                                    return i;
+                            } else if ((BaseEntity) pipe.destcont is Recycler) {
+                                if ((UnityEngine.Object) i.info.Blueprint != (UnityEngine.Object) null)
+                                    return i;
+                            } else {
+                                return i;
+                            }
+                        }
+                    }
+                }
+                return null;
+            }
 
-			private void TurnOnDest() {
-				if (!pipe.autostarter)
-					return;
+            private void TurnOnDest() {
+                if (!pipe.autostarter)
+                    return;
 
-				BaseEntity e = (BaseEntity) pipe.destcont;
-				if (e is BaseOven) {
-					e.GetComponent<BaseOven>().StartCooking();
-				} else if (e is Recycler) {
-					e.GetComponent<Recycler>().StartRecycling();
-				}
-			}
+                BaseEntity e = (BaseEntity) pipe.destcont;
+                if (e is BaseOven) {
+                    e.GetComponent<BaseOven>().StartCooking();
+                } else if (e is Recycler) {
+                    e.GetComponent<Recycler>().StartRecycling();
+                } else if (pipe.destchild == 2) {
+                    BaseEntity ext = (BaseEntity) BaseNetworkable.serverEntities.Find(e.parentEntity.uid);
+                    if (ext != null)
+                        ext.GetComponent<MiningQuarry>().EngineSwitch(true);
+                }
+            }
 
-		}
+        }
 
-		private class jPipeSegChild : MonoBehaviour {
+        private class jPipeSegChild : MonoBehaviour {
 
-			public jPipe pipe;
+            public jPipe pipe;
 
-			public static void Attach(BaseEntity entity,jPipe pipe) {
-				jPipeSegChild n = entity.gameObject.AddComponent<jPipeSegChild>();
-				n.pipe = pipe;
-			}
-		}
+            public static void Attach(BaseEntity entity, jPipe pipe) {
+                jPipeSegChild n = entity.gameObject.AddComponent<jPipeSegChild>();
+                n.pipe = pipe;
+            }
+        }
 
-		private class jPipeFilterStash : MonoBehaviour {
+        private class jPipeFilterStash : MonoBehaviour {
 
-			private Action<BasePlayer> callback;
-			private Action<Item> itemcallback;
+            private Action<BasePlayer> callback;
+            private Action<Item> itemcallback;
 
-			public BaseEntity entityOwner;
-			public bool itemadded = false; // used to prevent stack overflow in CanAcceptItem
-			public bool loading = true;
+            public BaseEntity entityOwner;
+            public bool itemadded = false; // used to prevent stack overflow in CanAcceptItem
+            public bool loading = true;
 
-			public static jPipeFilterStash Attach(BaseEntity entity,Action<BasePlayer> callback,Action<Item> itemcallback) {
-				jPipeFilterStash f = entity.gameObject.AddComponent<jPipeFilterStash>();
-				f.callback = callback;
-				f.itemcallback = itemcallback;
-				f.entityOwner = entity;
-				return f;
-			}
+            public static jPipeFilterStash Attach(BaseEntity entity, Action<BasePlayer> callback, Action<Item> itemcallback) {
+                jPipeFilterStash f = entity.gameObject.AddComponent<jPipeFilterStash>();
+                f.callback = callback;
+                f.itemcallback = itemcallback;
+                f.entityOwner = entity;
+                return f;
+            }
 
-			private void PlayerStoppedLooting(BasePlayer player) => callback(player);
-			public void UpdateFilter(Item item) => itemcallback(item);
-		}
+            private void PlayerStoppedLooting(BasePlayer player) => callback(player);
+            public void UpdateFilter(Item item) => itemcallback(item);
+        }
 
-		#endregion
+        private class jSyncBoxLogic : MonoBehaviour {
 
-		#region CUI elements
+            public jSyncBox syncbox;
 
-		private static CuiLabel CreateLabel(string text,int i,float rowHeight,TextAnchor align = TextAnchor.MiddleLeft,int fontSize = 15,string xMin = "0",string xMax = "1",string color = "1.0 1.0 1.0 1.0") {
-			return new CuiLabel {
-				Text = { Text = text,FontSize = fontSize,Align = align,Color = color },
-				RectTransform = { AnchorMin = $"{xMin} {1 - rowHeight * i + i * .002f}",AnchorMax = $"{xMax} {1 - rowHeight * (i - 1) + i * .002f}" }
-			};
-		}
-		private static CuiButton CreateButton(string command,float i,float rowHeight,int fontSize = 15,string content = "+",string xMin = "0",string xMax = "1",string color = "0.8 0.8 0.8 0.2",string textcolor = "1 1 1 1",float offset = -.005f) {
-			return new CuiButton {
-				Button = { Command = command,Color = color },
-				RectTransform = { AnchorMin = $"{xMin} {1 - rowHeight * i + i * offset}",AnchorMax = $"{xMax} {1 - rowHeight * (i - 1) + i * offset}" },
-				Text = { Text = content,FontSize = fontSize,Align = TextAnchor.MiddleCenter,Color = textcolor }
-			};
-		}
-		private static CuiPanel CreatePanel(string anchorMin,string anchorMax,string color = "0 0 0 0") {
-			return new CuiPanel {
-				Image = { Color = color },
-				RectTransform = { AnchorMin = anchorMin,AnchorMax = anchorMax }
-			};
-		}
-		private static CuiElement CuiInputField(string parent = "Hud", string command = "", string text = "",int fontsize = 14,int charlimit = 100, string name = null) {
-			
-			if (string.IsNullOrEmpty(name))
-				name = CuiHelper.GetGuid();
-			CuiElement cuiElement = new CuiElement();
-			cuiElement.Name = name;
-			cuiElement.Parent = parent;
-			cuiElement.Components.Add((ICuiComponent) new CuiInputFieldComponent { Text = "he",Align = TextAnchor.MiddleCenter, CharsLimit = charlimit, Command = command, FontSize = fontsize});
-			cuiElement.Components.Add((ICuiComponent) new CuiNeedsCursorComponent());
+            public static jSyncBoxLogic Attach(BaseEntity entity, jSyncBox syncbox) {
+                jSyncBoxLogic n = entity.gameObject.AddComponent<jSyncBoxLogic>();
+                n.syncbox = syncbox;
+                return n;
+            }
+        }
 
-			return cuiElement;
-		}
-		private static CuiElement CuiLabelWithOutline(CuiLabel label,string parent = "Hud",string color = "0.15 0.15 0.15 0.43", string dist = "1.1 -1.1",bool usealpha = false,string name = null) {
-			if (string.IsNullOrEmpty(name))
-				name = CuiHelper.GetGuid();
-			CuiElement cuiElement = new CuiElement();
-			cuiElement.Name = name;
-			cuiElement.Parent = parent;
-			cuiElement.FadeOut = label.FadeOut;
-			cuiElement.Components.Add((ICuiComponent) label.Text);
-			cuiElement.Components.Add((ICuiComponent) label.RectTransform);
-			cuiElement.Components.Add((ICuiComponent) new CuiOutlineComponent {
-				Color = color,
-				Distance = dist,
-				UseGraphicAlpha = usealpha
-			});
-			return cuiElement;
-		}
 
-		private void ShowOverlayText(BasePlayer player, string text, string subtext = "") {
+        #endregion
 
-			HideOverlayText(player);
+        #region CUI elements
+
+        private static CuiLabel CreateLabel(string text, int i, float rowHeight, TextAnchor align = TextAnchor.MiddleLeft, int fontSize = 15, string xMin = "0", string xMax = "1", string color = "1.0 1.0 1.0 1.0") {
+            return new CuiLabel {
+                Text = { Text = text, FontSize = fontSize, Align = align, Color = color },
+                RectTransform = { AnchorMin = $"{xMin} {1 - rowHeight * i + i * .002f}", AnchorMax = $"{xMax} {1 - rowHeight * (i - 1) + i * .002f}" }
+            };
+        }
+        private static CuiButton CreateButton(string command, float i, float rowHeight, int fontSize = 15, string content = "+", string xMin = "0", string xMax = "1", string color = "0.8 0.8 0.8 0.2", string textcolor = "1 1 1 1", float offset = -.005f) {
+            return new CuiButton {
+                Button = { Command = command, Color = color },
+                RectTransform = { AnchorMin = $"{xMin} {1 - rowHeight * i + i * offset}", AnchorMax = $"{xMax} {1 - rowHeight * (i - 1) + i * offset}" },
+                Text = { Text = content, FontSize = fontSize, Align = TextAnchor.MiddleCenter, Color = textcolor }
+            };
+        }
+        private static CuiPanel CreatePanel(string anchorMin, string anchorMax, string color = "0 0 0 0") {
+            return new CuiPanel {
+                Image = { Color = color },
+                RectTransform = { AnchorMin = anchorMin, AnchorMax = anchorMax }
+            };
+        }
+        private static CuiElement CuiInputField(string parent = "Hud", string command = "", string text = "", int fontsize = 14, int charlimit = 100, string name = null) {
+
+            if (string.IsNullOrEmpty(name))
+                name = CuiHelper.GetGuid();
+            CuiElement cuiElement = new CuiElement();
+            cuiElement.Name = name;
+            cuiElement.Parent = parent;
+            cuiElement.Components.Add((ICuiComponent) new CuiInputFieldComponent { Text = "he", Align = TextAnchor.MiddleCenter, CharsLimit = charlimit, Command = command, FontSize = fontsize });
+            cuiElement.Components.Add((ICuiComponent) new CuiNeedsCursorComponent());
+
+            return cuiElement;
+        }
+        private static CuiElement CuiLabelWithOutline(CuiLabel label, string parent = "Hud", string color = "0.15 0.15 0.15 0.43", string dist = "1.1 -1.1", bool usealpha = false, string name = null) {
+            if (string.IsNullOrEmpty(name))
+                name = CuiHelper.GetGuid();
+            CuiElement cuiElement = new CuiElement();
+            cuiElement.Name = name;
+            cuiElement.Parent = parent;
+            cuiElement.FadeOut = label.FadeOut;
+            cuiElement.Components.Add((ICuiComponent) label.Text);
+            cuiElement.Components.Add((ICuiComponent) label.RectTransform);
+            cuiElement.Components.Add((ICuiComponent) new CuiOutlineComponent {
+                Color = color,
+                Distance = dist,
+                UseGraphicAlpha = usealpha
+            });
+            return cuiElement;
+        }
+        
+        private void ShowOverlayText(BasePlayer player, string text, string subtext = "", string textcolor = "1.0 1.0 1.0 1.0") {
+
+            HideOverlayText(player);
 
             UserInfo userinfo = GetUserInfo(player);
 
             var elements = new CuiElementContainer();
 
-			userinfo.overlay = elements.Add(
-				CreatePanel("0.3 0.3", "0.7 0.35","0.15 0.15 0.15 0")
-			);
+            userinfo.overlay = elements.Add(
+                CreatePanel("0.3 0.3", "0.7 0.35", "0 0 0 0")
+            );
 
-			elements.Add(
-				CuiLabelWithOutline(
-				new CuiLabel {
-					Text = { Text = (subtext != "") ? $"{text}\n<size=12>{subtext}</size>" : text,FontSize = 14,Align = TextAnchor.MiddleCenter,Color = "1.0 1.0 1.0 1.0" },
-					RectTransform = { AnchorMin = "0 0",AnchorMax = "1 1" },
-					FadeOut = 2f
-				},
-				userinfo.overlay)
-			);
+            elements.Add(
+                CuiLabelWithOutline(
+                new CuiLabel {
+                    Text = { Text = (subtext != "") ? $"{text}\n<size=12>{subtext}</size>" : text, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = textcolor },
+                    RectTransform = { AnchorMin = "0 0", AnchorMax = "1 1" },
+                    FadeOut = 2f
+                },
+                userinfo.overlay)
+            );
 
-			CuiHelper.AddUi(player, elements);
+            CuiHelper.AddUi(player, elements);
 
             userinfo.overlaytext = text;
             userinfo.overlaysubtext = subtext;
         }
-		
-		private void HideOverlayText(BasePlayer player, float delay = 0) {
+
+        private void HideOverlayText(BasePlayer player, float delay = 0) {
             UserInfo userinfo = GetUserInfo(player);
 
             if (delay > 0) {
-				string overlay = userinfo.overlay;
+                string overlay = userinfo.overlay;
                 string beforetext = userinfo.overlaytext;
                 string beforesub = userinfo.overlaysubtext;
-				timer.Once(delay,() => {
-					if (!string.IsNullOrEmpty(overlay))
-						CuiHelper.DestroyUi(player,overlay);
+                timer.Once(delay, () => {
+                    if (!string.IsNullOrEmpty(overlay))
+                        CuiHelper.DestroyUi(player, overlay);
                     if (beforetext == userinfo.overlaytext)
                         userinfo.overlaytext = string.Empty;
                     if (beforesub == userinfo.overlaysubtext)
                         userinfo.overlaysubtext = string.Empty;
                 });
-			} else {
-				if (!string.IsNullOrEmpty(userinfo.overlay))
-					CuiHelper.DestroyUi(player,userinfo.overlay);
+            } else {
+                if (!string.IsNullOrEmpty(userinfo.overlay))
+                    CuiHelper.DestroyUi(player, userinfo.overlay);
                 userinfo.overlaytext = string.Empty;
                 userinfo.overlaysubtext = string.Empty;
             }
-		}
+        }
 
         #endregion
 
@@ -1666,50 +1962,56 @@ namespace Oxide.Plugins {
 
         private void registerpermlevels() {
             foreach (var l in permlevels) {
-                permission.RegisterPermission($"jpipes.level.{l.Key}",this);
+                permission.RegisterPermission($"jpipes.level.{l.Key}", this);
             }
         }
 
         private static float maxpipedist;
-		private static float minpipedist;
-		private static int updaterate;
+        private static float minpipedist;
+        private static int updaterate;
+        private static bool drawflowarrows;
+        private static bool animatearrows;
+        private string pipecommandprefix;
         private string pipehotkey;
-		private List<int> flowrates;
-		private List<int> filtersizes;
-		private bool nodecay;
-        private Dictionary<string,permlevel> permlevels = new Dictionary<string, permlevel>();
+        private List<int> flowrates;
+        private List<int> filtersizes;
+        private bool nodecay;
+        private Dictionary<string, permlevel> permlevels = new Dictionary<string, permlevel>();
 
-        
+
         protected override void LoadDefaultConfig() {
-			PrintWarning("Creating a new configuration file");
-			Config.Clear();
-			LoadConfig();
-		}
+            PrintWarning("Creating a new configuration file");
+            Config.Clear();
+            LoadConfig();
+        }
 
-		private void LoadConfig() {
-            
-            maxpipedist = ConfigGet<float>("maxpipedist",64);
-			minpipedist = ConfigGet<float>("minpipedist",2);
-			updaterate = ConfigGet("updaterate",2,(int x) => x > 0,"should be greater than 0");
-			pipehotkey = ConfigGet("pipehotkey","p");
-			flowrates = ConfigGet("flowrates",new List<int>() { 1,5,10,30,50 },(List<int> l) => l.Count == 5,"should contain 5 integers");
-			filtersizes = ConfigGet("filtersizes",new List<int>() { 0,6,12,18,30 },(List<int> l) => l.Count == 5 && !l.Exists(x => x < 0 || x > 30),"should contain 5 integers with each val ue between 0 and 30");
-            nodecay = ConfigGet("nodecay",true);
+        private void LoadConfig() {
+
+            maxpipedist = ConfigGet<float>("maxpipedist", 64);
+            minpipedist = ConfigGet<float>("minpipedist", 2);
+            updaterate = ConfigGet("updaterate", 2, (int x) => x > 0, "should be greater than 0");
+            drawflowarrows = ConfigGet("drawflowarrows", true);
+            animatearrows = ConfigGet("animatearrows", false);
+            pipecommandprefix = ConfigGet("pipecommandprefix", "p");
+            pipehotkey = ConfigGet("pipehotkey", "p");
+            flowrates = ConfigGet("flowrates", new List<int>() { 1, 5, 10, 30, 50 }, (List<int> l) => l.Count == 5, "should contain 5 integers");
+            filtersizes = ConfigGet("filtersizes", new List<int>() { 0, 6, 12, 18, 30 }, (List<int> l) => l.Count == 5 && !l.Exists(x => x < 0 || x > 30), "should contain 5 integers with each val ue between 0 and 30");
+            nodecay = ConfigGet("nodecay", true);
 
             var permlevelsval = Config["permlevels"];
 
             if (permlevelsval != null) {
 
                 IDictionary valueDictionary = (IDictionary) permlevelsval;
-                Dictionary<string,object> levels = new Dictionary<string,object>();
+                Dictionary<string, object> levels = new Dictionary<string, object>();
 
                 foreach (object key in valueDictionary.Keys) {
 
                     IDictionary lvd = (IDictionary) valueDictionary[key];
-                    Dictionary<string,object> permvals = new Dictionary<string,object>();
+                    Dictionary<string, object> permvals = new Dictionary<string, object>();
 
                     foreach (object lkey in lvd.Keys)
-                        permvals.Add((string) lkey,lvd[lkey]);
+                        permvals.Add((string) lkey, lvd[lkey]);
 
                     permlevel npl = new permlevel();
 
@@ -1718,35 +2020,35 @@ namespace Oxide.Plugins {
                     if (permvals.ContainsKey("upgradelimit"))
                         npl.upgradelimit = (int) permvals["upgradelimit"];
 
-                    if (permvals.ContainsKey("pipelimit") || permvals.ContainsKey("upgradelimit")) 
-                        permlevels.Add((string) key,npl);
+                    if (permvals.ContainsKey("pipelimit") || permvals.ContainsKey("upgradelimit"))
+                        permlevels.Add((string) key, npl);
                 }
             } else {
-                Config["permlevels"] = new Dictionary<string,object>();
+                Config["permlevels"] = new Dictionary<string, object>();
                 SaveConfig();
             }
 
             registerpermlevels();
         }
 
-		// Config.Get<T>() with fallback, conditional warning, and saving
-		// if val is null then set to fallback
-		// if cond returns false then set to fallback (no saving) and print warning
-		private T ConfigGet<T>(string configstring,T fallback,Func<T,bool> cond = null,string warning = null) {
-			var val = Config.Get(configstring);
-			if (val != null) {
-				var valc = Config.ConvertValue<T>(val);
-				if (cond != null && !cond(valc)) {
-					if (warning != null)
-						PrintWarning($"Config Error: \"{configstring}\" {warning}.  Reverting to default value.");
-					return fallback;
-				}
-				return valc;
-			}
-			Config[configstring] = fallback;
-			SaveConfig();
-			return fallback;
-		}
+        // Config.Get<T>() with fallback, conditional warning, and saving
+        // if val is null then set to fallback
+        // if cond returns false then set to fallback (no saving) and print warning
+        private T ConfigGet<T>(string configstring, T fallback, Func<T, bool> cond = null, string warning = null) {
+            var val = Config.Get(configstring);
+            if (val != null) {
+                var valc = Config.ConvertValue<T>(val);
+                if (cond != null && !cond(valc)) {
+                    if (warning != null)
+                        PrintWarning($"Config Error: \"{configstring}\" {warning}.  Reverting to default value.");
+                    return fallback;
+                }
+                return valc;
+            }
+            Config[configstring] = fallback;
+            SaveConfig();
+            return fallback;
+        }
 
         #endregion
 
@@ -1754,42 +2056,42 @@ namespace Oxide.Plugins {
 
         // data structure for jPipeData.json file
         private class PipeSaveData {
-			public Dictionary<ulong,jPipeData> p = new Dictionary<ulong,jPipeData>();
-			public PipeSaveData() { }
-		}
+            public Dictionary<ulong, jPipeData> p = new Dictionary<ulong, jPipeData>();
+            public PipeSaveData() { }
+        }
 
-		// data structure for pipe save data
-		private class jPipeData {
-			public bool e = true;   // On/Off
-			public int g;           // grade
-			public uint s;          // source storage container id
-			public uint d;          // destination storage container id
+        // data structure for pipe save data
+        private class jPipeData {
+            public bool e = true;   // On/Off
+            public int g;           // grade
+            public uint s;          // source storage container id
+            public uint d;          // destination storage container id
             public uint cs;         // source child storage container
             public uint cd;         // destination child storage container
             public float h;         // health
-			public List<int> f;     // filter item ids
-			public bool st;         // single stack mode
-			public bool a;          // auto starter
-			public bool fs;         // FurnaceSplitter On/Off
-			public int fss;         // FurnaceSplitter starter
+            public List<int> f;     // filter item ids
+            public bool st;         // single stack mode
+            public bool a;          // auto starter
+            public bool fs;         // FurnaceSplitter On/Off
+            public int fss;         // FurnaceSplitter starter
             public ulong o;         // Player ID of pipe owner
             public string on;       // name of pipe owner
 
             public jPipeData() { }
 
-			public void fromPipe(jPipe p) {
-				e = p.isEnabled;
-				g = ((int) p.pipegrade == -1) ? 0 : (int) p.pipegrade;
-				s = p.source.net.ID;
-				d = p.dest.net.ID;
+            public void fromPipe(jPipe p) {
+                e = p.isEnabled;
+                g = ((int) p.pipegrade == -1) ? 0 : (int) p.pipegrade;
+                s = p.source.net.ID;
+                d = p.dest.net.ID;
                 cs = p.sourcechild;
                 cd = p.destchild;
-				h = p.health;
-				f = p.filteritems;
-				st = p.singlestack;
-				a = p.autostarter;
-				fs = p.fsplit;
-				fss = p.fsstacks;
+                h = p.health;
+                f = p.filteritems;
+                st = p.singlestack;
+                a = p.autostarter;
+                fs = p.fsplit;
+                fss = p.fsstacks;
                 o = p.ownerid;
                 on = p.ownername;
             }
@@ -1800,12 +2102,13 @@ namespace Oxide.Plugins {
 
                 p.source = (BaseEntity) BaseNetworkable.serverEntities.Find(s);
                 p.dest = (BaseEntity) BaseNetworkable.serverEntities.Find(d);
-                p.sourcecont = getchildcont(p.source,cs);
-                p.destcont = getchildcont(p.dest,cd);
+                p.sourcecont = getchildcont(p.source, cs);
+                p.destcont = getchildcont(p.dest, cd);
                 p.sourcechild = cs;
                 p.destchild = cd;
                 p.health = h;
-                if (f != null) p.filteritems = f;
+                if (f != null)
+                    p.filteritems = f;
                 p.singlestack = st;
                 p.autostarter = a;
                 p.fsplit = fs;
@@ -1815,8 +2118,8 @@ namespace Oxide.Plugins {
             }
 
             public void setContainers(BaseEntity start, BaseEntity end) {
-                s = setCont(start,out cs);
-                d = setCont(end,out cd);
+                s = setCont(start, out cs);
+                d = setCont(end, out cd);
             }
 
             private uint setCont(BaseEntity cont, out uint cid) {
@@ -1838,85 +2141,85 @@ namespace Oxide.Plugins {
 
                     return stor.parentEntity.uid;
                 }
-                    
+
                 cid = 0;
                 return cont.net.ID;
             }
-		}
+        }
 
-		private static void LoadData<T>(ref T data) => data = Core.Interface.Oxide.DataFileSystem.ReadObject<T>("JPipes");
-		private static void SaveData<T>(T data) => Core.Interface.Oxide.DataFileSystem.WriteObject("JPipes",data);
+        private static void LoadData<T>(ref T data) => data = Core.Interface.Oxide.DataFileSystem.ReadObject<T>("JPipes");
+        private static void SaveData<T>(T data) => Core.Interface.Oxide.DataFileSystem.WriteObject("JPipes", data);
 
-		#endregion
+        #endregion
 
-		#region Debug tools
+        #region Debug tools
 
 
-		// Lists the ent's components and variables to player's chat
+        // Lists the ent's components and variables to player's chat
 
-		void ListComponentsDebug(BasePlayer player,BaseEntity ent) {
+        //void ListComponentsDebug(BasePlayer player, BaseEntity ent) {
 
-			List<string> lines = new List<string>();
-			string s = "-----------------------------------------\n";
-			int limit = 1040;
+        //    List<string> lines = new List<string>();
+        //    string s = "-----------------------------------------\n";
+        //    int limit = 1040;
 
-			foreach (var c in ent.GetComponents<Component>()) {
+        //    foreach (var c in ent.GetComponents<Component>()) {
 
-				s += "[ " + c.GetType() + " : " + c.GetType().BaseType + " ]\n";
-				//s += " <"+c.name+">\n";
-				//if (c.sharedMesh != null) s += "-> "+c.sharedMesh.triangles.Length.ToString()+"\n";
+        //        s += "[ " + c.GetType() + " : " + c.GetType().BaseType + " ]\n";
+        //        //s += " <"+c.name+">\n";
+        //        //if (c.sharedMesh != null) s += "-> "+c.sharedMesh.triangles.Length.ToString()+"\n";
 
-				List<string> types = new List<string>();
-				List<string> names = new List<string>();
-				List<string> values = new List<string>();
-				int typelength = 0;
+        //        List<string> types = new List<string>();
+        //        List<string> names = new List<string>();
+        //        List<string> values = new List<string>();
+        //        int typelength = 0;
 
-				foreach (FieldInfo fi in c.GetType().GetFields()) {
+        //        foreach (FieldInfo fi in c.GetType().GetFields()) {
 
-					System.Object obj = (System.Object) c;
-					string ts = fi.FieldType.Name;
-					if (ts.Length > typelength)
-						typelength = ts.Length;
+        //            System.Object obj = (System.Object) c;
+        //            string ts = fi.FieldType.Name;
+        //            if (ts.Length > typelength)
+        //                typelength = ts.Length;
 
-					types.Add(ts);
-					names.Add(fi.Name);
+        //            types.Add(ts);
+        //            names.Add(fi.Name);
 
-					var val = fi.GetValue(obj);
-					if (val != null)
-						values.Add(val.ToString());
-					else
-						values.Add("null");
+        //            var val = fi.GetValue(obj);
+        //            if (val != null)
+        //                values.Add(val.ToString());
+        //            else
+        //                values.Add("null");
 
-				}
+        //        }
 
-				for (int i = 0;i < types.Count;i++) {
-					string typestring = types[i];
+        //        for (int i = 0; i < types.Count; i++) {
+        //            string typestring = types[i];
 
-					string ns = "<size=11><color=#80c5ff>    " + typestring + "</color>" + "  " + names[i] + " = <color=#00ff00>" + values[i] + "</color></size>\n";
+        //            string ns = "<size=11><color=#80c5ff>    " + typestring + "</color>" + "  " + names[i] + " = <color=#00ff00>" + values[i] + "</color></size>\n";
 
-					if (s.Length + ns.Length > limit) {
-						lines.Add(s);
-						s = string.Empty;
-					}
+        //            if (s.Length + ns.Length > limit) {
+        //                lines.Add(s);
+        //                s = string.Empty;
+        //            }
 
-					s += ns;
-				}
-			}
+        //            s += ns;
+        //        }
+        //    }
 
-			lines.Add(s);
+        //    lines.Add(s);
 
-			foreach (string ls in lines)
-				PrintToChat(player,ls);
+        //    foreach (string ls in lines)
+        //        PrintToChat(player, ls);
 
-		}
-		public static string stringspacing(int length) {
-			string s = string.Empty;
-			for (int i = 0;i < length;i++)
-				s += "  ";
-			return s;
-		}
+        //}
+        //public static string stringspacing(int length) {
+        //    string s = string.Empty;
+        //    for (int i = 0; i < length; i++)
+        //        s += "  ";
+        //    return s;
+        //}
 
-		#endregion
+        #endregion
 
-	}
+    }
 }
