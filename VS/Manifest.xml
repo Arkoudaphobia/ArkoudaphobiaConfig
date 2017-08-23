@@ -33,7 +33,7 @@
     <Mod Name="NTeleportation.cs" Enabled="true"/>
     <Mod Name="PathFinding.cs" Enabled="true"/>
     <Mod Name="Ping.cs" Enabled="true"/>
-    <Mod Name="PlayerDatabase.cs" Enabled="true"/>
+    <Mod Name="PlayerDatabase.cs" Enabled="false"/>
     <Mod Name="PlayerInformations.cs" Enabled="true"/>
     <Mod Name="PlayerManager.cs" Enabled="true"/>
     <Mod Name="PopupNotifications.cs" Enabled="true"/>
