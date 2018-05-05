@@ -1,3 +1,6 @@
+#Configure TLS 1.2 for PowerShell REST API Calls
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 #Generate New Log File Name
 $CurrentLogFilePath = ($Env:temp + "\" + "ArkoudaphobiaStartup." + [DateTime]::Now.ToFileTime().ToString() + ".log")
 
@@ -16,24 +19,24 @@ $WebClient = New-Object System.Net.WebClient
 #Setup and perform required file downloads for both Oxide and RustIO (Live Map)
 Write "Checking for a new version of Oxide"
 
-$apiResponse = Invoke-RestMethod -Method Get -uri https://ci.appveyor.com/api/projects/oxidemod/oxide
+# $apiResponse = Invoke-RestMethod -Method Get -uri http://api.github.com/repos/oxidemod/oxide/releases/latest
 
-$LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Managed\Oxide.Core.dll")
+# $LocalVersionInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$($Env:RustOxideLocalDir)\RustDedicated_Data\Managed\Oxide.Core.dll")
 
 $OxideTargetFile = ($($Env:Temp) + "\Oxide-Rust.zip")
 
-If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
-{
+#If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
+#{
     #Test if we have an exsisting Oxide-Rust.zip file in the temp directory and delete it if we do
-    if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true -and $ShouldCopy -eq $true)
+    if((Test-Path $Env:temp\Oxide-Rust.zip) -eq $true)
     {
         Write "Cleaning up old oxide zip files"
         Remove-Item -Path $Env:temp\Oxide-Rust.zip -Force -Confirm:$false
     }
 
     $ShouldCopy = $true
-    Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.buildNumber) proceeding with update"    
-    $OxideTargetUrl = "https://bintray.com/oxidemod/builds/download_file?file_path=Oxide-Rust.zip"
+    #Write "An update has been found, Local Version is: $($LocalVersionInfo.FileBuildPart) Remote Version is: $($apiResponse.build.buildNumber) proceeding with update"    
+    $OxideTargetUrl = "https://github.com/OxideMod/Oxide/releases/download/latest/Oxide-Rust.zip"
 
     Write "Downloading The Latest Oxide Bits"
     $WebClient = New-Object System.Net.WebClient
@@ -42,11 +45,11 @@ If($LocalVersionInfo.FileBuildPart -ne $apiResponse.build.buildNumber)
     #Install latest version of the rust dedicated server
     Write "Beginning Update of Rust Dedicated Server"
     cmd.exe /c "$($ENV:SteamCmdDir)\steamcmd.exe +login Anonymous +force_install_dir $($Env:RustOxideLocalDir) +app_update 258550 validate +quit"
-}
-else
-{
-    $ShouldCopy = $false    
-}
+#}
+#else
+#{
+#    $ShouldCopy = $false    
+#}
 
 Write "Downloading RustIO"
 
