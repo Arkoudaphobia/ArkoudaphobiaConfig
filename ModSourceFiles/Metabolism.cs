@@ -1,13 +1,9 @@
-﻿/*
- * TODO: Add metabolism individual configuration settings for food
- */
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Metabolism", "Wulf/lukespragg", "2.6.0", ResourceId = 680)]
+    [Info("Metabolism", "Wulf/lukespragg", "2.6.1")]
     [Description("Modify or disable player metabolism stats and rates")]
     public class Metabolism : RustPlugin
     {
@@ -23,7 +19,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Calories spawn amount (0.0 - 500.0)")]
             public float CaloriesSpawnAmount;
 
-            [JsonProperty(PropertyName = "Health gain rate (0.0 - infinte)")]
+            [JsonProperty(PropertyName = "Health gain rate (0.0 - infinite)")]
             public float HealthGainRate;
 
             [JsonProperty(PropertyName = "Health spawn amount (0.0 - 100.0)")]
@@ -69,7 +65,7 @@ namespace Oxide.Plugins
 
         protected override void SaveConfig() => Config.WriteObject(config);
 
-        #endregion
+        #endregion Configuration
 
         #region Initialization
 
@@ -84,7 +80,7 @@ namespace Oxide.Plugins
             permission.RegisterPermission(permSpawn, this);
         }
 
-        #endregion
+        #endregion Initialization
 
         #region Modify Metabolism
 
@@ -92,9 +88,19 @@ namespace Oxide.Plugins
         {
             if (permission.UserHasPermission(player.UserIDString, permSpawn))
             {
+#if DEBUG
+                PrintWarning($"Health before: {player.health}");
+                PrintWarning($"Calories before: {player.metabolism.calories.value}");
+                PrintWarning($"Hydration before: {player.metabolism.hydration.value}");
+#endif
                 player.health = config.HealthSpawnAmount;
                 player.metabolism.calories.value = config.CaloriesSpawnAmount;
                 player.metabolism.hydration.value = config.HydrationSpawnAmount;
+#if DEBUG
+                PrintWarning($"Health after: {player.health}");
+                PrintWarning($"Calories after: {player.metabolism.calories.value}");
+                PrintWarning($"Hydration after: {player.metabolism.hydration.value}");
+#endif
             }
         }
 
@@ -102,7 +108,11 @@ namespace Oxide.Plugins
         {
             var player = entity.ToPlayer();
             if (player == null) return;
-
+#if DEBUG
+            PrintWarning($"Health before: {player.health}");
+            PrintWarning($"Calories before: {player.metabolism.calories.value}");
+            PrintWarning($"Hydration before: {player.metabolism.hydration.value}");
+#endif
             if (permission.UserHasPermission(player.UserIDString, permBoost))
             {
                 player.health = Mathf.Clamp(player.health + config.HealthGainRate, 0f, 100f);
@@ -114,8 +124,13 @@ namespace Oxide.Plugins
                 m.calories.value = m.calories.max;
                 m.hydration.value = m.hydration.max;
             }
+#if DEBUG
+            PrintWarning($"Health after: {player.health}");
+            PrintWarning($"Calories after: {player.metabolism.calories.value}");
+            PrintWarning($"Hydration after: {player.metabolism.hydration.value}");
+#endif
         }
 
-        #endregion
+        #endregion Modify Metabolism
     }
 }

@@ -16,7 +16,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("NTeleportation", "Nogrod", "1.0.21", ResourceId = 1832)]
+    [Info("NTeleportation", "Nogrod", "1.0.26", ResourceId = 1832)]
     class NTeleportation : RustPlugin
     {
         private const string NewLine = "\n";
@@ -63,13 +63,7 @@ namespace Oxide.Plugins
         private readonly HashSet<ulong> teleporting = new HashSet<ulong>();
 
         [PluginReference]
-        private Plugin Economics;
-        [PluginReference]
-        private Plugin Friends;
-        [PluginReference]
-        private Plugin RustIO;
-        [PluginReference]
-        private Plugin Clans;
+        private Plugin Clans, Economics, Friends, RustIO;
 
         class ConfigData
         {
@@ -285,6 +279,7 @@ namespace Oxide.Plugins
                 {"HomeSave", "You have saved the current location as your home!"},
                 {"HomeNoFoundation", "You can only use a home location on a foundation!"},
                 {"HomeFoundationNotOwned", "You can't use home on someone else's house."},
+                {"HomeFoundationUnderneathFoundation", "You can't use home on a foundation that is underneath another foundation."},
                 {"HomeFoundationNotFriendsOwned", "You or a friend need to own the house to use home!"},
                 {"HomeRemovedInvalid", "Your home '{0}' was removed because not on a foundation or not owned!"},
                 {"HomeRemovedInsideBlock", "Your home '{0}' was removed because inside a foundation!"},
@@ -1231,7 +1226,7 @@ namespace Oxide.Plugins
                         var entity = GetFoundationOwned(location.Value, homeData.Key);
                         if (entity == null) continue;
                         player.SendConsoleCommand("ddraw.text", 30f, Color.blue, entity.CenterPoint() + new Vector3(0, .5f), $"<size=20>{target} - {location.Key} {location.Value}</size>");
-                        DrawBox(player, entity.CenterPoint(), entity.GetEstimatedWorldRotation(), entity.bounds.size);
+                        DrawBox(player, entity.CenterPoint(), entity.transform.rotation, entity.bounds.size);
                         PrintMsg(player, $"{target} - {location.Key} {location.Value}");
                         found = true;
                     }
@@ -1315,15 +1310,7 @@ namespace Oxide.Plugins
                 PrintMsgL(player, "HomeNotFound");
                 return;
             }
-            err = CheckFoundation(player.userID, location);
-            if (err != null)
-            {
-                PrintMsgL(player, "HomeRemovedInvalid", args[0]);
-                homeData.Locations.Remove(args[0]);
-                changedHome = true;
-                return;
-            }
-            err = CheckTargetLocation(player, location, configData.Home.UsableIntoBuildingBlocked, configData.Home.CupOwnerAllowOnBuildingBlocked);
+            err = CheckFoundation(player.userID, location) ?? CheckTargetLocation(player, location, configData.Home.UsableIntoBuildingBlocked, configData.Home.CupOwnerAllowOnBuildingBlocked);
             if (err != null)
             {
                 PrintMsgL(player, "HomeRemovedInvalid", args[0]);
@@ -1376,7 +1363,7 @@ namespace Oxide.Plugins
                 PrintMsgL(player, "TPBlockedItem", err);
                 return;
             }
-            if (configData.Home.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", player.userID) ?? 0) < configData.Home.Pay)
+            if (configData.Home.Pay > 0 && (double)(Economics?.CallHook("Balance", player.UserIDString) ?? 0) < configData.Home.Pay)
             {
                 PrintMsgL(player, "TPMoney", configData.Home.Pay);
                 return;
@@ -1411,7 +1398,23 @@ namespace Oxide.Plugins
                         TeleportTimers.Remove(player.userID);
                         return;
                     }
-                    if (configData.Home.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", player.userID) ?? 0) < configData.Home.Pay)
+                    err = CheckFoundation(player.userID, location) ?? CheckTargetLocation(player, location, configData.Home.UsableIntoBuildingBlocked, configData.Home.CupOwnerAllowOnBuildingBlocked);
+                    if (err != null)
+                    {
+                        PrintMsgL(player, "HomeRemovedInvalid", args[0]);
+                        homeData.Locations.Remove(args[0]);
+                        changedHome = true;
+                        return;
+                    }
+                    err = CheckInsideBlock(location);
+                    if (err != null)
+                    {
+                        PrintMsgL(player, "HomeRemovedInsideBlock", args[0]);
+                        homeData.Locations.Remove(args[0]);
+                        changedHome = true;
+                        return;
+                    }
+                    if (configData.Home.Pay > 0 && (double)(Economics?.CallHook("Balance", player.UserIDString) ?? 0) < configData.Home.Pay)
                     {
                         PrintMsgL(player, "Interrupted");
                         PrintMsgL(player, "TPMoney", configData.Home.Pay);
@@ -1421,7 +1424,7 @@ namespace Oxide.Plugins
                     Teleport(player, location);
                     homeData.Teleports.Amount++;
                     homeData.Teleports.Timestamp = timestamp;
-                    if (configData.Home.Pay > 0) Economics?.CallHook("Withdraw", player.userID, configData.Home.Pay);
+                    if (configData.Home.Pay > 0) Economics?.CallHook("Withdraw", player.UserIDString, configData.Home.Pay);
                     changedHome = true;
                     PrintMsgL(player, "HomeTP", args[0]);
                     if (limit > 0) PrintMsgL(player, "HomeTPAmount", limit - homeData.Teleports.Amount);
@@ -1541,7 +1544,7 @@ namespace Oxide.Plugins
                 PrintMsgL(player, err);
                 return;
             }
-            err = CheckTargetLocation(player, target.transform.position, configData.TPR.UsableIntoBuildingBlocked, configData.TPR.CupOwnerAllowOnBuildingBlocked);
+            err = CheckTargetLocation(target, target.transform.position, configData.TPR.UsableIntoBuildingBlocked, configData.TPR.CupOwnerAllowOnBuildingBlocked);
             if (err != null)
             {
                 PrintMsgL(player, err);
@@ -1608,7 +1611,7 @@ namespace Oxide.Plugins
                 PrintMsgL(player, "TPBlockedItem", err);
                 return;
             }
-            if (configData.TPR.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", player.userID) ?? 0) < configData.TPR.Pay)
+            if (configData.TPR.Pay > 0 && (double)(Economics?.CallHook("Balance", player.UserIDString) ?? 0) < configData.TPR.Pay)
             {
                 PrintMsgL(player, "TPMoney", configData.TPR.Pay);
                 return;
@@ -1716,7 +1719,7 @@ namespace Oxide.Plugins
                         TeleportTimers.Remove(originPlayer.userID);
                         return;
                     }
-                    if (configData.TPR.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", originPlayer.userID) ?? 0) < configData.TPR.Pay)
+                    if (configData.TPR.Pay > 0 && (double)(Economics?.CallHook("Balance", originPlayer.UserIDString) ?? 0) < configData.TPR.Pay)
                     {
                         PrintMsgL(player, "InterruptedTarget", originPlayer.displayName);
                         PrintMsgL(originPlayer, "TPMoney", configData.TPR.Pay);
@@ -1727,7 +1730,7 @@ namespace Oxide.Plugins
                     var tprData = TPR[originPlayer.userID];
                     tprData.Amount++;
                     tprData.Timestamp = timestamp;
-                    if (configData.TPR.Pay > 0) Economics?.CallHook("Withdraw", originPlayer.userID, configData.TPR.Pay);
+                    if (configData.TPR.Pay > 0) Economics?.CallHook("Withdraw", originPlayer.UserIDString, configData.TPR.Pay);
                     changedTPR = true;
                     PrintMsgL(player, "SuccessTarget", originPlayer.displayName);
                     PrintMsgL(originPlayer, "Success", player.displayName);
@@ -1986,7 +1989,7 @@ namespace Oxide.Plugins
                 PrintMsgL(player, "TPBlockedItem", err);
                 return;
             }
-            if (configData.Town.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", player.userID) ?? 0) < configData.Town.Pay)
+            if (configData.Town.Pay > 0 && (double)(Economics?.CallHook("Balance", player.UserIDString) ?? 0) < configData.Town.Pay)
             {
                 PrintMsgL(player, "TPMoney", configData.Town.Pay);
                 return;
@@ -2021,7 +2024,7 @@ namespace Oxide.Plugins
                         TeleportTimers.Remove(player.userID);
                         return;
                     }
-                    if (configData.Town.Pay > 0 && (double)(Economics?.CallHook("GetPlayerMoney", player.userID) ?? 0) < configData.Town.Pay)
+                    if (configData.Town.Pay > 0 && (double)(Economics?.CallHook("Balance", player.UserIDString) ?? 0) < configData.Town.Pay)
                     {
                         PrintMsgL(player, "Interrupted");
                         PrintMsgL(player, "TPMoney", configData.Home.Pay);
@@ -2031,7 +2034,7 @@ namespace Oxide.Plugins
                     Teleport(player, configData.Town.Location);
                     teleportData.Amount++;
                     teleportData.Timestamp = timestamp;
-                    if (configData.Town.Pay > 0) Economics?.CallHook("Withdraw", player.userID, configData.Town.Pay);
+                    if (configData.Town.Pay > 0) Economics?.CallHook("Withdraw", player.UserIDString, configData.Town.Pay);
                     changedTown = true;
                     PrintMsgL(player, "TownTP");
                     if (limit > 0) PrintMsgL(player, "TownTPAmount", limit - teleportData.Amount);
@@ -2204,7 +2207,7 @@ namespace Oxide.Plugins
             SaveLocation(player);
             teleporting.Add(player.userID);
             if (player.net?.connection != null)
-                player.ClientRPCPlayer(null, player, "StartLoading", null, null, null, null, null);
+                player.ClientRPCPlayer(null, player, "StartLoading");
             StartSleeping(player);
             player.MovePosition(position);
             if (player.net?.connection != null)
@@ -2340,32 +2343,12 @@ namespace Oxide.Plugins
 
         private string CheckInsideBlock(Vector3 targetLocation)
         {
-            var targets = Physics.SphereCastAll(new Ray(targetLocation + Vector3.up * 3.1f, Vector3.down), 0.1f, 3f, blockLayer);
-            foreach (var hit in targets)
-            {
-                if (hit.collider.transform.CompareTag("MeshColliderBatch"))
-                {
-                    var colliders = Pool.GetList<Collider>();
-                    hit.collider.transform.GetComponent<MeshColliderBatch>().LookupColliders(hit.point, 1.5f, colliders);
-                    var found = false;
-                    foreach (var collider in colliders)
-                    {
-                        var block = collider.gameObject.ToBaseEntity();
-                        if (block == null || !block.PrefabName.Contains("foundation")) continue;
-                        found = true;
-                        break;
-                    }
-                    Pool.FreeList(ref colliders);
-                    if (!found) continue;
-                }
-                else
-                {
-                    var block = hit.collider.gameObject.ToBaseEntity();
-                    if (block == null || !block.PrefabName.Contains("foundation")) continue;
-                }
-                return "TPTargetInsideBlock";
-            }
-            return null;
+            List<BuildingBlock> blocks = Pool.GetList<BuildingBlock>();
+            Vis.Entities(targetLocation + new Vector3(0, 0.25f), 0.1f, blocks, blockLayer);
+            bool inside = blocks.Count > 0;
+            Pool.FreeList(ref blocks);
+
+            return inside ? "TPTargetInsideBlock" : null;
         }
 
         private string CheckItems(BasePlayer player)
@@ -2384,15 +2367,23 @@ namespace Oxide.Plugins
 
         private string CheckFoundation(ulong userID, Vector3 position)
         {
+            if (UnderneathFoundation(position))
+            {
+                return "HomeFoundationUnderneathFoundation";
+            }
+
             if (!configData.Home.ForceOnTopOfFoundation) return null;
+
             var entities = GetFoundation(position);
             if (entities.Count == 0)
                 return "HomeNoFoundation";
+
             if (!configData.Home.CheckFoundationForOwner) return null;
             for (var i = 0; i < entities.Count; i++)
                 if (entities[i].OwnerID == userID) return null;
             if (!configData.Home.UseFriends)
                 return "HomeFoundationNotOwned";
+
             var moderator = (bool)(Clans?.CallHook("IsModerator", userID) ?? false);
             var userIdString = userID.ToString();
             for (var i = 0; i < entities.Count; i++)
@@ -2401,6 +2392,7 @@ namespace Oxide.Plugins
                 if ((bool)(Friends?.CallHook("HasFriend", entity.OwnerID, userID) ?? false) || (bool)(Clans?.CallHook("HasFriend", entity.OwnerID, userID) ?? false) && moderator || (bool)(RustIO?.CallHook("HasFriend", entity.OwnerID.ToString(), userIdString) ?? false))
                     return null;
             }
+
             return "HomeFoundationNotFriendsOwned";
         }
 
@@ -2491,6 +2483,20 @@ namespace Oxide.Plugins
             if (Physics.Raycast(sourcePos, Vector3.up, out hitinfo, buildingLayer))
                 sourcePos.y = System.Math.Max(hitinfo.point.y, sourcePos.y);
             return sourcePos;
+        }
+
+        private bool UnderneathFoundation(Vector3 position)
+        {
+            RaycastHit hit;
+            if (Physics.Raycast(new Ray(position, Vector3.up), out hit, 10, buildingLayer))
+            {
+                if (hit.GetCollider().name.Contains("foundation"))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsAllowed(BasePlayer player, string perm = null)

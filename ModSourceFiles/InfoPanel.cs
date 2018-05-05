@@ -2,19 +2,17 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-
-using UnityEngine;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Game.Rust;
 using Oxide.Game.Rust.Cui;
+using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("InfoPanel", "Ghosst / Nogrod", "0.9.5", ResourceId = 1356)]
+    [Info("InfoPanel", "Ghosst / Nogrod", "0.9.8", ResourceId = 1356)]
     [Description("A little panel with useful informations.")]
     public class InfoPanel : RustPlugin
     {
@@ -167,16 +165,51 @@ namespace Oxide.Plugins
                             AnchorX = "Left",
                             AnchorY = "Bottom",
                             Margin = "0 0 0 0.01",
-                            Width = 0.8f,
+                            Width = 0.4f,
                             Height = 0.95f,
                             BackgroundColor = "0 0 0 0.4" ,
                             Image = new PanelImageConfig
                             {
                                 Order =  1,
-                                Width = 0.1f,
+                                Width = 0.2f,
                                 Height = 0.8f,
                                 Margin = "0 0.01 0.1 0.01",
                                 Url = "http://i.imgur.com/HhL5TvU.png",
+                            },
+                            Text = new PanelTextConfig
+                            {
+                                Order =  2,
+                                Width = 0.848f,
+                                Height = 1f,
+                                Align = TextAnchor.MiddleCenter,
+                                FontColor = DefaultFontColor,
+                                FontSize = 12,
+                                Margin = "0 0.02 0 0",
+                            },
+                            PanelSettings = new Dictionary<string,object>
+                            {
+                                { "RefreshRate(s)", "5" },
+                            }
+                        }
+                    },
+					{ "Points", new PanelConfig
+                        {
+                            Available = true,
+                            Dock = "BottomLeftDock",
+                            Order = 8,
+                            AnchorX = "Left",
+                            AnchorY = "Bottom",
+                            Margin = "0 0 0 0.01",
+                            Width = 0.4f,
+                            Height = 0.95f,
+                            BackgroundColor = "0 0 0 0.4" ,
+                            Image = new PanelImageConfig
+                            {
+                                Order =  1,
+                                Width = 0.2f,
+                                Height = 0.8f,
+                                Margin = "0 0.01 0.1 0.01",
+                                Url = "http://i.imgur.com/dwzul4T.png",
                             },
                             Text = new PanelTextConfig
                             {
@@ -658,11 +691,16 @@ namespace Oxide.Plugins
                 Settings.GetPanelSettingsValue("Radiation", "RefreshRate(s)", 3)
             );
 
+			Poi = new Points
+            (
+                Settings.GetPanelSettingsValue("Points", "RefreshRate(s)", 3)
+            );
+			
             Bala = new Balance
             (
                 Settings.GetPanelSettingsValue("Balance", "RefreshRate(s)", 3)
             );
-
+			
             Coord = new Coordinates
             (
                 Settings.GetPanelSettingsValue("Coordinates", "RefreshRate(s)", 3)
@@ -679,11 +717,16 @@ namespace Oxide.Plugins
                 RadiationUpdater = timer.Repeat(Rad.RefreshRate, 0, () => Rad.Refresh(storedData, PlayerPanels));
             }
 
+			if (Settings.CheckPanelAvailability("Points"))
+            {
+                PointsUpdater = timer.Repeat(Poi.RefreshRate, 0, () => Poi.Refresh(storedData, PlayerPanels));
+            }
+			
             if (Settings.CheckPanelAvailability("Balance"))
             {
                 BalanceUpdater = timer.Repeat(Bala.RefreshRate, 0, () => Bala.Refresh(storedData, PlayerPanels));
             }
-
+			
             if (Settings.CheckPanelAvailability("Coordinates"))
             {
                 CoordUpdater = timer.Repeat(Coord.RefreshRate, 0, () => Coord.Refresh(storedData, PlayerPanels));
@@ -1315,9 +1358,9 @@ namespace Oxide.Plugins
 
             public double GetBalance(string PlayerID)
             {
-                var player = RustCore.FindPlayerByIdString(PlayerID);
-                if (player == null) return 0;
-                return (double)(Interface.Oxide.CallHook("GetPlayerMoney", player.userID) ?? 0.0);
+				var player = RustCore.FindPlayerByIdString(PlayerID);
+                if (player == null) return 0.0;
+				return (double)(Interface.Oxide.CallHook("Balance", player.UserIDString) ?? 0.0);
             }
 
             public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
@@ -1334,6 +1377,47 @@ namespace Oxide.Plugins
                     if (!balance.Equals(panelText.Content))
                     {
                         panelText.Content = balance;
+                        panelText.Refresh();
+                    }
+                }
+            }
+        }
+        #endregion
+		
+		#region Points
+
+        private Points Poi;
+        private Timer PointsUpdater;
+        public class Points
+        {
+            public int RefreshRate = 3;
+
+            public Points(int RefreshRate)
+            {
+                this.RefreshRate = RefreshRate;
+            }
+
+            public int GetPoints(string PlayerID)
+            {
+				var player = RustCore.FindPlayerByIdString(PlayerID);
+                if (player == null) return 0;
+                return (int)(Interface.Oxide.CallHook("CheckPoints", player.userID) ?? 0);
+            }
+
+            public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
+            {
+                if (!Settings.CheckPanelAvailability("Points"))
+                    return;
+
+                foreach (var panel in panels)
+                {
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("PointsText", out iPanel)) continue;
+                    var points = $"{GetPoints(panel.Key)}";
+                    var panelText = (IPanelText)iPanel;
+                    if (!points.Equals(panelText.Content))
+                    {
+                        panelText.Content = points;
                         panelText.Refresh();
                     }
                 }
@@ -1750,7 +1834,7 @@ namespace Oxide.Plugins
             public string Name { get; set; }
 
             [JsonProperty("parent")]
-            public string ParentName { get; set; } = "Overlay";
+            public string ParentName { get; set; } = "Hud";
 
             [JsonProperty("components")]
             public List<ICuiComponent> Components = new List<ICuiComponent>();

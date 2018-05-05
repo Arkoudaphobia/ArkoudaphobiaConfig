@@ -2,20 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-
-    [Info("Crafting Controller", "Mughisi", "2.4.7", ResourceId = 695)]
+    [Info("Crafting Controller", "Mughisi", "2.4.8", ResourceId = 695)]
+    [Description("Allows modification of crafting times and which items can be crafted")]
     class CraftingController : RustPlugin
     {
-
         #region Configuration Data
-        // Do not modify these values, to configure this plugin edit
-        // 'CraftingController.json' in your server's config folder.
-        // <drive>:\...\server\<server identity>\oxide\config\
 
         private bool configChanged;
 
@@ -88,8 +83,6 @@ namespace Oxide.Plugins
         List<ItemDefinition> itemDefinitions = new List<ItemDefinition>();
 
         public List<string> Items { get; } = new List<string>();
-
-        private readonly MethodInfo finishCraftingTask = typeof(ItemCrafter).GetMethod("FinishCrafting", BindingFlags.NonPublic | BindingFlags.Instance);
 
         private void Loaded() => LoadConfigValues();
 
@@ -500,7 +493,7 @@ namespace Oxide.Plugins
             var crafter = player.inventory.crafting;
             if (crafter.queue.Count == 0) return;
             var task = crafter.queue.First<ItemCraftTask>();
-            finishCraftingTask.Invoke(crafter, new object[] { task });
+            crafter.FinishCrafting(task);
             crafter.queue.Dequeue();
         }
 
@@ -604,5 +597,4 @@ namespace Oxide.Plugins
 
         #endregion
     }
-
 }

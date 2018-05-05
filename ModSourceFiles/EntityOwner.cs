@@ -1,29 +1,23 @@
-﻿// Reference: Newtonsoft.Json
-// Reference: Rust.Data
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-
 using Facepunch;
-
 using Oxide.Core;
 using Oxide.Core.Plugins;
 using Oxide.Core.Libraries.Covalence;
-
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "rustservers.io", "3.1.3", ResourceId = 1255)]
-    [Description("Modify entity ownership and cupboard/turret authorization")]
+    [Info("Entity Owner", "rustservers.io", "3.1.7", ResourceId = 1255)]
+    [Description("Modify entity ownership and cupboard/turret authorization")]      
     class EntityOwner : RustPlugin
     {
         #region Data & Config
         private Dictionary<string, string> messages = new Dictionary<string, string>();
         private readonly int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
-        FieldInfo keyCodeField = typeof(CodeLock).GetField("code", (BindingFlags.Instance | BindingFlags.NonPublic));
 
         private bool prodKeyCode = true;
         private int EntityLimit = 8000;
@@ -217,7 +211,6 @@ namespace Oxide.Plugins
                 sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/unown [all/block]</color> - Remove ownership from entire structure").Append("\n");
                 sb.Append("  ").Append("<color=\"#ffd479\">/auth PlayerName</color> - Authorize specified player on all nearby cupboards").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/authclean PlayerName</color> - Remove all building privileges on a player").Append("\n");
             }
 
             player.ChatMessage(sb.ToString());
@@ -265,7 +258,7 @@ namespace Oxide.Plugins
                             BaseLock baseLock = door.GetSlot(BaseEntity.Slot.Lock) as BaseLock;
                             if(baseLock is CodeLock) {
                                 CodeLock codeLock = (CodeLock)baseLock;
-                                string keyCode = keyCodeField.GetValue(codeLock).ToString();
+                                string keyCode = codeLock.code;
                                 msg += "\n" + string.Format(messages["Code: {0}"], keyCode);
                             }
                         }
@@ -622,63 +615,6 @@ namespace Oxide.Plugins
             }
         }
 
-        [ConsoleCommand("authclean")]
-        void ccAuthClean(ConsoleSystem.Arg arg)
-        {
-            if (arg.Connection != null && arg.Connection.authLevel < 1)
-            {
-                SendReply(arg, "No permission");
-                return;
-            }
-
-            BasePlayer target = null;
-            if (arg.Args.Length == 1)
-            {
-                target = FindPlayerByPartialName(arg.Args[0]);
-                if (target == null)
-                {
-                    SendReply(arg, messages["Target player not found"]);
-                    return;
-                }
-            }
-            else
-            {
-                SendReply(arg, "Invalid Syntax. authclean PlayerName");
-            }
-
-            SetValue(target, "buildingPrivilege", new List<BuildingPrivlidge>());
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
-        }
-
-        [ChatCommand("authclean")]
-        void cmdAuthClean(BasePlayer player, string command, string[] args)
-        {
-            if (!canChangeOwners(player))
-            {
-                return;
-            }
-
-            BasePlayer target = null;
-            if (args.Length == 1)
-            {
-                target = FindPlayerByPartialName(args[0]);
-                if (target == null)
-                {
-                    SendReply(player, messages["Target player not found"]);
-                    return;
-                }
-            }
-            else
-            {
-                target = player;
-            }
-
-            SetValue(target, "buildingPrivilege", new List<BuildingPrivlidge>());
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.InBuildingPrivilege, false);
-            target.SetPlayerFlag(BasePlayer.PlayerFlags.HasBuildingPrivilege, false);
-        }
-
         [ChatCommand("prod2")]
         void cmdProd2(BasePlayer player, string command, string[] args)
         {
@@ -802,7 +738,7 @@ namespace Oxide.Plugins
                 entityList.Add((T)entity);
                 checkFrom.Add(entity.transform.position);
                 var c = 1;
-                if (target == null)
+                if (target == 0)
                 {
                     RemoveOwner(entity);
                 }
@@ -856,7 +792,7 @@ namespace Oxide.Plugins
                             ebs++;
                         }
 
-                        if (target == null)
+                        if (target == 0)
                         {
                             RemoveOwner(entityComponent);
                         }
@@ -947,7 +883,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, $"Count ({total})");
                         break;
                     }
@@ -961,9 +897,9 @@ namespace Oxide.Plugins
                     skip = false;
                     foreach (var fentity in hits)
                     {
-                        if (fentity.transform == null || !entityList.Add(fentity) || fentity.name == "player/player") 
+                        if (fentity.transform == null || !entityList.Add(fentity) || fentity.name == "player/player")
                             continue;
-                        
+
                         if(filter.Length > 0) {
                             skip = true;
                             foreach(var f in filter) {
@@ -981,7 +917,7 @@ namespace Oxide.Plugins
                             if(highlight) {
                                 SendHighlight(player, fentity.transform.position);
                             }
-                            
+
                             var pid = fentity.OwnerID;
                             if (prodOwners.ContainsKey(pid))
                             {
@@ -1017,10 +953,10 @@ namespace Oxide.Plugins
 
                 if (unknown > 0)
                     SendReply(player, string.Format(messages["Unknown: {0}%"], unknown));
-                
+
             }
         }
-        
+
         void SendHighlight(BasePlayer player, Vector3 position) {
             player.SendConsoleCommand("ddraw.sphere",  30f, Color.magenta, position, 2f);
             player.SendNetworkUpdateImmediate();
@@ -1034,7 +970,7 @@ namespace Oxide.Plugins
                 sb.AppendLine(string.Format(messages["({0}) Authorized"], authorizedUsers.Count));
                 foreach (var n in authorizedUsers)
                     sb.AppendLine(n);
-                
+
             } else
                 sb.Append(string.Format(messages["({0}) Authorized"], 0));
 
@@ -1085,7 +1021,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1170,7 +1106,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1217,8 +1153,8 @@ namespace Oxide.Plugins
                         } else {
                             continue;
                         }
-                        
-                        
+
+
 
                         total++;
                     }
@@ -1277,7 +1213,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1301,9 +1237,7 @@ namespace Oxide.Plugins
                         });
 
                         priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                        if(priv.CheckEntity(target))
-                            target.SetInsideBuildingPrivilege(priv, true);
-
+                        
                         total++;
                     }
                     Pool.FreeList(ref entities);
@@ -1341,7 +1275,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1365,8 +1299,6 @@ namespace Oxide.Plugins
                             {
                                 priv.authorizedPlayers.Remove(p);
                                 priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                if(priv.CheckEntity(target))
-                                    target.SetInsideBuildingPrivilege(priv, false);
                             }
                         }
 
@@ -1407,7 +1339,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1471,7 +1403,7 @@ namespace Oxide.Plugins
                     {
                         if (debug)
                             SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
-                        
+
                         SendReply(player, string.Format(messages["Count ({0})"], total));
                         break;
                     }
@@ -1511,7 +1443,7 @@ namespace Oxide.Plugins
         private bool TryGetCupboardUserNames(BuildingPrivlidge cupboard, out List<string> names)
         {
             names = new List<string>();
-            if(cupboard.authorizedPlayers == null) 
+            if(cupboard.authorizedPlayers == null)
                 return false;
             if (cupboard.authorizedPlayers.Count == 0)
                 return false;
@@ -1759,7 +1691,7 @@ namespace Oxide.Plugins
         {
             if(playerID.IsSteamId()) {
                 var player = FindPlayerByPartialName(playerID.ToString());
-                if (player) 
+                if (player)
                 {
                     if (player.IsSleeping())
                     {
@@ -1813,7 +1745,7 @@ namespace Oxide.Plugins
             if(player != null) {
                 return Convert.ToUInt64(player.Id);
             }
-            
+
             return 0;
         }
 
@@ -1827,7 +1759,7 @@ namespace Oxide.Plugins
             if(player != null) {
                 return (BasePlayer)player.Object;
             }
-            
+
             return null;
         }
 

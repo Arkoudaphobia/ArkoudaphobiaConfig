@@ -13,10 +13,11 @@ using System.Linq;
 using System.Globalization;
 using System.IO;
 using System.Drawing;
+using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
-    [Info("LustyMap", "Kayzor / k1lly0u", "2.1.31", ResourceId = 1333)]
+    [Info("LustyMap", "Kayzor / k1lly0u", "2.1.39", ResourceId = 1333)]
     class LustyMap : RustPlugin
     {
         #region Fields
@@ -77,7 +78,7 @@ namespace Oxide.Plugins
             private double lastChange;
             private bool isBlocked;
             
-            private SpamOptions spam;
+            private ConfigData.SpamOptions spam;
 
             private bool afkDisabled;
             private int lastMoveTime;
@@ -94,7 +95,7 @@ namespace Oxide.Plugins
                     {"FriendsAPI", new List<string>() }
                 };
                 friendList = new HashSet<string>();
-                spam = instance.configData.SpamOptions;             
+                spam = instance.configData.Spam;             
                 inEvent = false;
                 mapOpen = false;
                 afkDisabled = false;
@@ -117,7 +118,7 @@ namespace Oxide.Plugins
                     FillFriendList();
                 }                
 
-                if (!instance.configData.MapOptions.StartOpen)
+                if (!instance.configData.Map.StartOpen)
                 {
                     ToggleMapType(MapMode.None);
                     return;
@@ -142,14 +143,14 @@ namespace Oxide.Plugins
             #region Friends
             private void FillFriendList()
             {                
-                if (instance.configData.FriendOptions.UseClans)
+                if (instance.configData.Friends.UseClans)
                 {
                     var clanTag = instance.GetClan(player.userID);
                     if (!string.IsNullOrEmpty(clanTag) && instance.clanData.ContainsKey(clanTag))                    
                         friends["Clans"] = instance.clanData[clanTag];
                 }
                     
-                if (instance.configData.FriendOptions.UseFriends)
+                if (instance.configData.Friends.UseFriends)
                     friends["FriendsAPI"] = instance.GetFriends(player.userID);
                 UpdateMembers();
             }
@@ -207,7 +208,7 @@ namespace Oxide.Plugins
                             break;
                     }
                     if (!IsInvoking("UpdateMap"))                    
-                        InvokeHandler.InvokeRepeating(this, UpdateMap, 0.1f, instance.configData.MapOptions.UpdateSpeed);                    
+                        InvokeHandler.InvokeRepeating(this, UpdateMap, 0.1f, instance.configData.Map.UpdateSpeed);                    
                 }     
             }                      
             public void UpdateMap()
@@ -351,7 +352,7 @@ namespace Oxide.Plugins
 
                 marker = new MapMarker { name = RemoveSpecialCharacters(player.displayName), r = GetDirection(player?.eyes?.rotation.eulerAngles.y ?? 0), x = GetPosition(transform.position.x), z = GetPosition(transform.position.z) };
 
-                if (instance.configData.MapOptions.EnableAFKTracking)
+                if (instance.configData.Map.EnableAFKTracking)
                 {
                     if (lastX == currentX && lastZ == currentZ)
                         ++lastMoveTime;
@@ -438,7 +439,7 @@ namespace Oxide.Plugins
             private string icon;
 
             void Awake()
-            {
+            {                
                 entity = GetComponent<BaseEntity>();
                 marker = new MapMarker();
                 enabled = false;             
@@ -448,10 +449,11 @@ namespace Oxide.Plugins
                 InvokeHandler.CancelInvoke(this, UpdatePosition);
             }
             public void SetType(AEType type)
-            {
+            {                                
                 this.type = type;
                 switch (type)
                 {
+
                     case AEType.None:
                         break;
                     case AEType.Plane:
@@ -474,14 +476,22 @@ namespace Oxide.Plugins
                         icon = "vending";
                         marker.name = instance.msg("Vending");
                         break;
-                }               
+                    case AEType.Tank:
+                        icon = "tank";
+                        marker.name = instance.msg("Tank");
+                        break;
+                    case AEType.Car:
+                        icon = "car";
+                        marker.name = instance.msg("Car");
+                        break;
+                }            
                 InvokeHandler.InvokeRepeating(this, UpdatePosition, 0.1f, 1f);
             }
             public MapMarker GetMarker() => marker;
             void UpdatePosition()
-            {                
-                if (type == AEType.Helicopter || type == AEType.Plane)
-                {
+            {
+                if (type == AEType.Helicopter || type == AEType.Plane || type == AEType.Car || type == AEType.Tank)
+                {                    
                     marker.r = GetDirection(entity?.transform?.rotation.eulerAngles.y ?? 0);
                     marker.icon = $"{icon}{marker.r}";
                 }
@@ -502,7 +512,7 @@ namespace Oxide.Plugins
         }
         static class MapSettings
         {
-            static public bool minimap, complexmap, monuments, names, compass, caves, plane, heli, supply, debris, player, allplayers, friends, vending, forcedzoom;
+            static public bool minimap, complexmap, monuments, names, compass, caves, plane, heli, supply, debris, player, allplayers, friends, vending, forcedzoom, cars, tanks;
             static public int zoomlevel;       
         }
         public enum MapMode
@@ -519,7 +529,9 @@ namespace Oxide.Plugins
             SupplyDrop,
             Helicopter,
             Debris,
-            Vending            
+            Vending,
+            Car,
+            Tank            
         }
         #endregion
 
@@ -625,6 +637,7 @@ namespace Oxide.Plugins
            
             FindStaticMarkers();
             FindVendingMachines();
+            FindVehicles();
             ValidateImages();
 
             CheckFriends();
@@ -669,7 +682,7 @@ namespace Oxide.Plugins
         {
             if (!activated) return;
             if (entity == null) return;
-            if (entity is CargoPlane || entity is SupplyDrop || entity is BaseHelicopter || entity is HelicopterDebris || entity is VendingMachine)
+            if (entity is CargoPlane || entity is SupplyDrop || entity is BaseHelicopter || entity is HelicopterDebris || entity is VendingMachine || entity is BaseCar || entity is BradleyAPC)
                 AddTemporaryEntityMarker(entity);
         }
         void OnEntityKill(BaseNetworkable entity)
@@ -753,7 +766,7 @@ namespace Oxide.Plugins
                     }
                 }
                 instance.activated = true;
-                if (instance.configData.MapOptions.StartOpen)
+                if (instance.configData.Map.StartOpen)
                     instance.ActivateMaps();
             }
             public static void AddBaseUI(BasePlayer player, MapMode type)
@@ -835,14 +848,14 @@ namespace Oxide.Plugins
         }
         void SetMinimapSize()
         {
-            float startx = 0f + configData.MapOptions.MinimapOptions.OffsetSide;
-            float endx = startx + (0.13f * configData.MapOptions.MinimapOptions.HorizontalScale);
-            float endy = 1f - configData.MapOptions.MinimapOptions.OffsetTop;
-            float starty = endy - (0.2301f * configData.MapOptions.MinimapOptions.VerticalScale);
-            if (!configData.MapOptions.MinimapOptions.OnLeftSide)
+            float startx = 0f + configData.MiniMap.OffsetSide;
+            float endx = startx + (0.13f * configData.MiniMap.HorizontalScale);
+            float endy = 1f - configData.MiniMap.OffsetTop;
+            float starty = endy - (0.2301f * configData.MiniMap.VerticalScale);
+            if (!configData.MiniMap.OnLeftSide)
             {
-                endx = 1 - configData.MapOptions.MinimapOptions.OffsetSide;
-                startx = endx - (0.13f * configData.MapOptions.MinimapOptions.HorizontalScale);
+                endx = 1 - configData.MiniMap.OffsetSide;
+                startx = endx - (0.13f * configData.MiniMap.HorizontalScale);
             }
             LustyUI.MiniMin = $"{startx} {starty}";
             LustyUI.MiniMax = $"{endx} {endy}";
@@ -1040,17 +1053,17 @@ namespace Oxide.Plugins
         }
         void AddMapButtons(BasePlayer player)
         {
-            float startx = 0f + configData.MapOptions.MinimapOptions.OffsetSide;
-            float endx = startx + (0.13f * configData.MapOptions.MinimapOptions.HorizontalScale);
-            float endy = 1f - configData.MapOptions.MinimapOptions.OffsetTop;
-            float starty = endy - (0.2301f * configData.MapOptions.MinimapOptions.VerticalScale);
+            float startx = 0f + configData.MiniMap.OffsetSide;
+            float endx = startx + (0.13f * configData.MiniMap.HorizontalScale);
+            float endy = 1f - configData.MiniMap.OffsetTop;
+            float starty = endy - (0.2301f * configData.MiniMap.VerticalScale);
             string b_text = "<<<";
             var container = LMUI.CreateElementContainer(LustyUI.Buttons, "0 0 0 0", $"{endx + 0.001f} {starty}", $"{endx + 0.02f} {endy}");
 
-            if (!configData.MapOptions.MinimapOptions.OnLeftSide)
+            if (!configData.MiniMap.OnLeftSide)
             {
-                endx = 1 - configData.MapOptions.MinimapOptions.OffsetSide;
-                startx = endx - (0.13f * configData.MapOptions.MinimapOptions.HorizontalScale);
+                endx = 1 - configData.MiniMap.OffsetSide;
+                startx = endx - (0.13f * configData.MiniMap.HorizontalScale);
                 b_text = ">>>";
                 container = LMUI.CreateElementContainer(LustyUI.Buttons, "0 0 0 0", $"{startx - 0.02f} {starty}", $"{startx - 0.001f} {endy}");
             }
@@ -1069,14 +1082,14 @@ namespace Oxide.Plugins
             var user = GetUser(player);
             if (user == null) return;
 
-            float b_endy = 0.999f - configData.MapOptions.MinimapOptions.OffsetTop;
-            float b_startx = 0.001f + configData.MapOptions.MinimapOptions.OffsetSide;
+            float b_endy = 0.999f - configData.MiniMap.OffsetTop;
+            float b_startx = 0.001f + configData.MiniMap.OffsetSide;
             float b_endx = b_startx + 0.02f;
             string b_text = ">>>";
 
-            if (!configData.MapOptions.MinimapOptions.OnLeftSide)
+            if (!configData.MiniMap.OnLeftSide)
             {                
-                b_endx = 0.999f - configData.MapOptions.MinimapOptions.OffsetSide;
+                b_endx = 0.999f - configData.MiniMap.OffsetSide;
                 b_startx = b_endx - 0.02f;
                 b_text = "<<<";
             }                       
@@ -1109,6 +1122,8 @@ namespace Oxide.Plugins
             }
             foreach (var entity in entityMarkers)
             {
+                if (entity.Value.type == AEType.Car && (entity.Value.entity as BaseCar).IsMounted())
+                    continue;
                 var marker = entity.Value.GetMarker();
                 if (marker == null) continue;
                 var image = GetImage(marker.icon);
@@ -1137,7 +1152,7 @@ namespace Oxide.Plugins
                     if (mapUsers.ContainsKey(friendId))
                     {
                         var friend = mapUsers[friendId];
-                        if (friend.InEvent() && configData.MapOptions.HideEventPlayers) continue;
+                        if (friend.InEvent() && configData.Map.HideEventPlayers) continue;
                         var marker = friend.GetMarker();
                         if (marker == null) continue;
                         var image = GetImage($"friend{marker.r}");
@@ -1224,6 +1239,8 @@ namespace Oxide.Plugins
             }
             foreach (var entity in entityMarkers)
             {
+                if (entity.Value.type == AEType.Car && (entity.Value.entity as BaseCar).IsMounted())
+                    continue;
                 var marker = entity.Value.GetMarker();
                 if (marker == null) continue;
                 var image = GetImage(marker.icon);
@@ -1252,7 +1269,7 @@ namespace Oxide.Plugins
                     if (mapUsers.ContainsKey(friendId))
                     {
                         var friend = mapUsers[friendId];
-                        if (friend.InEvent() && configData.MapOptions.HideEventPlayers) continue;
+                        if (friend.InEvent() && configData.Map.HideEventPlayers) continue;
                         var marker = friend.GetMarker();
                         if (marker == null) continue;
                         var image = GetImage($"friend{marker.r}");
@@ -1428,27 +1445,37 @@ namespace Oxide.Plugins
             AEType type = AEType.None;
             if (entity is CargoPlane)
             {
-                if (!configData.MapMarkers.ShowPlanes) return;
+                if (!configData.Markers.ShowPlanes) return;
                 type = AEType.Plane;                
             }
             else if (entity is BaseHelicopter)
             {
-                if (!configData.MapMarkers.ShowHelicopters) return;
+                if (!configData.Markers.ShowHelicopters) return;
                 type = AEType.Helicopter;               
+            }
+            else if (entity is BradleyAPC)
+            {
+                if (!configData.Markers.ShowTanks) return;
+                type = AEType.Tank;
+            }
+            else if (entity is BaseCar)
+            {
+                if (!configData.Markers.ShowCars) return;
+                type = AEType.Car;
             }
             else if (entity is SupplyDrop)
             {
-                if (!configData.MapMarkers.ShowSupplyDrops) return;
+                if (!configData.Markers.ShowSupplyDrops) return;
                 type = AEType.SupplyDrop;                
             }
             else if (entity is HelicopterDebris)
             {
-                if (!configData.MapMarkers.ShowDebris) return;
+                if (!configData.Markers.ShowDebris) return;
                 type = AEType.Debris;                
             }  
             else if (entity is VendingMachine)
             {
-                if (!configData.MapMarkers.ShowPublicVendingMachines) return;
+                if (!configData.Markers.ShowPublicVendingMachines) return;
                 if (!(entity as VendingMachine).IsBroadcasting()) return;
                 type = AEType.Vending;
             }         
@@ -1459,22 +1486,24 @@ namespace Oxide.Plugins
         }
         private void LoadSettings()
         {
-            MapSettings.caves = configData.MapMarkers.ShowCaves;
-            MapSettings.compass = configData.MapOptions.ShowCompass;
-            MapSettings.debris = configData.MapMarkers.ShowDebris;
-            MapSettings.heli = configData.MapMarkers.ShowHelicopters;
-            MapSettings.monuments = configData.MapMarkers.ShowMonuments;
-            MapSettings.plane = configData.MapMarkers.ShowPlanes;
-            MapSettings.player = configData.MapMarkers.ShowPlayer;
-            MapSettings.allplayers = configData.MapMarkers.ShowAllPlayers;
-            MapSettings.supply = configData.MapMarkers.ShowSupplyDrops;
-            MapSettings.friends = configData.MapMarkers.ShowFriends;
-            MapSettings.names = configData.MapMarkers.ShowMarkerNames;
-            MapSettings.minimap = configData.MapOptions.MinimapOptions.UseMinimap;
-            MapSettings.vending = configData.MapMarkers.ShowPublicVendingMachines;
-            MapSettings.complexmap = configData.MapOptions.MinimapOptions.ComplexOptions.UseComplexMap;
-            MapSettings.forcedzoom = configData.MapOptions.MinimapOptions.ComplexOptions.ForceMapZoom;
-            MapSettings.zoomlevel = configData.MapOptions.MinimapOptions.ComplexOptions.ForcedZoomLevel;
+            MapSettings.caves = configData.Markers.ShowCaves;
+            MapSettings.compass = configData.Map.ShowCompass;
+            MapSettings.debris = configData.Markers.ShowDebris;
+            MapSettings.heli = configData.Markers.ShowHelicopters;
+            MapSettings.monuments = configData.Markers.ShowMonuments;
+            MapSettings.plane = configData.Markers.ShowPlanes;
+            MapSettings.player = configData.Markers.ShowPlayer;
+            MapSettings.allplayers = configData.Markers.ShowAllPlayers;
+            MapSettings.supply = configData.Markers.ShowSupplyDrops;
+            MapSettings.friends = configData.Markers.ShowFriends;
+            MapSettings.names = configData.Markers.ShowMarkerNames;
+            MapSettings.minimap = configData.MiniMap.UseMinimap;
+            MapSettings.vending = configData.Markers.ShowPublicVendingMachines;
+            MapSettings.complexmap = configData.ComplexOptions.UseComplexMap;
+            MapSettings.forcedzoom = configData.ComplexOptions.ForceMapZoom;
+            MapSettings.zoomlevel = configData.ComplexOptions.ForcedZoomLevel;
+            MapSettings.cars = configData.Markers.ShowCars;
+            MapSettings.tanks = configData.Markers.ShowTanks;
 
             if (MapSettings.zoomlevel < 1)
                 MapSettings.zoomlevel = 1;
@@ -1594,10 +1623,59 @@ namespace Oxide.Plugins
                         staticMarkers.Add(mon);
                         continue;
                     }
+
                     if (monument.name.Contains("launch_site_1"))
                     {
                         mon.name = msg("rocketfactory");
                         mon.icon = "rocketfactory";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("gas_station_1"))
+                    {
+                        mon.name = msg("gasstation");
+                        mon.icon = "gasstation";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("supermarket_1"))
+                    {
+                        mon.name = msg("supermarket");
+                        mon.icon = "supermarket";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("mining_quarry_c"))
+                    {
+                        mon.name = msg("quarryhqm");
+                        mon.icon = "quarryhqm";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("mining_quarry_a"))
+                    {
+                        mon.name = msg("quarrysulfur");
+                        mon.icon = "quarrysulfur";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("mining_quarry_b"))
+                    {
+                        mon.name = msg("quarrystone");
+                        mon.icon = "quarrystone";
+                        staticMarkers.Add(mon);
+                        continue;
+                    }
+
+                    if (monument.name.Contains("junkyard_1"))
+                    {
+                        mon.name = msg("junkyard");
+                        mon.icon = "junkyard";
                         staticMarkers.Add(mon);
                         continue;
                     }
@@ -1610,11 +1688,27 @@ namespace Oxide.Plugins
             var machines = UnityEngine.Object.FindObjectsOfType<VendingMachine>();
             foreach (var vendor in machines)
             {
-                if (!vendor.IsBroadcasting()) continue;
-                var actEnt = vendor.gameObject.AddComponent<ActiveEntity>();
-                actEnt.SetType(AEType.Vending);
-
-                entityMarkers.Add(vendor.net.ID, actEnt);
+                AddTemporaryEntityMarker(vendor);
+            }
+        }
+        private void FindVehicles()
+        {
+            if (MapSettings.cars)
+            {
+                var cars = UnityEngine.Object.FindObjectsOfType<BaseCar>();
+                foreach (var car in cars)
+                {
+                    AddTemporaryEntityMarker(car);
+                }
+            }
+            
+            if (MapSettings.tanks)
+            {
+                var tanks = UnityEngine.Object.FindObjectsOfType<BradleyAPC>();
+                foreach (var tank in tanks)
+                {
+                    AddTemporaryEntityMarker(tank);
+                }
             }
         }
         static double GrabCurrentTime() => DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1, 0, 0, 0)).TotalSeconds;
@@ -1773,7 +1867,7 @@ namespace Oxide.Plugins
         #region Friends
         bool AddFriendList(string playerId, string name, List<string> list, bool bypass = false)
         {
-            if (!bypass && !configData.FriendOptions.AllowCustomLists) return false;
+            if (!bypass && !configData.Friends.AllowCustomLists) return false;
             var user = GetUserByID(playerId);
             if (user == null) return false;
             if (user.HasFriendList(name))
@@ -1784,7 +1878,7 @@ namespace Oxide.Plugins
         }
         bool RemoveFriendList(string playerId, string name, bool bypass = false)
         {
-            if (!bypass && !configData.FriendOptions.AllowCustomLists) return false;
+            if (!bypass && !configData.Friends.AllowCustomLists) return false;
             var user = GetUserByID(playerId);
             if (user == null) return false;
             if (!user.HasFriendList(name))
@@ -1795,7 +1889,7 @@ namespace Oxide.Plugins
         }
         bool UpdateFriendList(string playerId, string name, List<string> list, bool bypass = false)
         {
-            if (!bypass && !configData.FriendOptions.AllowCustomLists) return false;
+            if (!bypass && !configData.Friends.AllowCustomLists) return false;
             var user = GetUserByID(playerId);
             if (user == null) return false;
             if (!user.HasFriendList(name))
@@ -1806,7 +1900,7 @@ namespace Oxide.Plugins
         }
         bool AddFriend(string playerId, string name, string friendId, bool bypass = false)
         {
-            if (!bypass && !configData.FriendOptions.AllowCustomLists) return false;
+            if (!bypass && !configData.Friends.AllowCustomLists) return false;
             var user = GetUserByID(playerId);
             if (user == null) return false;
             if (!user.HasFriendList(name))
@@ -1818,7 +1912,7 @@ namespace Oxide.Plugins
         }
         bool RemoveFriend(string playerId, string name, string friendId, bool bypass = false)
         {
-            if (!bypass && !configData.FriendOptions.AllowCustomLists) return false;
+            if (!bypass && !configData.Friends.AllowCustomLists) return false;
             var user = GetUserByID(playerId);
             if (user == null) return false;
             if (!user.HasFriendList(name))
@@ -1971,73 +2065,122 @@ namespace Oxide.Plugins
         #endregion
 
         #region Config        
-        private ConfigData configData;
-        class FriendLists
-        {
-            public bool AllowCustomLists { get; set; }
-            public bool UseClans { get; set; }
-            public bool UseFriends { get; set; }            
-        }
-        class MapMarkers
-        {
-            public bool ShowAllPlayers { get; set; }
-            public bool ShowCaves { get; set; }
-            public bool ShowDebris { get; set; }
-            public bool ShowFriends { get; set; }
-            public bool ShowHelicopters { get; set; }
-            public bool ShowMarkerNames { get; set; }
-            public bool ShowMonuments { get; set; }
-            public bool ShowPlanes { get; set; }
-            public bool ShowPlayer { get; set; }
-            public bool ShowSupplyDrops { get; set; }
-            public bool ShowPublicVendingMachines { get; set; }
-        }
-        class MapOptions
-        {
-            public bool EnableAFKTracking { get; set; }
-            public bool HideEventPlayers { get; set; }
-            public bool StartOpen { get; set; }
-            public bool ShowCompass { get; set; }
-            public MapImages MapImage { get; set; }
-            public Minimap MinimapOptions { get; set; } 
-            public float UpdateSpeed { get; set; }           
-        }
-        class MapImages
-        {
-            public string APIKey { get; set; }
-            public bool CustomMap_Use { get; set; }
-            public string CustomMap_Filename { get; set; }
-        }
-        class Minimap
-        {            
-            public bool UseMinimap { get; set; }
-            public float HorizontalScale { get; set; }
-            public float VerticalScale { get; set; }
-            public bool OnLeftSide { get; set; }
-            public float OffsetSide { get; set; }
-            public float OffsetTop { get; set; }
-            public ComplexMap ComplexOptions { get; set; }
-        }
-        class ComplexMap
-        {
-            public bool UseComplexMap { get; set; }
-            public bool ForceMapZoom { get; set; }
-            public int ForcedZoomLevel { get; set; }
-        }
-        class SpamOptions
-        {
-            public int TimeBetweenAttempts { get; set; }
-            public int WarningAttempts { get; set; }
-            public int DisableAttempts { get; set; }
-            public int DisableSeconds { get; set; }
-            public bool Enabled { get; set; }
-        }
+        private ConfigData configData;        
         class ConfigData
         {
-            public FriendLists FriendOptions { get; set; }
-            public MapMarkers MapMarkers { get; set; }
-            public MapOptions MapOptions { get; set; }
-            public SpamOptions SpamOptions { get; set; }
+            [JsonProperty(PropertyName = "Friend Options")]
+            public FriendOptions Friends { get; set; }
+            [JsonProperty(PropertyName = "Marker Options")]
+            public MapMarkers Markers { get; set; }
+            [JsonProperty(PropertyName = "Map - Main Options")]
+            public MapOptions Map { get; set; }
+            [JsonProperty(PropertyName = "Map - Mini Options")]
+            public Minimap MiniMap { get; set; }
+            [JsonProperty(PropertyName = "Map - Complex Options")]
+            public ComplexMap ComplexOptions { get; set; }
+            [JsonProperty(PropertyName = "Spam Options")]
+            public SpamOptions Spam { get; set; }
+
+            public class FriendOptions
+            {
+                [JsonProperty(PropertyName = "Allow custom friend lists from other plugins")]
+                public bool AllowCustomLists { get; set; }
+                [JsonProperty(PropertyName = "Enable clans support")]
+                public bool UseClans { get; set; }
+                [JsonProperty(PropertyName = "Enable friends support")]
+                public bool UseFriends { get; set; }
+            }
+            public class MapMarkers
+            {
+                [JsonProperty(PropertyName = "Show all players")]
+                public bool ShowAllPlayers { get; set; }
+                [JsonProperty(PropertyName = "Show caves")]
+                public bool ShowCaves { get; set; }
+                [JsonProperty(PropertyName = "Show debris")]
+                public bool ShowDebris { get; set; }
+                [JsonProperty(PropertyName = "Show friends and clanmates")]
+                public bool ShowFriends { get; set; }
+                [JsonProperty(PropertyName = "Show helicopters")]
+                public bool ShowHelicopters { get; set; }
+                [JsonProperty(PropertyName = "Show marker names")]
+                public bool ShowMarkerNames { get; set; }
+                [JsonProperty(PropertyName = "Show monuments")]
+                public bool ShowMonuments { get; set; }
+                [JsonProperty(PropertyName = "Show planes")]
+                public bool ShowPlanes { get; set; }
+                [JsonProperty(PropertyName = "Show self")]
+                public bool ShowPlayer { get; set; }
+                [JsonProperty(PropertyName = "Show supply drops")]
+                public bool ShowSupplyDrops { get; set; }
+                [JsonProperty(PropertyName = "Show vending machines (public broadcast only)")]
+                public bool ShowPublicVendingMachines { get; set; }
+                [JsonProperty(PropertyName = "Show cars (un-occupied only)")]
+                public bool ShowCars { get; set; }
+                [JsonProperty(PropertyName = "Show tanks")]
+                public bool ShowTanks { get; set; }
+            }
+            public class MapOptions
+            {
+                [JsonProperty(PropertyName = "Enable AFK tracking")]
+                public bool EnableAFKTracking { get; set; }
+                [JsonProperty(PropertyName = "Hide event players")]
+                public bool HideEventPlayers { get; set; }
+                [JsonProperty(PropertyName = "Open map on for player's when they connect")]
+                public bool StartOpen { get; set; }
+                [JsonProperty(PropertyName = "Show map compass")]
+                public bool ShowCompass { get; set; }
+                [JsonProperty(PropertyName = "Map image options")]
+                public MapImages MapImage { get; set; }                
+                [JsonProperty(PropertyName = "Map update time (seconds)")]
+                public float UpdateSpeed { get; set; }
+
+                public class MapImages
+                {
+                    [JsonProperty(PropertyName = "Beancan.io API key (if applicable)")]
+                    public string APIKey { get; set; }
+                    [JsonProperty(PropertyName = "Use custom map")]
+                    public bool CustomMap_Use { get; set; }
+                    [JsonProperty(PropertyName = "Custom map filename")]
+                    public string CustomMap_Filename { get; set; }
+                }                
+            }
+            public class Minimap
+            {
+                [JsonProperty(PropertyName = "Enable the minimap")]
+                public bool UseMinimap { get; set; }
+                [JsonProperty(PropertyName = "Minimap horizontal scale")]
+                public float HorizontalScale { get; set; }
+                [JsonProperty(PropertyName = "Minimap vertical scale")]
+                public float VerticalScale { get; set; }
+                [JsonProperty(PropertyName = "Minimap docked on the left side of the screen")]
+                public bool OnLeftSide { get; set; }
+                [JsonProperty(PropertyName = "Minimap offset from side of the screen")]
+                public float OffsetSide { get; set; }
+                [JsonProperty(PropertyName = "Minimap offset from top of the screen")]
+                public float OffsetTop { get; set; }                
+            }
+            public class ComplexMap
+            {
+                [JsonProperty(PropertyName = "Enable the complex map")]
+                public bool UseComplexMap { get; set; }
+                [JsonProperty(PropertyName = "Force complex zoom mode")]
+                public bool ForceMapZoom { get; set; }
+                [JsonProperty(PropertyName = "Forced zoom number (1, 2 or 3)")]
+                public int ForcedZoomLevel { get; set; }
+            }
+            public class SpamOptions
+            {
+                [JsonProperty(PropertyName = "Allowed time between map changes")]
+                public int TimeBetweenAttempts { get; set; }
+                [JsonProperty(PropertyName = "Attempts before warning the user they are spamming")]
+                public int WarningAttempts { get; set; }
+                [JsonProperty(PropertyName = "Attempts before disabling the users map")]
+                public int DisableAttempts { get; set; }
+                [JsonProperty(PropertyName = "Amount of time a users map will be disabled")]
+                public int DisableSeconds { get; set; }
+                [JsonProperty(PropertyName = "Enable spam monitoring")]
+                public bool Enabled { get; set; }
+            }
         }
         private void LoadVariables()
         {
@@ -2048,15 +2191,16 @@ namespace Oxide.Plugins
         {
             var config = new ConfigData
             {
-                FriendOptions = new FriendLists
+                Friends = new ConfigData.FriendOptions
                 {
                     AllowCustomLists = true,
                     UseClans = true,
                     UseFriends = true,
                 },
-                MapMarkers = new MapMarkers
+                Markers = new ConfigData.MapMarkers
                 {
                     ShowAllPlayers = false,
+                    ShowCars = true,
                     ShowCaves = false,
                     ShowDebris = false,
                     ShowFriends = true,
@@ -2066,38 +2210,39 @@ namespace Oxide.Plugins
                     ShowPlanes = true,
                     ShowPlayer = true,
                     ShowSupplyDrops = true,
-                    ShowPublicVendingMachines = true
+                    ShowPublicVendingMachines = true,
+                    ShowTanks = true
                 },
-                MapOptions = new MapOptions
+                Map = new ConfigData.MapOptions
                 {           
                     EnableAFKTracking = true,         
                     HideEventPlayers = true,
                     ShowCompass = true,
                     StartOpen = true,
-                    MapImage = new MapImages
+                    MapImage = new ConfigData.MapOptions.MapImages
                     {
                         APIKey = "",
                         CustomMap_Filename = "",
                         CustomMap_Use = false
-                    },
-                    MinimapOptions = new Minimap
-                    {
-                        ComplexOptions = new ComplexMap
-                        {
-                            ForcedZoomLevel = 1,
-                            ForceMapZoom = false,
-                            UseComplexMap = true
-                        },
-                        HorizontalScale = 1.0f,
-                        VerticalScale = 1.0f,
-                        OnLeftSide = true,
-                        OffsetSide = 0,
-                        OffsetTop = 0,
-                        UseMinimap = true
-                    },
+                    },                    
                     UpdateSpeed = 1f
                 },
-                SpamOptions = new SpamOptions
+                MiniMap = new ConfigData.Minimap
+                {                    
+                    HorizontalScale = 1.0f,
+                    VerticalScale = 1.0f,
+                    OnLeftSide = true,
+                    OffsetSide = 0,
+                    OffsetTop = 0,
+                    UseMinimap = true
+                },
+                ComplexOptions = new ConfigData.ComplexMap
+                {
+                    ForcedZoomLevel = 1,
+                    ForceMapZoom = false,
+                    UseComplexMap = true
+                },
+                Spam = new ConfigData.SpamOptions
                 {
                     DisableAttempts = 10,
                     DisableSeconds = 120,
@@ -2157,7 +2302,7 @@ namespace Oxide.Plugins
         {
             Puts("[Warning] Icon images have not been found. Uploading images to file storage");
                     
-            string[] files = new string[] { "self", "friend", "other", "heli", "plane" };
+            string[] files = new string[] { "self", "friend", "other", "heli", "plane", "car", "tank" };
             string path = $"{dataDirectory}icons{Path.DirectorySeparatorChar}";
 
             Dictionary<string, string> newLoadOrder = new Dictionary<string, string>();
@@ -2179,20 +2324,31 @@ namespace Oxide.Plugins
             newLoadOrder.Add("supply", $"{path}supply.png");
             newLoadOrder.Add("debris", $"{path}debris.png");
             newLoadOrder.Add("vending", $"{path}vending.png");
+            newLoadOrder.Add("gasstation", $"{path}gas.png");
+            newLoadOrder.Add("supermarket", $"{path}market.png");
+            newLoadOrder.Add("quarryhqm", $"{path}quarryhqm.png");
+            newLoadOrder.Add("quarrystone", $"{path}quarrystone.png");
+            newLoadOrder.Add("quarrysulfur", $"{path}quarrysulfur.png");
+            newLoadOrder.Add("junkyard", $"{path}junkyard.png");
 
             foreach (var image in customMarkers)
             {
-                if (image.Value.icon != "special" && !newLoadOrder.ContainsKey(image.Value.icon))
-                    newLoadOrder.Add(image.Value.icon, dataDirectory + "custom" + Path.DirectorySeparatorChar + image.Value.icon);
+                string icon = image.Value.icon;
+                if (icon != "special" && !newLoadOrder.ContainsKey(icon))
+                {
+                    if (!icon.StartsWith("http") && !icon.StartsWith("www") && !icon.StartsWith("file://"))
+                        icon = $"{dataDirectory}custom{Path.DirectorySeparatorChar}{icon}.png";
+                    newLoadOrder.Add(image.Value.icon, icon);
+                }
             }
             ImageLibrary.ImportImageList(Title, newLoadOrder, 0, true);                
         } 
         private void LoadMapImage()
         {
-            if (configData.MapOptions.MapImage.CustomMap_Use)
+            if (configData.Map.MapImage.CustomMap_Use)
             {
                 Puts("[Warning] Downloading map image to file storage. Please wait!"); 
-                ImageLibrary.AddImage(dataDirectory + configData.MapOptions.MapImage.CustomMap_Filename, "mapimage_high", 0);
+                ImageLibrary.AddImage(dataDirectory + configData.Map.MapImage.CustomMap_Filename, "mapimage_high", 0);
                 ScaleMapImage();
                 if (MapSettings.complexmap)
                 {
@@ -2208,7 +2364,7 @@ namespace Oxide.Plugins
         #region Map Generation - Credits to Calytic, Nogrod, kraz and beancan.io for the awesome looking map images and API to make this possible!
         void DownloadMapImage()
         {
-            if (string.IsNullOrEmpty(configData.MapOptions.MapImage.APIKey))
+            if (string.IsNullOrEmpty(configData.Map.MapImage.APIKey))
             {
                 Puts("[Error] You must supply a valid API key to utilize the auto-download feature!\nVisit 'beancan.io' and register your server to retrieve your API key!");
                 activated = false;
@@ -2219,8 +2375,8 @@ namespace Oxide.Plugins
         }
         void GetQueueID()
         {
-            var url = $"http://beancan.io/map-queue-generate?level={level}&seed={mapSeed}&size={mapSize}&key={configData.MapOptions.MapImage.APIKey}";
-            webrequest.EnqueueGet(url, (code, response) =>
+            var url = $"http://beancan.io/map-queue-generate?level={level}&seed={mapSeed}&size={mapSize}&key={configData.Map.MapImage.APIKey}";
+            webrequest.Enqueue(url, "", (code, response) =>
             {
                 if (code != 200 || string.IsNullOrEmpty(response))
                 {
@@ -2233,7 +2389,7 @@ namespace Oxide.Plugins
         }
         void CheckAvailability(string queueId)
         {
-            webrequest.EnqueueGet($"http://beancan.io/map-queue/{queueId}", (code, response) =>
+            webrequest.Enqueue($"http://beancan.io/map-queue/{queueId}", "", (code, response) =>
             {
                 if (string.IsNullOrEmpty(response))
                 {
@@ -2264,7 +2420,7 @@ namespace Oxide.Plugins
         void GetMapURL(string queueId)
         {
             var url = $"http://beancan.io/map-queue-image/{queueId}";
-            webrequest.EnqueueGet(url, (code, response) =>
+            webrequest.Enqueue(url, "", (code, response) =>
             {
                 if (string.IsNullOrEmpty(response))
                 {
@@ -2435,6 +2591,8 @@ namespace Oxide.Plugins
             {"Plane", "Plane" },
             {"Supply Drop", "Supply Drop" },
             {"Helicopter", "Helicopter" },
+            {"Car", "Car" },
+            {"Tank", "Tank" },
             {"Debris", "Debris" },
             {"Vending", "Vending Machine" },
             {"lighthouse", "lighthouse" },
@@ -2442,6 +2600,8 @@ namespace Oxide.Plugins
             {"spheretank", "spheretank" },
             {"big harbor", "big harbor" },
             {"small harbor", "small harbor" },
+            {"gasstation", "gas station" },
+            {"supermarket", "super market" },
             {"dish","dish" },
             {"warehouse","warehouse" },
             {"waterplant", "waterplant" },

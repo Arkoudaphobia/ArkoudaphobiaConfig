@@ -12,12 +12,13 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.6.2", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.9.4", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
+	
     class ZLevelsRemastered : RustPlugin
     {
-        #region Variables
+		#region Variables
 
 		[PluginReference]
         Plugin EventManager;
@@ -51,21 +52,31 @@ namespace Oxide.Plugins
 		string permissionName;
 		string pluginPrefix;
 		bool playerCuiDefaultEnabled;
+		bool playerPluginDefaultEnabled;
 		bool exludeWeaponsOnGather;
+		bool enableDispenserGather;
+		bool enableCollectiblePickup;
+		bool enableCropGather;
+		
+		Dictionary<string, object> enabledCollectibleEntity;
 		Dictionary<string, object> defaultMultipliers;
         Dictionary<string, object> resourceMultipliers;
-        Dictionary<string, object> levelCaps;
+        Dictionary<string, object> resourceMultipliersAtNight;
+		Dictionary<string, object> resourceMultipliersCurrent;
+		Dictionary<string, object> levelCaps;
         Dictionary<string, object> pointsPerHit;
 		Dictionary<string, object> pointsPerHitAtNight;
 		Dictionary<string, object> pointsPerHitCurrent;
         Dictionary<string, object> craftingDetails;
         Dictionary<string, object> percentLostOnDeath;
 		Dictionary<string, object> colors;
-
+		
+		Dictionary<string, int> skillIndex;
 		Dictionary<string, object> cuiColors;
 		bool cuiEnabled;
 		int cuiFontSizeLvl;
 		int cuiFontSizeBar;
+		int cuiFontSizePercent;
 		string cuiFontColor;
 		bool cuiTextShadow;
 		string cuiXpBarBackground;
@@ -108,8 +119,15 @@ namespace Oxide.Plugins
 			pluginPrefix = Convert.ToString(GetConfig("Generic", "pluginPrefix", "<color=orange>ZLevels</color>:"));
 			enableLevelupBroadcast = Convert.ToBoolean(GetConfig("Generic", "enableLevelupBroadcast", false));
 			playerCuiDefaultEnabled = Convert.ToBoolean(GetConfig("Generic", "playerCuiDefaultEnabled", true));
+			playerPluginDefaultEnabled = Convert.ToBoolean(GetConfig("Generic", "playerPluginDefaultEnabled", true));
 			exludeWeaponsOnGather =  Convert.ToBoolean(GetConfig("Generic", "exludeWeaponsOnGather", false));
 
+			enableDispenserGather =  Convert.ToBoolean(GetConfig("Functions", "enableDispenserGather", true));
+			enableCollectiblePickup = Convert.ToBoolean(GetConfig("Functions", "enableCollectiblePickup", true));
+			enableCropGather = Convert.ToBoolean(GetConfig("Functions", "enableCropGather", true));
+			
+			enabledCollectibleEntity = (Dictionary<string, object>)GetConfig("Functions", "CollectibleEntitys", new Dictionary<string, object>());
+			
 			defaultMultipliers = (Dictionary<string, object>)GetConfig("Settings", "DefaultResourceMultiplier", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 1},
                 {Skills.MINING, 1},
@@ -118,10 +136,10 @@ namespace Oxide.Plugins
             });
 			
 			resourceMultipliers = (Dictionary<string, object>)GetConfig("Settings", "ResourcePerLevelMultiplier", new Dictionary<string, object>{
-                {Skills.WOODCUTTING, 2.0d},
-                {Skills.MINING, 2.0d},
-                {Skills.SKINNING, 2.0d},
-				{Skills.ACQUIRE, 2.0d}
+                {Skills.WOODCUTTING, 2},
+                {Skills.MINING, 2},
+                {Skills.SKINNING, 2},
+				{Skills.ACQUIRE, 2}
             });
 			levelCaps = (Dictionary<string, object>)GetConfig("Settings", "LevelCaps", new Dictionary<string, object>{
                 {Skills.WOODCUTTING, 200},
@@ -166,18 +184,19 @@ namespace Oxide.Plugins
 				{Skills.CRAFTING, "0.2 0.72 0.5 0.5"}
 			});
 			cuiEnabled = Convert.ToBoolean(GetConfig("CUI", "cuiEnabled", true));
-			cuiFontSizeLvl = Convert.ToInt32(GetConfig("CUI", "FontSizeLevel", 12));
-			cuiFontSizeBar = Convert.ToInt32(GetConfig("CUI", "FontSizeBar", 13));
+			cuiFontSizeLvl = Convert.ToInt32(GetConfig("CUI", "FontSizeLevel", 11));
+			cuiFontSizeBar = Convert.ToInt32(GetConfig("CUI", "FontSizeBar", 11));
+			cuiFontSizePercent = Convert.ToInt32(GetConfig("CUI", "FontSizePercent", 11));
 			cuiTextShadow = Convert.ToBoolean(GetConfig("CUI", "TextShadowEnabled", true));
 			cuiFontColor = Convert.ToString(GetConfig("CUI", "FontColor", "0.74 0.76 0.78 1"));
 			cuiXpBarBackground = Convert.ToString(GetConfig("CUI", "XpBarBackground", "0.2 0.2 0.2 0.2"));
 			cuiBoundsBackground = Convert.ToString(GetConfig("CUI", "BoundsBackground", "0.1 0.1 0.1 0.1"));
 			cuiPositioning = (Dictionary<string, object>)GetConfig("CUI", "Bounds", new Dictionary<string, object>()
 			{
-				{"WidthLeft", "0.72"},
-				{"WidthRight", "0.847"},
-				{"HeightLower", "0.023"},
-				{"HeightUpper", "0.19"}
+				{"WidthLeft", "0.725"},
+				{"WidthRight", "0.83"},
+				{"HeightLower", "0.02"},
+				{"HeightUpper", "0.1225"}
 			});
 			
 			pointsPerHitAtNight = (Dictionary<string, object>)GetConfig("NightBonus", "PointsPerHitAtNight", new Dictionary<string, object>{
@@ -185,6 +204,12 @@ namespace Oxide.Plugins
                 {Skills.MINING, 60},
                 {Skills.SKINNING, 60},
 				{Skills.ACQUIRE, 60}
+            });
+			resourceMultipliersAtNight = (Dictionary<string, object>)GetConfig("NightBonus", "ResourcePerLevelMultiplierAtNight", new Dictionary<string, object>{
+                {Skills.WOODCUTTING, 2},
+                {Skills.MINING, 2},
+                {Skills.SKINNING, 2},
+				{Skills.ACQUIRE, 2}
             });
 			enableNightBonus = Convert.ToBoolean(GetConfig("NightBonus", "enableNightBonus", false));
 			logEnabledBonusConsole = Convert.ToBoolean(GetConfig("NightBonus", "logEnabledBonusConsole", false));
@@ -194,8 +219,8 @@ namespace Oxide.Plugins
 			SaveConfig();
 			Changed = false;
 		}
-
-		void LoadDefaultMessages()
+		
+		protected override void LoadDefaultMessages()
 		{
 			lang.RegisterMessages(new Dictionary<string, string>
 			{
@@ -212,6 +237,8 @@ namespace Oxide.Plugins
 				{"ASkill", "Acquire" },
 				{"NightBonusOn", "Nightbonus for points per hit enabled"},
 				{"NightBonusOff", "Nightbonus for points per hit disabled"},
+				{"PluginPlayerOn", "The plugin functions are now enabled again"},
+				{"PluginPlayerOff", "The plugin functions are now disabled for your character"},
 			},this);
 		}
 
@@ -231,26 +258,28 @@ namespace Oxide.Plugins
 			if (!permission.PermissionExists(permissionName)) permission.RegisterPermission(permissionName, this);
             if ((_craftData = Interface.GetMod().DataFileSystem.ReadObject<CraftData>("ZLevelsCraftDetails")) == null)
                 _craftData = new CraftData();
-            playerPrefs = Interface.GetMod().DataFileSystem.ReadObject<PlayerData>(this.Title);
+			var index = 0;
+			skillIndex = new Dictionary<string,int>();
+			foreach (var skill in Skills.ALL)
+                if (IsSkillEnabled(skill))
+					skillIndex.Add(skill, ++index);
 		}
 		
-		void Loaded()
-		{
-			zLevels = this;
-		}
+		void Loaded() => zLevels = this;
 
 		void OnServerSave()
 		{
-			if (initialized) Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
+			if (initialized)
+				SaveData();
 		}
 
         void Unload()
         {
-			if (!initialized) return;
-			Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
+			if (!initialized)
+				return;
+			SaveData();
 			foreach (var player in BasePlayer.activePlayerList)
-				BlendOutUI(player);
-				
+				DestroyGUI(player);
 			var objs = UnityEngine.Object.FindObjectsOfType<FinishBonusClass>().ToList();
 			if (objs.Count > 0)
 				foreach (var obj in objs)
@@ -262,18 +291,24 @@ namespace Oxide.Plugins
 			if (wipeDataOnNewSave)
 				newSaveDetected = true;
 		}
+		
+		void SaveData() => Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
 
 		void OnServerInitialized()
 		{
-			if (newSaveDetected)
+			CheckCollectible();
+			playerPrefs = Interface.GetMod().DataFileSystem.ReadObject<PlayerData>(this.Title) ?? new PlayerData();
+			if (newSaveDetected || (playerPrefs == null || playerPrefs.PlayerInfo == null || playerPrefs.PlayerInfo.Count == 0))
 			{
 				playerPrefs = new PlayerData();
-				Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
+				SaveData();
 			}
 			pointsPerHitCurrent = pointsPerHit;
+			resourceMultipliersCurrent = resourceMultipliers;
 			if (enableNightBonus && TOD_Sky.Instance.IsNight)
 			{
 				pointsPerHitCurrent = pointsPerHitAtNight;
+				resourceMultipliersCurrent = resourceMultipliersAtNight;
 				bonusOn = true;
 			}
 			initialized = true;
@@ -282,8 +317,38 @@ namespace Oxide.Plugins
 				if (player != null)
 				{
 					UpdatePlayer(player);
-					if (cuiEnabled) RenderUI(player);
+					if (cuiEnabled)
+						CreateGUI(player);
 				}
+			}
+			foreach (var player in BasePlayer.sleepingPlayerList)
+			{
+				if (player != null)
+					UpdatePlayer(player);
+			}
+			SaveData();			
+		}
+		
+		void CheckCollectible()
+		{
+			var collectList =  Resources.FindObjectsOfTypeAll<CollectibleEntity>().Select(c => c.ShortPrefabName).Distinct().ToList();
+			if (collectList == null || collectList.Count == 0)
+				return;
+			if (enabledCollectibleEntity == null)
+				enabledCollectibleEntity = new Dictionary<string, object>();
+			bool updated = false;
+			foreach (var collect in collectList)
+			{
+				if (!enabledCollectibleEntity.ContainsKey(collect))
+				{
+					enabledCollectibleEntity.Add(collect, true);
+					updated = true;
+				}
+			}
+			if (updated)
+			{
+				Config["Functions", "CollectibleEntitys"] = enabledCollectibleEntity;
+				Config.Save();
 			}
 		}
 
@@ -335,7 +400,8 @@ namespace Oxide.Plugins
 			public long LD;
 			public long LLD;
 			public long XPM = 100;
-			public bool CUI;
+			public bool CUI = true;
+			public bool ONOFF = true;
 		}
 
 		#endregion Classes
@@ -344,9 +410,9 @@ namespace Oxide.Plugins
 
 		void OnPlayerInit(BasePlayer player)
         {
-            if (!initialized || player == null) return;
+            if (!initialized || player == null || !IsValid(player)) return;
 			UpdatePlayer(player);
-			RenderUI(player);			
+			CreateGUI(player);			
 			/*
 			long multiplier = 100;
             var playerPermissions = permission.GetUserPermissions(player.UserIDString);
@@ -375,6 +441,7 @@ namespace Oxide.Plugins
 				info.LD = ToEpochTime(DateTime.UtcNow);
 				info.LLD = ToEpochTime(DateTime.UtcNow);
 				info.CUI = playerCuiDefaultEnabled;
+				info.ONOFF = playerPluginDefaultEnabled;
 				playerPrefs.PlayerInfo.Add(player.userID, info);
 				return;
 			}
@@ -382,16 +449,23 @@ namespace Oxide.Plugins
 				p.LLD = ToEpochTime(DateTime.UtcNow);
         }
 
-        void OnPlayerSleepEnded(BasePlayer player)
+		void CheckPlayer(BasePlayer player)
+        {
+			PlayerInfo p = null;
+			if (!playerPrefs.PlayerInfo.TryGetValue(player.userID, out p))
+				UpdatePlayer(player);
+        }		
+
+		void OnPlayerSleepEnded(BasePlayer player)
         {
             if (!initialized || player == null) return;
 			PlayerInfo p = null;
 			if (playerPrefs.PlayerInfo.TryGetValue(player.userID, out p))
-				RenderUI(player);
+				CreateGUI(player);
 			else
 			{
 				UpdatePlayer(player);
-				RenderUI(player);	
+				CreateGUI(player);	
 			}
         }
 
@@ -400,54 +474,34 @@ namespace Oxide.Plugins
             if (!initialized || player == null) return;
 			PlayerInfo p = null;
 			if (playerPrefs.PlayerInfo.TryGetValue(player.userID, out p))
-				BlendOutUI(player);
-        }
-
-        void OnLootEntity(BasePlayer looter, BaseEntity target)
-        {
-            if (looter != null)
-				BlendOutUI(looter);
-        }
-
-        void OnLootPlayer(BasePlayer looter, BasePlayer beingLooter)
-        {
-			if (looter != null)
-				BlendOutUI(looter);
-        }
-
-        void OnLootItem(BasePlayer looter, Item lootedItem)
-        {
-            if (looter != null)
-				BlendOutUI(looter);
-        }
-
-		void OnPlayerLootEnd(PlayerLoot inventory)
-        {
-            if (inventory != null)
-			{
-				var player = inventory.GetComponent<BasePlayer>();
-				if (player != null)
-					RenderUI(player);
-			}
+				DestroyGUI(player);
         }
 
 		void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
 		{
-			if (!initialized || entity == null || !(entity is BasePlayer)) return;
+			if (!initialized || entity == null || !(entity is BasePlayer) || !IsValid(entity as BasePlayer)) return;
 			NextTick(()=>{
-				if (entity != null && entity.health <= 0f) BlendOutUI(entity as BasePlayer);
+				if (entity != null && entity.health <= 0f) DestroyGUI(entity as BasePlayer);
 			});
 		}
 
 		void OnEntityDeath(BaseCombatEntity entity, HitInfo hitInfo)
         {
-            if (!initialized || !penaltyOnDeath || entity == null || !(entity is BasePlayer)) return;
+            if (!initialized || !penaltyOnDeath || entity == null || !(entity is BasePlayer) || !IsValid(entity as BasePlayer))
+				return;
 			var player = entity as BasePlayer;
-			if (Interface.CallHook("CanBePenalized", player) != null) return;
+			CheckPlayer(player);
+			if (!playerPrefs.PlayerInfo[player.userID].ONOFF)
+				return;
+			if (Interface.CallHook("CanBePenalized", player) != null)
+				return;
 			PlayerInfo p = null;
-			if (!hasRights(player.UserIDString) || !playerPrefs.PlayerInfo.TryGetValue(player.userID, out p)) return;
-			if (EventManager?.Call("isPlaying", player) != null && (bool)EventManager?.Call("isPlaying", player)) return;
-			if (hitInfo != null && hitInfo.damageTypes != null && hitInfo.damageTypes.Has(Rust.DamageType.Suicide)) return;
+			if (!hasRights(player.UserIDString) || !playerPrefs.PlayerInfo.TryGetValue(player.userID, out p))
+				return;
+			if (EventManager?.Call("isPlaying", player) != null && (bool)EventManager?.Call("isPlaying", player))
+				return;
+			if (hitInfo != null && hitInfo.damageTypes != null && hitInfo.damageTypes.Has(Rust.DamageType.Suicide))
+				return;
 			var penaltyText = string.Empty;
 			var penaltyExist = false;
 			foreach (var skill in Skills.ALL)
@@ -468,15 +522,18 @@ namespace Oxide.Plugins
 
 		void OnDispenserGather(ResourceDispenser dispenser, BaseEntity entity, Item item)
         {
-            if (!initialized || entity == null || !(entity is BasePlayer) || item == null || dispenser == null) return;
+            if (!initialized || !enableDispenserGather || entity == null || !(entity is BasePlayer) || item == null || dispenser == null)
+				return;
 			var player = entity as BasePlayer;
-			if (exludeWeaponsOnGather && player.GetActiveItem()?.info?.category == ItemCategory.Weapon)
+			CheckPlayer(player);
+			if (!playerPrefs.PlayerInfo[player.userID].ONOFF || exludeWeaponsOnGather && player.GetActiveItem()?.info?.category == ItemCategory.Weapon)
 				return;
 			if (dispenser.gameObject.GetComponent<FinishBonusClass>())
 				dispenser.gameObject.GetComponent<FinishBonusClass>().OnHit(player);
 			else
 				dispenser.gameObject.AddComponent<FinishBonusClass>().finishBonus = dispenser.finishBonus;
-			if (!hasRights(player.UserIDString)) return;
+			if (!hasRights(player.UserIDString))
+				return;
             if (IsSkillEnabled(Skills.WOODCUTTING) &&(int)dispenser.gatherType == 0) levelHandler(player, item, Skills.WOODCUTTING);
             if (IsSkillEnabled(Skills.MINING) && (int)dispenser.gatherType == 1) levelHandler(player, item, Skills.MINING);
             if (IsSkillEnabled(Skills.SKINNING) && (int)dispenser.gatherType == 2) levelHandler(player, item, Skills.SKINNING);
@@ -502,10 +559,16 @@ namespace Oxide.Plugins
 				}
 			}
 		}
-
-        void OnCollectiblePickup(Item item, BasePlayer player)
+		
+        void OnCollectiblePickup(Item item, BasePlayer player, CollectibleEntity entity)
         {
-            if (!initialized || item == null || player == null || !hasRights(player.UserIDString)) return;
+            if (!initialized || !enableCollectiblePickup || item == null || player == null || !hasRights(player.UserIDString))
+				return;
+			CheckPlayer(player);
+			if (!playerPrefs.PlayerInfo[player.userID].ONOFF)
+				return;
+			if (enabledCollectibleEntity.ContainsKey(entity.ShortPrefabName) && (bool)enabledCollectibleEntity[entity.ShortPrefabName] == false)
+				return;
 			var skillName = string.Empty;
 
 			if (IsSkillDisabled(Skills.ACQUIRE))
@@ -543,8 +606,9 @@ namespace Oxide.Plugins
 			if (!enableNightBonus || bonusOn) return;
 			bonusOn = true;
 			pointsPerHitCurrent = pointsPerHitAtNight;
+			resourceMultipliersCurrent = resourceMultipliersAtNight;
 			if (broadcastEnabledBonus)
-				rust.BroadcastChat(pluginPrefix + " "+ msg("NightBonusOn"));			
+				Server.Broadcast(pluginPrefix + " "+ msg("NightBonusOn"));			
 			if (logEnabledBonusConsole)
 				Puts("Nightbonus points enabled");
 		}
@@ -554,15 +618,16 @@ namespace Oxide.Plugins
 			if (!enableNightBonus || !bonusOn) return;
 			bonusOn = false;
 			pointsPerHitCurrent = pointsPerHit;
+			resourceMultipliersCurrent = resourceMultipliers;
 			if (broadcastEnabledBonus)
-				rust.BroadcastChat(pluginPrefix + " "+ msg("NightBonusOff"));
+				Server.Broadcast(pluginPrefix + " "+ msg("NightBonusOff"));
 			if (logEnabledBonusConsole)
 				Puts("Nightbonus points disabled");
 		}
 		
 		void OnCropGather(PlantEntity plant, Item item, BasePlayer player)
 		{
-			if (!initialized || item == null || player == null || !hasRights(player.UserIDString)) return;
+			if (!initialized || !enableCropGather || item == null || player == null || !hasRights(player.UserIDString) || !playerPrefs.PlayerInfo[player.userID].ONOFF) return;
 			var skillName = string.Empty;
 			if (IsSkillDisabled(Skills.ACQUIRE))
 				skillName = Skills.SKINNING;
@@ -573,7 +638,7 @@ namespace Oxide.Plugins
 
 		object OnItemCraft(ItemCraftTask task, BasePlayer crafter)
         {
-            if (!initialized || IsSkillDisabled(Skills.CRAFTING) || !hasRights(crafter.UserIDString)) return null;
+            if (!initialized || IsSkillDisabled(Skills.CRAFTING) || !hasRights(crafter.UserIDString) || !playerPrefs.PlayerInfo[crafter.userID].ONOFF) return null;
             var Level = getLevel(crafter.userID, Skills.CRAFTING);
             var craftingTime = task.blueprint.time;
             var amountToReduce = task.blueprint.time * ((float)(Level * (int)craftingDetails["PercentFasterPerLevel"]) / 100);
@@ -650,7 +715,8 @@ namespace Oxide.Plugins
 					{
 						foreach (var target in BasePlayer.activePlayerList.Where(x => x.userID != crafter.userID))
 						{
-							PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), crafter.displayName, Level, colors[Skills.CRAFTING], msg("CSkill", crafter.UserIDString)));
+							if (hasRights(target.UserIDString) && playerPrefs.PlayerInfo[target.userID].ONOFF)
+								PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), crafter.displayName, Level, colors[Skills.CRAFTING], msg("CSkill", crafter.UserIDString)));
 						}
 					}
 				}
@@ -665,7 +731,7 @@ namespace Oxide.Plugins
             {
                 var xpPercentAfter = getExperiencePercent(crafter, Skills.CRAFTING);
                 if (!xpPercentAfter.Equals(xpPercentBefore))
-                    RenderUI(crafter);
+					GUIUpdateSkill(crafter, Skills.CRAFTING);
             } catch {}
 
             if (task.amount > 0) return null;
@@ -691,6 +757,7 @@ namespace Oxide.Plugins
 			sb.AppendLine("<size=18><color=orange>ZLevels</color></size><size=14><color=#ce422b>REMASTERED</color></size>");
 			sb.AppendLine("/stats - Displays your stats.");
 			sb.AppendLine("/statsui - Enable/Disable stats UI.");
+			sb.AppendLine("/statsonoff - Enable/Disable whole leveling.");
 			sb.AppendLine("/statinfo - Displays information about skills.");
 			sb.AppendLine("/stathelp - Displays the help.");
 			//sb.AppendLine("/topskills - Display max levels reached so far.");
@@ -861,6 +928,30 @@ namespace Oxide.Plugins
 			textTable.AddRow(new string[]	{ "XP Multiplier", playerData.XPM.ToString()+"%", string.Empty });
 			SendReply(arg, "\nStats for player: " + player.Name + "\n" +textTable.ToString());
         }
+		
+		[ConsoleCommand("zl.reset")]
+        void ResetCommand(ConsoleSystem.Arg arg)
+        {
+            if (arg.Connection != null && arg.Connection.authLevel < 2) return;
+            if (arg.Args == null || arg.Args.Length != 1 || arg.Args[0] != "true")
+            {
+                SendReply(arg, "Usage: zl.reset true | Resets all userdata to zero");
+                return;
+            }
+			playerPrefs = new PlayerData();
+			Interface.Oxide.DataFileSystem.WriteObject(this.Title, playerPrefs);
+			foreach (var player in BasePlayer.activePlayerList)
+			{
+				if (player != null)
+				{
+					CuiHelper.DestroyUi(player, "ZLevelsUI");
+					UpdatePlayer(player);
+					if (cuiEnabled)
+						CreateGUI(player);
+				}
+			}
+			SendReply(arg, "Userdata was successfully reset to zero");
+		}
 
         [ConsoleCommand("zl.lvl")]
         void ZlvlCommand(ConsoleSystem.Arg arg)
@@ -1003,7 +1094,7 @@ namespace Oxide.Plugins
 			text += "\nTime alive: " + ReadableTimeSpan(timeAlive);
 			if (playerPrefs.PlayerInfo[player.userID].XPM.ToString() != "100")
 				text += "XP rates for you are " + playerPrefs.PlayerInfo[player.userID].XPM + "%";
-			rust.SendChatMessage(player, text);
+			player.ChatMessage(text);
         }
 
 		[ChatCommand("statinfo")]
@@ -1042,7 +1133,7 @@ namespace Oxide.Plugins
 			messagesText += "XP gain: <color=" + colors[Skills.SKINNING] + ">You get " + craftingDetails["XPPerTimeSpent"] + " XP per " + craftingDetails["TimeSpent"] + "s spent crafting.</color>\n";
 			messagesText += "Bonus: <color=" + colors[Skills.SKINNING] + ">Crafting time is decreased by " + craftingDetails["PercentFasterPerLevel"] + "% per every level.</color>\n";
 
-			PrintToChat(player, messagesText);
+			player.ChatMessage(messagesText);
         }
 
         [ChatCommand("statsui")]
@@ -1051,13 +1142,32 @@ namespace Oxide.Plugins
             if (!hasRights(player.UserIDString)) return;
 			if (playerPrefs.PlayerInfo[player.userID].CUI)
             {
-				CuiHelper.DestroyUi(player, "StatsUI");
+				DestroyGUI(player);
 				playerPrefs.PlayerInfo[player.userID].CUI = false;
             }
             else
             {
                 playerPrefs.PlayerInfo[player.userID].CUI = true;
-				RenderUI(player);
+				CreateGUI(player);
+            }
+        }
+		
+		[ChatCommand("statsonoff")]
+        void StatsOnOffCommand(BasePlayer player, string command, string[] args)
+        {
+            if (!hasRights(player.UserIDString)) return;
+			if (playerPrefs.PlayerInfo[player.userID].ONOFF)
+            {
+				DestroyGUI(player);
+				playerPrefs.PlayerInfo[player.userID].ONOFF = false;
+				player.ChatMessage(pluginPrefix + " " + msg("PluginPlayerOff"));
+            }
+            else
+            {
+                playerPrefs.PlayerInfo[player.userID].ONOFF = true;
+				player.ChatMessage(pluginPrefix + " " + msg("PluginPlayerOn"));
+				if (playerPrefs.PlayerInfo[player.userID].CUI)
+					CreateGUI(player);
             }
         }
 
@@ -1113,7 +1223,7 @@ namespace Oxide.Plugins
 					setPointsAndLevel(Convert.ToUInt64(p.Id), currSkill, getLevelPoints(modifiedLevel), modifiedLevel);
 					var baseP = BasePlayer.FindByID(Convert.ToUInt64(p.Id));
 					if (baseP != null)
-						RenderUI(baseP);
+						CreateGUI(baseP);
 					sb.Append($"({msg(currSkill + "Skill")} > {modifiedLevel}) ");
                 }
 				SendReply(arg, $"\nChanges for '{p.Name}': "+ sb.ToString().TrimEnd());
@@ -1138,7 +1248,7 @@ namespace Oxide.Plugins
 				setPointsAndLevel(Convert.ToUInt64(p.Id), skill, getLevelPoints(modifiedLevel), modifiedLevel);
 				var baseP = BasePlayer.FindByID(Convert.ToUInt64(p.Id));
 				if (baseP != null)
-					RenderUI(baseP);
+					GUIUpdateSkill(baseP, skill);
                 SendReply(arg, msg(skill + "Skill") + " Lvl for [" + p.Name + "] set to: [" + modifiedLevel + "]");
             }
         }
@@ -1209,7 +1319,6 @@ namespace Oxide.Plugins
 			}
             return penaltyPercent;
         }
-		
 
 		void levelHandler(BasePlayer player, Item item, string skill)
         {
@@ -1234,7 +1343,8 @@ namespace Oxide.Plugins
 						{
 							foreach (var target in BasePlayer.activePlayerList.Where(x => x.userID != player.userID))
 							{
-								PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), player.displayName, Level, colors[skill], msg(skill + "Skill", target.UserIDString)));
+								if (hasRights(target.UserIDString) && playerPrefs.PlayerInfo[target.userID].ONOFF)
+									PrintToChat(target, string.Format(msg("LevelUpTextBroadcast", target.UserIDString), player.displayName, Level, colors[skill], msg(skill + "Skill", target.UserIDString)));
 							}
 						}
                     }
@@ -1243,8 +1353,8 @@ namespace Oxide.Plugins
             setPointsAndLevel(player.userID, skill, Points, Level);
             var xpPercentAfter = getExperiencePercent(player, skill);
             if (!xpPercentAfter.Equals(xpPercentBefore))
-                RenderUI(player);
-        }
+				GUIUpdateSkill(player, skill);
+		}
 
 		string getExperiencePercent(BasePlayer player, string skill)
         {
@@ -1333,7 +1443,7 @@ namespace Oxide.Plugins
 
         double getGathMult(long skillLevel, string skill)
         {
-			return Convert.ToDouble(defaultMultipliers[skill]) + Convert.ToDouble(resourceMultipliers[skill]) * 0.1 * (skillLevel - 1);
+			return Convert.ToDouble(defaultMultipliers[skill]) + Convert.ToDouble(resourceMultipliersCurrent[skill]) * 0.1 * (skillLevel - 1);
         }
 
         bool IsSkillDisabled(string skill)
@@ -1364,34 +1474,45 @@ namespace Oxide.Plugins
 
 		#region CUI
 
-        void FillElements(ref CuiElementContainer elements, string mainPanel, int rowNumber, int maxRows, long level, int percent, string skillName, string progressColor, int fontSize, string xpBarAnchorMin, string xpBarAnchorMax)
+		void GUIUpdateSkill(BasePlayer player, string skill)
         {
-            var value = 1 / (float)maxRows;
+            int maxRows = skillIndex.Count();
+			int rowNumber = skillIndex[skill];
+			long level = getLevel(player.userID, skill);
+			int percent = getExperiencePercentInt(player, skill);
+			var skillName = msg(skill + "Skill", player.UserIDString);
+			
+			var mainPanel = "ZL" + skillName;
+			CuiHelper.DestroyUi(player, mainPanel);
+			
+			var value = 1 / (float)maxRows;
             var positionMin = 1 - (value * rowNumber);
             var positionMax = 2 - (1 - (value * (1 - rowNumber)));
-            var xpBarPlaceholder1 = new CuiElement
-            {
-                Name = CuiHelper.GetGuid(),
-                Parent = mainPanel,
-                Components =
-                        {
-                            new CuiImageComponent { Color = cuiBoundsBackground },
-                            new CuiRectTransformComponent{ AnchorMin = "0 " + positionMin.ToString("0.####"), AnchorMax = $"1 "+ positionMax.ToString("0.####") }
-                        }
-            };
-            elements.Add(xpBarPlaceholder1);
+            
+			var container = new CuiElementContainer()
+			{
+				{
+					new CuiPanel
+					{
+						Image = {Color = cuiBoundsBackground},
+						RectTransform = { AnchorMin = "0 " + positionMin.ToString("0.####"), AnchorMax = $"1 "+ positionMax.ToString("0.####") },
+					},
+					new CuiElement().Parent = "ZLevelsUI",
+					mainPanel
+				}
+			};
 
             var innerXPBar1 = new CuiElement
             {
                 Name = CuiHelper.GetGuid(),
-                Parent = xpBarPlaceholder1.Name,
-                Components =
+                Parent = mainPanel,
+				Components =
                         {
                             new CuiImageComponent { Color = cuiXpBarBackground },
-                            new CuiRectTransformComponent{ AnchorMin = xpBarAnchorMin, AnchorMax = xpBarAnchorMax }
+                            new CuiRectTransformComponent{ AnchorMin = "0.225 0.05", AnchorMax = "0.8 0.85" }
                         }
             };
-            elements.Add(innerXPBar1);
+            container.Add(innerXPBar1);
 
             var innerXPBarProgress1 = new CuiElement
             {
@@ -1399,13 +1520,13 @@ namespace Oxide.Plugins
                 Parent = innerXPBar1.Name,
                 Components =
                         {
-                            new CuiImageComponent() { Color = progressColor },
-                            new CuiRectTransformComponent{ AnchorMin = "0 0", AnchorMax = (percent / 100.0) + " 1" }
+                            new CuiImageComponent() { Color = (string)cuiColors[skill] },
+                            new CuiRectTransformComponent{ AnchorMin = "0 0", AnchorMax = (percent / 100.0) + " 0.95" }
                         }
             };
-            elements.Add(innerXPBarProgress1);
+            container.Add(innerXPBarProgress1);
 			
-            if (cuiTextShadow)
+		   if (cuiTextShadow)
 			{
 				var innerXPBarTextShadow1 = new CuiElement
 				{
@@ -1413,11 +1534,11 @@ namespace Oxide.Plugins
 					Parent = innerXPBar1.Name,
 					Components =
 							{
-								new CuiTextComponent { Color = "0.1 0.1 0.1 0.75", Text = $"{skillName} ({percent}%)", FontSize = cuiFontSizeBar, Align = TextAnchor.MiddleLeft},
-								new CuiRectTransformComponent{ AnchorMin = "0.06 -0.1", AnchorMax = "1 1" }
+								new CuiTextComponent { Color = "0.1 0.1 0.1 0.75", Text = $"{skillName}", FontSize = cuiFontSizeBar, Align = TextAnchor.MiddleCenter},
+								new CuiRectTransformComponent{ AnchorMin = "0.035 -0.1", AnchorMax = "1 1" }
 							}
 				};
-				elements.Add(innerXPBarTextShadow1);
+				container.Add(innerXPBarTextShadow1);
 			}
 
             var innerXPBarText1 = new CuiElement
@@ -1426,100 +1547,112 @@ namespace Oxide.Plugins
                 Parent = innerXPBar1.Name,
                 Components =
                         {
-                            new CuiTextComponent { Color = cuiFontColor, Text = $"{skillName} ({percent}%)", FontSize = cuiFontSizeBar, Align = TextAnchor.MiddleLeft},
+                            new CuiTextComponent { Color = cuiFontColor, Text = $"{skillName}", FontSize = cuiFontSizeBar, Align = TextAnchor.MiddleCenter},
                             new CuiRectTransformComponent{ AnchorMin = "0.05 0", AnchorMax = "1 1" }
                         }
             };
-            elements.Add(innerXPBarText1);
+            container.Add(innerXPBarText1);
 
 			if (cuiTextShadow)
 			{
 				var lvShader1 = new CuiElement
 				{
 					Name = CuiHelper.GetGuid(),
-					Parent = xpBarPlaceholder1.Name,
+					Parent = mainPanel,
 					Components =
 							{
 								new CuiTextComponent { Text = "Lv." + level, FontSize = cuiFontSizeLvl , Align = TextAnchor.MiddleLeft, Color = "0.1 0.1 0.1 0.75" },
 								new CuiRectTransformComponent{ AnchorMin = "0.035 -0.1", AnchorMax = $"0.5 1" }
 							}
 				};
-				elements.Add(lvShader1); 
+				container.Add(lvShader1); 
 			}			
 			
 			var lvText1 = new CuiElement
             {
                 Name = CuiHelper.GetGuid(),
-                Parent = xpBarPlaceholder1.Name,
+                Parent = mainPanel,
                 Components =
                         {
                             new CuiTextComponent { Text = "Lv." + level, FontSize = cuiFontSizeLvl , Align = TextAnchor.MiddleLeft, Color = cuiFontColor },
                             new CuiRectTransformComponent{ AnchorMin = "0.025 0", AnchorMax = $"0.5 1" }
                         }
             };
-            elements.Add(lvText1);
-        }
+            container.Add(lvText1);
 
-        void BlendOutUI(BasePlayer player)
-        {
-            if (!cuiEnabled || player.userID < 76560000000000000L || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
-			CuiHelper.DestroyUi(player, "StatsUI");
-		}
-
-        void RenderUI(BasePlayer player)
-        {
-            if (!cuiEnabled || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString)) return;
-            var enabledSkillCount = 0;
-            foreach (var skill in Skills.ALL)
-            {
-                if (IsSkillEnabled(skill))
+			if (cuiTextShadow)
+			{
+				var percShader1 = new CuiElement
 				{
-					enabledSkillCount++;
-				}
-            }
-            CuiHelper.DestroyUi(player, "StatsUI");
+					Name = CuiHelper.GetGuid(),
+					Parent = mainPanel,
+					Components =
+							{
+								new CuiTextComponent { Text = $"{percent}%", FontSize = cuiFontSizePercent , Align = TextAnchor.MiddleRight, Color = "0.1 0.1 0.1 0.75" },
+								new CuiRectTransformComponent{ AnchorMin = "0.5 -0.1", AnchorMax = $"0.985 1" }
+							}
+				};
+				container.Add(percShader1); 
+			}				
 
-            var elements = new CuiElementContainer();
-            var mainName = elements.Add(new CuiPanel
+			var percText1 = new CuiElement
             {
-                Image =
-                {
-                    Color = "0.15 0.15 0.15 0.05"
-                },
-                RectTransform =
-                {
-					AnchorMin = $"{(string)cuiPositioning["WidthLeft"]} {(string)cuiPositioning["HeightLower"]}",
-                    AnchorMax =$"{(string)cuiPositioning["WidthRight"]} {(string)cuiPositioning["HeightUpper"]}"
-
-				}
-            }, "Hud", "StatsUI");
-
-            var fontSize = 12;
-            var xpBarAnchorMin = "0.18 0.1";
-            var xpBarAnchorMax = "0.98 0.9";
-            var currentSKillIndex = 1;
-
-            foreach (var skill in Skills.ALL)
-            {
-                if (IsSkillEnabled(skill))
-                {
-                    FillElements(ref elements, mainName, currentSKillIndex, enabledSkillCount, getLevel(player.userID, skill), getExperiencePercentInt(player,
-                        skill), msg(skill + "Skill", player.UserIDString), (string)cuiColors[skill], fontSize, xpBarAnchorMin, xpBarAnchorMax);
-                    currentSKillIndex++;
-                }
-            }
-            CuiHelper.AddUi(player, elements);
+                Name = CuiHelper.GetGuid(),
+                Parent = mainPanel,
+                Components =
+                        {
+                            new CuiTextComponent { Text = $"{percent}%", FontSize = cuiFontSizePercent , Align = TextAnchor.MiddleRight, Color = cuiFontColor },
+                            new CuiRectTransformComponent{ AnchorMin = "0.5 0", AnchorMax = $"0.975 1" }
+                        }
+            };
+            container.Add(percText1);
+			CuiHelper.AddUi(player, container);
         }
+		
+		void DestroyGUI(BasePlayer player)
+        {
+            if (!cuiEnabled || !IsValid(player) || !playerPrefs.PlayerInfo[player.userID].ONOFF || !playerPrefs.PlayerInfo[player.userID].CUI)
+				return;
+			CuiHelper.DestroyUi(player, "ZLevelsUI");
+		}
+		
+		void CreateGUI(BasePlayer player)
+		{
+			if (!cuiEnabled || !IsValid(player) || !playerPrefs.PlayerInfo[player.userID].ONOFF || !playerPrefs.PlayerInfo[player.userID].CUI || !hasRights(player.UserIDString))
+				return;
+            var panelName = "ZLevelsUI";
+			CuiHelper.DestroyUi(player, panelName);
+			var mainContainer = new CuiElementContainer()
+			{
+				{
+					new CuiPanel
+					{
+						Image = {Color = "0 0 0 0"},
+						RectTransform = {AnchorMin = $"{(string)cuiPositioning["WidthLeft"]} {(string)cuiPositioning["HeightLower"]}", AnchorMax =$"{(string)cuiPositioning["WidthRight"]} {(string)cuiPositioning["HeightUpper"]}"},
+						CursorEnabled = false
+					},
+					new CuiElement().Parent = "Under",
+					panelName
+				}
+			};
+			CuiHelper.AddUi(player, mainContainer);
+			foreach (var skill in Skills.ALL)
+                if (IsSkillEnabled(skill))
+					GUIUpdateSkill(player, skill);
+		}			
 
 		#endregion CUI
 
-		#region Database
-
-		#endregion Database
-
 		#region Helpers
 
-		 string ReadableTimeSpan(TimeSpan span)
+		Boolean IsValid(BasePlayer player)
+		{
+			if (player is NPCPlayer || player.userID < 76561197960265728L)
+				return false;
+			return true;
+		}
+		
+		string ReadableTimeSpan(TimeSpan span)
         {
             var formatted = string.Format("{0}{1}{2}{3}{4}",
                 (span.Days / 7) > 0 ? string.Format("{0:0} weeks, ", span.Days / 7) : string.Empty,
@@ -1611,5 +1744,6 @@ namespace Oxide.Plugins
         }
 
 		#endregion Helpers
+
     }
 }

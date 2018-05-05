@@ -1,3 +1,4 @@
+//Reference: Facepunch.Sqlite
 using Newtonsoft.Json;
 using Oxide.Core;
 using Oxide.Core.Configuration;
@@ -5,14 +6,13 @@ using Oxide.Core.Plugins;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ImageLibrary", "Absolut & K1lly0u", "2.0.5", ResourceId = 2193)]
+    [Info("ImageLibrary", "Absolut & K1lly0u", "2.0.30", ResourceId = 2193)]
     class ImageLibrary : RustPlugin
     {
         #region Fields
@@ -28,33 +28,45 @@ namespace Oxide.Plugins
 
         private Queue<LoadOrder> loadOrders = new Queue<LoadOrder>();
         private bool orderPending;
+        private bool isInitialized;
         
         private readonly Regex avatarFilter = new Regex(@"<avatarFull><!\[CDATA\[(.*)\]\]></avatarFull>");
         #endregion
-
+               
         #region Oxide Hooks
-        void Loaded()
+        private void Loaded()
         {
             identifiers = Interface.Oxide.DataFileSystem.GetFile("ImageLibrary/image_data");
             urls = Interface.Oxide.DataFileSystem.GetFile("ImageLibrary/image_urls");
             skininfo = Interface.Oxide.DataFileSystem.GetFile("ImageLibrary/skin_data");
         }
-        void OnServerInitialized()
+
+        private void OnServerInitialized()
         {
             il = this;
             LoadVariables();
             LoadData();
-            foreach (var item in ItemManager.itemList)
-                workshopNameToShortname.Add(item.displayName.english.ToLower().Replace("skin", "").Replace(" ", "").Replace("-", ""), item.shortname);            
+
+            foreach (ItemDefinition item in ItemManager.itemList)
+            {
+                string workshopName = item.displayName.english.ToLower().Replace("skin", "").Replace(" ", "").Replace("-", "");
+                if (!workshopNameToShortname.ContainsKey(workshopName))
+                    workshopNameToShortname.Add(workshopName, item.shortname);
+            }
+            
             CheckForRefresh();
+
             foreach (var player in BasePlayer.activePlayerList)
                 OnPlayerInit(player);
         }
-        void OnPlayerInit(BasePlayer player) => GetPlayerAvatar(player?.UserIDString);  
-        void Unload()
+
+        private void OnPlayerInit(BasePlayer player) => GetPlayerAvatar(player?.UserIDString);
+
+        private void Unload()
         {
             SaveData();
             UnityEngine.Object.Destroy(assets);
+            il = null;
         }
         #endregion
 
@@ -76,10 +88,11 @@ namespace Oxide.Plugins
             }
             GetItemSkins();
         }
+
         private void GetItemSkins()
         {
             PrintWarning("Retrieving item skin lists...");
-            webrequest.EnqueueGet("http://s3.amazonaws.com/s3.playrust.com/icons/inventory/rust/schema.json", (code, response) =>
+            webrequest.Enqueue("http://s3.amazonaws.com/s3.playrust.com/icons/inventory/rust/schema.json", null, (code, response) =>
             {
                 if (!(response == null && code == 200))
                 {
@@ -90,10 +103,15 @@ namespace Oxide.Plugins
                     {
                         if (!string.IsNullOrEmpty(item.itemshortname) && !string.IsNullOrEmpty(item.icon_url))
                         {
-                            string identifier = $"{item.itemshortname}_{item.itemdefid}";
-
+                            string identifier;
+                            ItemDefinition def = ItemManager.FindItemDefinition(item.itemshortname);
+                            if (def == null) continue;
+                            int skinCount = def.skins.Where(k => k.id == item.itemdefid).Count();
+                            if (skinCount == 0)
+                                identifier = $"{item.itemshortname}_{item.workshopid}";
+                            else identifier = $"{item.itemshortname}_{item.itemdefid}";
                             if (!imageUrls.URLs.ContainsKey(identifier))
-                                imageUrls.URLs.Add(identifier, item.icon_url);                            
+                                imageUrls.URLs.Add(identifier, item.icon_url);
 
                             if (configData.GetSkinData)
                             {
@@ -118,14 +136,19 @@ namespace Oxide.Plugins
                     if (!configData.DLWhenNecessary)
                     {
                         PrintWarning("Item skin list queued for download");
-                        loadOrders.Enqueue(new LoadOrder("Item Skins", imageList));                        
+                        loadOrders.Enqueue(new LoadOrder("Item Skins", imageList));
                     }
                     if (configData.WorkshopImages)
                         ServerMgr.Instance.StartCoroutine(GetWorkshopSkins());
-                    else ProcessLoadOrders();
+                    else
+                    {
+                        if (!orderPending)
+                            ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
+                    }
                 }
-            }, this);            
+            }, this);
         }
+
         private IEnumerator GetWorkshopSkins()
         {
             var query = Rust.Global.SteamServer.Workshop.CreateQuery();
@@ -146,7 +169,7 @@ namespace Oxide.Plugins
                     foreach (var tag in item.Tags)
                     {
                         var adjTag = tag.ToLower().Replace("skin", "").Replace(" ", "").Replace("-", "");
-                            if (workshopNameToShortname.ContainsKey(adjTag))
+                        if (workshopNameToShortname.ContainsKey(adjTag))
                         {
                             string identifier = $"{workshopNameToShortname[adjTag]}_{item.Id}";
 
@@ -173,7 +196,7 @@ namespace Oxide.Plugins
                             continue;
                         }
                     }
-                }            
+                }
             }
             query.Dispose();
             SaveUrls();
@@ -182,15 +205,24 @@ namespace Oxide.Plugins
             {
                 PrintWarning("Workshop skins queued for download");
                 loadOrders.Enqueue(new LoadOrder("Workshop skins", imageList));
-                ProcessLoadOrders();
+                if (!orderPending)
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             }
         }
-        private void ProcessLoadOrders()
+
+        private IEnumerator ProcessLoadOrders()
         {
+            yield return new WaitWhile(new Func<bool>(() => !isInitialized));
+
             if (loadOrders.Count > 0)
-            {               
+            {
+                if (orderPending)
+                    yield break;                
+
                 LoadOrder nextLoad = loadOrders.Dequeue();
-                Puts("Starting order " + nextLoad.loadName);
+                if (!nextLoad.loadSilent)
+                    Puts("Starting order " + nextLoad.loadName);
+
                 if (nextLoad.imageList.Count > 0)
                 {
                     foreach (var item in nextLoad.imageList)
@@ -201,16 +233,19 @@ namespace Oxide.Plugins
                     foreach (var item in nextLoad.imageData)
                         assets.Add(item.Key, null, item.Value);
                 }
+
                 orderPending = true;
-                assets.BeginLoad(nextLoad.loadName);
+
+                assets.BeginLoad(nextLoad.loadSilent ? string.Empty : nextLoad.loadName);
             }
         }
+
         private void GetPlayerAvatar(string userId)
         {
             if (!configData.StoreAvatars || string.IsNullOrEmpty(userId) || HasImage(userId, 0))
                 return;
            
-            webrequest.EnqueueGet($"http://steamcommunity.com/profiles/{userId}?xml=1", (code, response) =>
+            webrequest.Enqueue($"http://steamcommunity.com/profiles/{userId}?xml=1",null, (code, response) =>
             {
                 string avatar = null;
                 if (response != null && code == 200)
@@ -220,6 +255,7 @@ namespace Oxide.Plugins
                 }
             }, this);
         }
+
         private void RefreshImagery()
         {
             imageIdentifiers.imageIds.Clear();
@@ -231,15 +267,71 @@ namespace Oxide.Plugins
                 if (!string.IsNullOrEmpty(image.Value))
                     AddImage(image.Value, image.Key, 0);
             }
-            GetItemSkins();
+            GetItemIcons();
         }
+
         private void CheckForRefresh()
         {
             if (assets == null)
                 assets = new GameObject("WebObject").AddComponent<ImageAssets>();
 
-            if (imageIdentifiers.lastCEID != CommunityEntity.ServerInstance.net.ID || imageUrls.URLs.Count == 0)                            
-                RefreshImagery();                        
+            isInitialized = true;
+
+            if (imageIdentifiers.lastCEID != CommunityEntity.ServerInstance.net.ID)
+            {
+                if (imageIdentifiers.imageIds.Count < 2)
+                {
+                    RefreshImagery();
+                }
+                else
+                {
+                    PrintWarning("The CommunityEntity instance ID has changed! Due to the way CUI works in Rust all previously stored images must be removed and re-stored using the new ID as reference so clients can find the images. These images will be added to a new load order. Interupting this process will result in being required to re-download these images from the web");
+                    RestoreLoadedImages();
+                }
+            }           
+            
+        }
+        private void RestoreLoadedImages()
+        {
+            orderPending = true;
+            int failed = 0;
+
+            Dictionary<string, byte[]> oldFiles = new Dictionary<string, byte[]>();
+
+            for (int i = imageIdentifiers.imageIds.Count - 1; i >= 0; i--)
+            {
+                var image = imageIdentifiers.imageIds.ElementAt(i);                
+                
+                uint imageId;
+                if (!uint.TryParse(image.Value, out imageId))
+                    continue;
+
+                byte[] bytes = FileStorage.server.Get(imageId, FileStorage.Type.png, imageIdentifiers.lastCEID);
+                if (bytes != null)                
+                    oldFiles.Add(image.Key, bytes);
+                else
+                {
+                    failed++;
+                    imageIdentifiers.imageIds.Remove(image.Key);
+                }
+            }
+
+            Facepunch.Sqlite.Database db = new Facepunch.Sqlite.Database();
+            try
+            {
+                db.Open($"{ConVar.Server.rootFolder}/sv.files.0.db");
+                db.Execute("DELETE FROM data WHERE entid = ?", new object[] { imageIdentifiers.lastCEID });
+                db.Close();
+            }
+            catch { }
+
+            loadOrders.Enqueue(new LoadOrder("Image restoration from previous database", oldFiles, false));
+            PrintWarning($"{imageIdentifiers.imageIds.Count - failed} images queued for restoration, {failed} images failed");
+            imageIdentifiers.lastCEID = CommunityEntity.ServerInstance.net.ID;
+            SaveData();
+
+            orderPending = false;
+            ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
         }
         #endregion
 
@@ -272,7 +364,8 @@ namespace Oxide.Plugins
             {"vagabondjacket", "jacket" },
             {"hideshoes", "attire.hide.boots" },
             {"deerskullmask", "deer.skull.mask" },
-            {"minerhat", "hat.miner" }
+            {"minerhat", "hat.miner" },
+            {"lr300", "rifle.lr300" }
         };
         private Hash<string, string> defaultUrls = new Hash<string, string>
         {
@@ -608,21 +701,34 @@ namespace Oxide.Plugins
             {"searchlight", "https://vignette2.wikia.nocookie.net/play-rust/images/c/c6/Search_Light_icon.png" },
             {"weapon.mod.simplesight", "https://vignette1.wikia.nocookie.net/play-rust/images/9/93/Simple_Handmade_Sight_icon.png" },
             {"guntrap", "http://i.imgur.com/iNFOxbT.png" },
-        };
+            {"dropbox", "http://i.imgur.com/KqV8FcU.png" },
+            {"mailbox", "http://i.imgur.com/DaDrDIK.png" },
+            {"scrap", "https://vignette.wikia.nocookie.net/play-rust/images/0/03/Scrap_icon.png" },
+            {"arrow.bone", "https://files.facepunch.com/helk/2018/01/1b1111b1/arrow_bone.icon.png" },
+            {"arrow.fire", "https://files.facepunch.com/helk/2018/01/1b1111b1/arrow_fire.icon.png" },
+            {"shotgun.spas12", "https://rustlabs.com/img/items180/shotgun.spas12.png" },
+            {"ammo.shotgun.fire", "https://rustlabs.com/img/items180/ammo.shotgun.fire.png" },
+            {"geiger.counter", "https://rustlabs.com/img/items180/geiger.counter.png" },
+            {"chainsaw", "https://imgur.com/a/1RaM9" }
+       };
         #endregion
 
         #region API
         [HookMethod("AddImage")]
         public bool AddImage(string url, string imageName, ulong imageId)
         {
-            assets.BeginIndividual($"{imageName}_{imageId}", url);
+            loadOrders.Enqueue(new LoadOrder(imageName, new Dictionary<string, string>{ { $"{imageName}_{imageId}", url } }, true));
+            if (!orderPending)
+                ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             return true;
         } 
          
         [HookMethod("AddImageData")]
-        public bool AddImageData(string imageName, byte[]array, ulong imageId)
+        public bool AddImageData(string imageName, byte[] array, ulong imageId)
         {
-            assets.BeginIndividual($"{imageName}_{imageId}", string.Empty, array);
+            loadOrders.Enqueue(new LoadOrder(imageName, new Dictionary<string, byte[]>{ { $"{imageName}_{imageId}", array } }, true));
+            if (!orderPending)
+                ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             return true;
         }
 
@@ -643,8 +749,21 @@ namespace Oxide.Plugins
             {
                 loadOrders.Enqueue(new LoadOrder(title, newLoadOrder));
                 if (!orderPending)
-                    ProcessLoadOrders();
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             }
+            GetItemIcons();
+            if (!configData.WorkshopImages)
+                GetWorkshopSkins();
+        }
+
+        [HookMethod("GetImageURL")]
+        public string GetImageURL(string imageName, ulong imageId = 0)
+        {
+            string identifier = $"{imageName}_{imageId}";
+            string value;
+            if (imageUrls.URLs.TryGetValue(identifier, out value))
+                return value;
+            return imageIdentifiers.imageIds["NONE_0"];
         }
 
         [HookMethod("GetImage")]
@@ -654,24 +773,32 @@ namespace Oxide.Plugins
             string value;
             if (imageIdentifiers.imageIds.TryGetValue(identifier, out value))
                 return value;
-            if (returnUrl && imageUrls.URLs.TryGetValue(identifier, out value))
+            else
             {
-                AddImage(value, imageName, imageId);
+                if (imageUrls.URLs.TryGetValue(identifier, out value))
+                    AddImage(value, imageName, imageId);
+            }
+
+            if (returnUrl && !string.IsNullOrEmpty(value))            
                 return value;
-            }            
+                       
             return imageIdentifiers.imageIds["NONE_0"];
         }
 
         [HookMethod("GetImageList")]
         public List<ulong> GetImageList(string name)
         {
-            List<ulong> skinIds = new List<ulong>();            
+            List<ulong> skinIds = new List<ulong>();
             var matches = imageUrls.URLs.Keys.Where(x => x.StartsWith(name)).ToArray();
             for (int i = 0; i < matches.Length; i++)
             {
                 var index = matches[i].IndexOf("_");
-                if (matches[i].Substring(0, index) == name)               
-                    skinIds.Add(ulong.Parse(matches[i].Substring(index + 1)));                
+                if (matches[i].Substring(0, index) == name)
+                {
+                    ulong skinID;
+                    if (ulong.TryParse(matches[i].Substring(index + 1), out skinID))
+                        skinIds.Add(ulong.Parse(matches[i].Substring(index + 1)));
+                }
             }
             return skinIds;
         }
@@ -689,7 +816,7 @@ namespace Oxide.Plugins
         public bool HasImage(string imageName, ulong imageId) => imageIdentifiers.imageIds.ContainsKey($"{imageName}_{imageId}");
 
         [HookMethod("IsReady")]
-        public bool IsReady() => loadOrders.Count == 0;
+        public bool IsReady() => loadOrders.Count == 0 && !orderPending;
 
         [HookMethod("ImportImageList")]
         public void ImportImageList(string title, Dictionary<string, string> imageList, ulong imageId = 0, bool replace = false)
@@ -705,7 +832,28 @@ namespace Oxide.Plugins
             {
                 loadOrders.Enqueue(new LoadOrder(title, newLoadOrder));
                 if (!orderPending)
-                    ProcessLoadOrders();
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
+            }
+        }
+
+        [HookMethod("ImportItemList")]
+        public void ImportItemList(string title, Dictionary<string, Dictionary<ulong, string>> itemList, bool replace = false)
+        {
+            Dictionary<string, string> newLoadOrder = new Dictionary<string, string>();
+            foreach (var image in itemList)
+            {
+                foreach (var skin in image.Value)
+                {
+                    if (!replace && HasImage(image.Key, skin.Key))
+                        continue;
+                    newLoadOrder[$"{image.Key}_{skin.Key}"] = skin.Value;
+                }
+            }
+            if (newLoadOrder.Count > 0)
+            {
+                loadOrders.Enqueue(new LoadOrder(title, newLoadOrder));
+                if (!orderPending)
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             }
         }
 
@@ -723,7 +871,7 @@ namespace Oxide.Plugins
             {
                 loadOrders.Enqueue(new LoadOrder(title, newLoadOrder));
                 if (!orderPending)
-                    ProcessLoadOrders();
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             }
         }
 
@@ -743,8 +891,35 @@ namespace Oxide.Plugins
             {
                 loadOrders.Enqueue(new LoadOrder(title, newLoadOrder));
                 if (!orderPending)
-                    ProcessLoadOrders();
+                    ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
             }
+        }
+
+        [HookMethod("AddCustomSkin")]
+        public void AddCustomSkin(string shortName, string title, string url, ulong skinId)
+        {
+            string identifier = $"{shortName}_{skinId}";
+
+            if (!imageUrls.URLs.ContainsKey(identifier))
+                imageUrls.URLs.Add(identifier, url);
+
+            skinInformation.skinData[identifier] = new Dictionary<string, object>
+            {
+                {"title", title },
+                {"votesup", 0 },
+                {"votesdown", 0 },
+                {"description", 0 },
+                {"score", 0 },
+                {"views", 0 },
+                {"created", 0 },
+            };
+
+            SaveSkinInfo();
+            SaveUrls();
+
+            loadOrders.Enqueue(new LoadOrder(title, new Dictionary<string, string> { { $"{shortName}_{skinId}", url } }, true));
+            if (!orderPending)
+                ServerMgr.Instance.StartCoroutine(ProcessLoadOrders());
         }
         #endregion
 
@@ -756,17 +931,7 @@ namespace Oxide.Plugins
             {                               
                 ServerMgr.Instance.StartCoroutine(GetWorkshopSkins());
             }
-        }
-
-        [ConsoleCommand("refreshallimages")]
-        private void cmdRefreshAllImages(ConsoleSystem.Arg arg)
-        {
-            if (arg.Connection == null || arg.Connection.authLevel > 0)
-            {
-                PrintWarning("Reloading all images!");
-                RefreshImagery();
-            }
-        }
+        }        
 
         [ConsoleCommand("cancelstorage")]
         private void cmdCancelStorage(ConsoleSystem.Arg arg)
@@ -783,31 +948,84 @@ namespace Oxide.Plugins
                 }
             }
         }
+
+        private List<ulong> pendingAnswers = new List<ulong>();
+
+        [ConsoleCommand("refreshallimages")]
+        private void cmdRefreshAllImages(ConsoleSystem.Arg arg)
+        {
+            if (arg.Connection == null || arg.Connection.authLevel > 0)
+            {
+                SendReply(arg, "Running this command will wipe all of your ImageLibrary data, meaning every registered image will need to be re-downloaded. Are you sure you wish to continue? (type yes or no)");
+
+                ulong userId = arg.IsRcon ? 0U : arg.Connection.userid;
+                if (!pendingAnswers.Contains(userId))
+                {
+                    pendingAnswers.Add(userId);
+                    timer.In(5, () =>
+                    {
+                        if (pendingAnswers.Contains(userId))
+                            pendingAnswers.Remove(userId);
+                    });
+                }
+            }
+        }
+
+        [ConsoleCommand("yes")]
+        private void cmdRefreshAllImagesYes(ConsoleSystem.Arg arg)
+        {
+            if (arg.Connection == null || arg.Connection.authLevel > 0)
+            {
+                PrintWarning("Wiping ImageLibrary data and redownloading ImageLibrary specific images. All plugins that have registered images via ImageLibrary will need to be re-loaded!");
+                RefreshImagery();
+
+                ulong userId = arg.IsRcon ? 0U : arg.Connection.userid;
+                if (pendingAnswers.Contains(userId))
+                    pendingAnswers.Remove(userId);
+            }
+        }
+
+        [ConsoleCommand("no")]
+        private void cmdRefreshAllImagesNo(ConsoleSystem.Arg arg)
+        {
+            if (arg.Connection == null || arg.Connection.authLevel > 0)
+            {
+                SendReply(arg, "ImageLibrary data wipe aborted!");
+                ulong userId = arg.IsRcon ? 0U : arg.Connection.userid;
+                if (pendingAnswers.Contains(userId))
+                    pendingAnswers.Remove(userId);
+            }
+        }
+
         #endregion
 
         #region Image Storage
-        class LoadOrder
+        private class LoadOrder
         {
             public string loadName;
+            public bool loadSilent;
+
             public Dictionary<string, string> imageList = new Dictionary<string, string>();
             public Dictionary<string, byte[]> imageData = new Dictionary<string, byte[]>();
 
             public LoadOrder() { }
-            public LoadOrder(string loadName, Dictionary<string, string> imageList)
+            public LoadOrder(string loadName, Dictionary<string, string> imageList, bool loadSilent = false)
             {
                 this.loadName = loadName;
                 this.imageList = imageList;
+                this.loadSilent = loadSilent;
             }
-            public LoadOrder(string loadName, Dictionary<string, byte[]> imageData)
+            public LoadOrder(string loadName, Dictionary<string, byte[]> imageData, bool loadSilent = false)
             {
                 this.loadName = loadName;
                 this.imageData = imageData;
+                this.loadSilent = loadSilent;
             }
         }
-        class ImageAssets : MonoBehaviour
+
+        private class ImageAssets : MonoBehaviour
         {
             private Queue<QueueItem> queueList = new Queue<QueueItem>();
-            private MemoryStream stream = new MemoryStream();
             private bool isLoading;
             private double nextUpdate;
             private int listCount;
@@ -817,31 +1035,29 @@ namespace Oxide.Plugins
             {
                 queueList.Clear();
             }
+
             public void Add(string name, string url = null, byte[] bytes = null)
             {
                 queueList.Enqueue(new QueueItem(name, url, bytes));
             }
-            public void BeginIndividual(string name, string url = null, byte[] bytes = null)
-            {
-                queueList.Enqueue(new QueueItem(name, url, bytes));
-                if (queueList.Count == 1)
-                    Next();
-            }
+                        
             public void BeginLoad(string request)
             {
                 this.request = request;
                 nextUpdate = UnityEngine.Time.time + il.configData.UpdateInterval;
                 listCount = queueList.Count;
                 Next();
-            }            
+            }  
+            
             public void ClearList()
             {
                 queueList.Clear();
                 il.orderPending = false;
             }
+
             private void Next()
             {
-                if (queueList.Count <= 0)
+                if (queueList.Count == 0)
                 {
                     il.orderPending = false;
                     il.SaveData();
@@ -851,7 +1067,7 @@ namespace Oxide.Plugins
                     request = string.Empty;
                     listCount = 0;
 
-                    il.ProcessLoadOrders();                    
+                    StartCoroutine(il.ProcessLoadOrders());                                       
                     return;
                 }
                 if (il.configData.ShowProgress && listCount > 1)
@@ -871,13 +1087,8 @@ namespace Oxide.Plugins
                     StartCoroutine(DownloadImage(queueItem));
                 else StoreByteArray(queueItem.bytes, queueItem.name);
             }
-            private void ClearStream()
-            {
-                stream.Position = 0;
-                stream.SetLength(0);
-            }
 
-            IEnumerator DownloadImage(QueueItem info)
+            private IEnumerator DownloadImage(QueueItem info)
             {
                 using (var www = new WWW(info.url))
                 {
@@ -885,33 +1096,30 @@ namespace Oxide.Plugins
                     if (il == null) yield break;
                     if (info.bytes == null && www.error != null)
                     {
-                        print(string.Format("Image loading fail! Error: {0} - Image Name: {1} - Image URL: {2}", www.error, info.name, info.url));
-                    }
-                    else
-                    {
-                        var tex = www.texture;
-                        byte[] bytes = tex.EncodeToPNG();                        
-                        StoreByteArray(bytes, info.name);
-                        DestroyImmediate(tex);
+                        print(string.Format("Image failed to download! Error: {0} - Image Name: {1} - Image URL: {2}", www.error, info.name, info.url));
+                        www.Dispose();
+                        isLoading = false;
+                        Next();
                         yield break;
                     }
-                    isLoading = false;
-                    Next();                    
+
+                    Texture2D texture = www.texture;
+                    byte[] bytes = texture.EncodeToPNG();
+                    DestroyImmediate(texture);
+                    www.Dispose();
+                    StoreByteArray(bytes, info.name);
                 }
             }
-            internal void StoreByteArray(byte[] bytes, string name)
+
+            private void StoreByteArray(byte[] bytes, string name)
             {
                 if (bytes != null)
-                {
-                    ClearStream();
-                    stream.Write(bytes, 0, bytes.Length);
-                    il.imageIdentifiers.imageIds[name] = FileStorage.server.Store(stream, FileStorage.Type.png, CommunityEntity.ServerInstance.net.ID).ToString();
-                    ClearStream();
-                }
+                    il.imageIdentifiers.imageIds[name] = FileStorage.server.Store(bytes, FileStorage.Type.png, CommunityEntity.ServerInstance.net.ID).ToString();
                 isLoading = false;
                 Next();
             }
-            internal class QueueItem
+
+            private class QueueItem
             {
                 public byte[] bytes;
                 public string url;
@@ -968,15 +1176,15 @@ namespace Oxide.Plugins
             SaveConfig(config);
         }
         private void LoadConfigVariables() => configData = Config.ReadObject<ConfigData>();
-        void SaveConfig(ConfigData config) => Config.WriteObject(config, true);
+        private void SaveConfig(ConfigData config) => Config.WriteObject(config, true);
         #endregion
 
         #region Data Management
-        void SaveData() => identifiers.WriteObject(imageIdentifiers);
-        void SaveSkinInfo() => skininfo.WriteObject(skinInformation);
-        void SaveUrls() => urls.WriteObject(imageUrls);
+        private void SaveData() => identifiers.WriteObject(imageIdentifiers);
+        private void SaveSkinInfo() => skininfo.WriteObject(skinInformation);
+        private void SaveUrls() => urls.WriteObject(imageUrls);
 
-        void LoadData()
+        private void LoadData()
         {
             try
             {
@@ -1002,22 +1210,29 @@ namespace Oxide.Plugins
             {
                 imageUrls = new ImageURLs();                               
             }
+            if (skinInformation == null)
+                skinInformation = new SkinInformation();
+            if (imageIdentifiers == null)
+                imageIdentifiers = new ImageIdentifiers();
+            if (imageUrls == null)
+                imageUrls = new ImageURLs();
             if (imageUrls.URLs.Count == 0)
             {
                 foreach (var item in defaultUrls)
                     imageUrls.URLs.Add($"{item.Key}_0", item.Value);
             }
         }
-        class ImageIdentifiers
+
+        private class ImageIdentifiers
         {
             public uint lastCEID;
             public Hash<string, string> imageIds = new Hash<string, string>();
         }
-        class SkinInformation
+        private class SkinInformation
         {
             public Hash<string, Dictionary<string, object>> skinData = new Hash<string, Dictionary<string, object>>();
         }
-        class ImageURLs
+        private class ImageURLs
         {
             public Hash<string, string> URLs = new Hash<string, string>();
         }

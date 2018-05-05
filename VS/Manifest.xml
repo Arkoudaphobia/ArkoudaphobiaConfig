@@ -6,7 +6,7 @@
     <Mod Name="BetterChatFilter.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
     <Mod Name="BetterSay.cs" Enabled="true"/>
-    <Mod Name="BlueprintsRevived.cs" Enabled="true"/>
+    <Mod Name="BlueprintsRevived.cs" Enabled="false"/>
     <Mod Name="BuildingBlocker.cs" Enabled="true"/>
     <Mod Name="BuildingOwners.cs" Enabled="true"/>
     <Mod Name="Clans.cs" Enabled="true"/>
@@ -49,7 +49,7 @@
     <Mod Name="Spyon.py" Enabled="true"/>
     <Mod Name="StackSizeController.cs" Enabled="true"/>
     <Mod Name="SurveyInfo.cs" Enabled="true"/>  
-    <Mod Name="Timber.cs" Enabled="true"/>
+    <Mod Name="Timber.cs" Enabled="false"/>
     <Mod Name="TimeOfDay.cs" Enabled="true"/>
     <Mod Name="Trade.cs" Enabled="true"/>
     <Mod Name="ZLevelsRemastered.cs" Enabled="true"/>
@@ -94,7 +94,7 @@
     <Config Name="SignArtist.json" remove="false"/>
     <Config Name="StackSizeController.json" remove="false"/>
     <Config Name="SurveyInfo.json" remove="false"/>
-    <Config Name="Timber.json" remove="false"/>
+    <Config Name="Timber.json" remove="true"/>
     <Config Name="TimeOfDay.json" remove="false"/>
     <Config Name="Trade.json" remove="false"/>
     <Config Name="ZLevelsRemastered.json" remove="false"/>

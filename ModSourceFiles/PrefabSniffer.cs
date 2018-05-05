@@ -1,24 +1,23 @@
-using System;
+using Oxide.Core.Libraries.Covalence;
 using System.Collections.Generic;
 using System.Reflection;
-using Oxide.Core.Libraries.Covalence;
 using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("PrefabSniffer", "Ayrin", "1.2.0", ResourceId = 1938)]
+    [Info("Prefab Sniffer", "Ayrin", "1.2.1", ResourceId = 1938)]
     [Description("Sniffs the game files for prefab file locations")]
     public class PrefabSniffer : CovalencePlugin
     {
         private const string commandUsage = "Usage: prefabs <build, fx, or all>";
 
-        private static Dictionary<string, AssetBundle> assets;
-        private static FieldInfo files;
-        private static GameManifest.PooledString[] manifest;
+        private Dictionary<string, AssetBundle> assets;
+        private FieldInfo files;
+        private GameManifest.PooledString[] manifest;
 
         private void OnServerInitialized()
         {
-            files = typeof(FileSystem_AssetBundles).GetField("files", BindingFlags.Instance | BindingFlags.NonPublic);
+            files = typeof(FileSystem_AssetBundles).GetField("files", BindingFlags.Instance | BindingFlags.Public);
             assets = (Dictionary<string, AssetBundle>)files.GetValue(FileSystem.iface);
             manifest = GameManifest.Current.pooledStrings;
         }

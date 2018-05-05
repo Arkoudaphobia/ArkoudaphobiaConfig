@@ -7,7 +7,7 @@ using ProtoBuf;
 
 namespace Oxide.Plugins
 {
-    [Info("Friends", "Nogrod", "2.2.4", ResourceId = 686)]
+    [Info("Friends", "Nogrod", "2.2.5", ResourceId = 686)]
     [Description("An API to manage a friend list")]
     public class Friends : CovalencePlugin
     {
@@ -411,7 +411,10 @@ namespace Oxide.Plugins
 
         #endregion
 
-        private void Reply(IPlayer player, string langKey, params object[] args) => player.Reply(lang.GetMessage(langKey, this, player.Id), args);
+        private void Reply(IPlayer player, string langKey, params object[] args)
+        {
+            player.Reply(string.Format(lang.GetMessage(langKey, this, player.Id), args));
+        }
 
         private void SendHelpText(object obj)
         {
