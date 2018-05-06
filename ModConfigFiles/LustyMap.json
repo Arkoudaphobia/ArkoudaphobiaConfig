@@ -13,7 +13,7 @@
     "Enable AFK tracking": true,
     "Hide event players": true,
     "Map image options": {
-      "Beancan.io API key (if applicable)": "",
+      "Beancan.io API key (if applicable)": "7ca7a3f892",
       "Custom map filename": "",
       "Use custom map": false
     },
