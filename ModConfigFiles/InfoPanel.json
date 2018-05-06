@@ -274,8 +274,8 @@
       "Width": 0.1
     },
     "MessageBox": {
-      "AnchorX": "Left",
-      "AnchorY": "Bottom",
+      "AnchorX": "Right",
+      "AnchorY": "Top",
       "Autoload": true,
       "Available": true,
       "BackgroundColor": "0 0 0 0",

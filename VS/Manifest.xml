@@ -13,6 +13,7 @@
     <Mod Name="CorpseDuration.cs" Enabled="true"/>
     <Mod Name="CraftingController.cs" Enabled="true"/>
     <Mod Name="DeathNotes.cs" Enabled="true"/>
+    <Mod Name="DynamicPVP.cs" Enabled="true"/>
     <Mod Name="EnhancedHammer.cs" Enabled="true"/>
     <Mod Name="EntityOwner.cs" Enabled="true"/>
     <Mod Name="FriendlyFire.cs" Enabled="true"/>
@@ -66,6 +67,7 @@
     <Config Name="CorpseDuration.json" remove="false"/>
     <Config Name="CraftingController.json" remove="false"/>
     <Config Name="DeathNotes.json" remove="false"/>
+    <Config Name="DynamicPVP.json" remove="false"/>
     <Config Name="EntityOwner.json" remove="false"/>
     <Config Name="FriendlyFire.json" remove="false"/>
     <Config Name="Friends.json" remove="false"/>

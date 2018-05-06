@@ -1,0 +1,45 @@
+{
+    "Global": {
+      "ConfigVersion": "Version 3.0.0",
+      "PluginEnabled": true,
+      "DebugEnabled": false,
+      "ExtraZoneFlags": "",
+      "MsgEnter": "Entering a PVP area!",
+      "MsgLeave": "Leaving a PVP area.",
+      "BlockTeleport": true,
+      "BotsEnabled": true,
+      "DomesEnabled": true
+    },
+    "Events": {
+      "BradleyAPC": {
+        "BotProfile": "DynamicPVP",
+        "Duration": 600.0,
+        "Enabled": true,
+        "Radius": 100.0
+      },
+      "PatrolHelicopter": {
+        "BotProfile": "DynamicPVP",
+        "Duration": 600.0,
+        "Enabled": true,
+        "Radius": 100.0
+      },
+      "SupplySignal": {
+        "BotProfile": "DynamicPVP",
+        "Duration": 600.0,
+        "Enabled": false,
+        "Radius": 100.0
+      },
+      "TimedCrate": {
+        "BotProfile": "DynamicPVP",
+        "Duration": 1200.0,
+        "Enabled": true,
+        "Radius": 100.0
+      },
+      "TimedDrop": {
+        "BotProfile": "DynamicPVP",
+        "Duration": 600.0,
+        "Enabled": true,
+        "Radius": 100.0
+      }
+    }
+  }
