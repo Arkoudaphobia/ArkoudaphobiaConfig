@@ -9,7 +9,7 @@
     "AllowAboveFoundation": true,
     "AllowCave": true,
     "AllowCraft": false,
-    "AllowIceberg": false,
+    "AllowIceberg": true,
     "CheckFoundationForOwner": true,
     "CheckValidOnList": false,
     "Cooldown": 300,
