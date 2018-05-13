@@ -4,10 +4,11 @@ using System.Linq;
 using UnityEngine;
 using Oxide.Core.Plugins;
 using Newtonsoft.Json;
+using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("DynamicPVP", "CatMeat", "3.0.2", ResourceId = 2728)]
+    [Info("DynamicPVP", "CatMeat", "3.1.3", ResourceId = 2728)]
     [Description("Create temporary PVP zones around SupplyDrops, LockedCrates, APC and/or Heli")]
 
     public class DynamicPVP : RustPlugin
@@ -34,8 +35,10 @@ namespace Oxide.Plugins
         static string PluginVersion;
         string debugfilename = "debug";
 
-        List<BaseEntity> activeSupplySignals = new List<BaseEntity>();
+        Dictionary<BaseEntity, Vector3> activeSupplySignals = new Dictionary<BaseEntity, Vector3>();
         Dictionary<string, Vector3> ActiveDynamicZones = new Dictionary<string, Vector3>();
+        Dictionary<ulong, Timer> PVPDelay = new Dictionary<ulong, Timer>();
+
         ConsoleSystem.Arg arguments;
 
         #endregion
@@ -72,6 +75,7 @@ namespace Oxide.Plugins
 
         void Init()
         {
+            PluginVersion = Version.ToString();
             LoadConfigVariables();
         }
 
@@ -96,7 +100,7 @@ namespace Oxide.Plugins
         private void CmdConsoleCommand(ConsoleSystem.Arg arg)
         {
             arguments = arg; //save for responding later
-            if (arg.Connection != null && arg.IsAdmin)
+            if (arg.IsAdmin)
                 if (arg.Args.Count() > 0) ProcessCommand(null, arg.Args);
         }
 
@@ -156,8 +160,12 @@ namespace Oxide.Plugins
             switch (entity.ShortPrefabName)
             {
                 case "supply_drop":
-                    if (IsProbablySupplySignal(entity.transform.position))
+
+                    bool IsSupplySignal = IsProbablySupplySignal(entity.transform.position);
+                    DebugPrint($"IsProbablySupplySignal: {IsSupplySignal}", false);
+                    if (IsSupplySignal)
                     {
+                        DebugPrint($"Settings.Events.SupplySignal.Enabled: {Settings.Events.SupplySignal.Enabled}", false);
                         if (!Settings.Events.SupplySignal.Enabled) return;
                         CreateDynZone("Signal",
                             entity.transform.position,
@@ -165,7 +173,6 @@ namespace Oxide.Plugins
                             Settings.Events.SupplySignal.Duration,
                             Settings.Events.SupplySignal.BotProfile
                             );
-                        break;
                     }
                     else
                     {
@@ -176,8 +183,8 @@ namespace Oxide.Plugins
                             Settings.Events.TimedDrop.Duration,
                             Settings.Events.TimedDrop.BotProfile
                             );
-                        break;
                     }
+                    break;
                 case "codelockedhackablecrate":
                     if (!Settings.Events.TimedCrate.Enabled) return;
                     CreateDynZone("Crate",
@@ -230,17 +237,20 @@ namespace Oxide.Plugins
             {
                 string DynZoneID = DateTime.Now.ToString("HHmmssff");
 
-                List<string> DynArgs = new List<string>();
-                DynArgs.Add("name");
-                DynArgs.Add("DynamicPVP");
-                DynArgs.Add("radius");
-                DynArgs.Add(_radius.ToString());
-                DynArgs.Add("enter_message");
-                DynArgs.Add("Entering a PVP area!");
-                DynArgs.Add("leave_message");
-                DynArgs.Add("Leaving a PVP area.");
-                DynArgs.Add("undestr");
-                DynArgs.Add("true");
+                List<string> DynArgs = new List<string>
+                {
+                    "name",
+                    "DynamicPVP",
+                    "radius",
+                    _radius.ToString(),
+                    "enter_message",
+                    "Entering a PVP area!",
+                    "leave_message",
+                    "Leaving a PVP area.",
+                    "undestr",
+                    "true"
+                };
+
                 if (Settings.Global.BlockTeleport)
                 {
                     DynArgs.Add("notp");
@@ -277,20 +287,9 @@ namespace Oxide.Plugins
                     }
                     if (BotSpawnAllowed())
                     {
-                        string[] result = SpawnBots(DynPosition, _profile, DynZoneID);
+                        bool botsSpawned = SpawnBots(DynPosition, _profile, DynZoneID);
 
-                        if (result[0] == "false")
-                        {
-                            DebugPrint($"ERROR: Bot spawn failed with profile `{_profile}` : {result[1]}", true);
-                            result = SpawnBots(DynPosition, "DynamicPVP", DynZoneID);
-                            if (result[0] == "false") DebugPrint($"ERROR: Bot spawn failed with default profile.", true);
-                            else
-                            {
-                                DebugPrint($"Spawned bots using default profile.", true);
-                                successString = successString + " Bots,";
-                            }
-                        }
-                        else successString = successString + " Bots,";
+                        if (botsSpawned) successString = successString + " Bots,";
                     }
                     timer.Once(_duration, () => { DeleteDynZone(DynZoneID); });
                     if (successString.EndsWith(",")) successString = successString.Substring(0, successString.Length - 1);
@@ -306,25 +305,36 @@ namespace Oxide.Plugins
             {
                 string successString = "";
 
+                if (String.IsNullOrEmpty(DynZoneID))
+                {
+                    DebugPrint("Invalid ZoneID", false);
+                    return false;
+                }
                 if (BotSpawnAllowed())
                 {
-                    string[] result = RemoveBots(DynZoneID);
+                    DebugPrint("Calling RemoveBots", false);
 
-                    if (result[0] == "false") DebugPrint($"ERROR: Bot delete failed: {result[1]}", true);
-                    else successString = successString + " Bots,";
+                    bool botsRemoved = RemoveBots(DynZoneID);
+
+                    if (botsRemoved) successString = successString + " Bots,";
                 }
                 if (DomeCreateAllowed())
                 {
+                    DebugPrint("Calling RemoveDome", false);
+
                     bool DomeRemoved = RemoveDome(DynZoneID);
 
                     if (!DomeRemoved) DebugPrint("ERROR: Dome NOT removed for Zone: " + DynZoneID, true);
                     else successString = successString + " Dome,";
                 }
+                DebugPrint("Calling RemoveMapping", false);
 
                 bool MappingRemoved = RemoveMapping(DynZoneID);
 
                 if (!MappingRemoved) DebugPrint("ERROR: PVP NOT disabled for Zone: " + DynZoneID, true);
                 else successString = successString + " Mapping,";
+
+                DebugPrint("Calling RemoveZone", false);
 
                 bool ZoneRemoved = RemoveZone(DynZoneID);
 
@@ -383,9 +393,50 @@ namespace Oxide.Plugins
         bool RemoveZone(string zoneID) => (bool)ZoneManager?.Call("EraseZone", zoneID);
 
         // BotSpawn API
-        string[] SpawnBots(Vector3 zoneLocation, string zoneProfile, string zoneGroupID) => (String[])BotSpawn?.CallHook("AddGroupSpawn", zoneLocation, zoneProfile, zoneGroupID);
+        bool SpawnBots(Vector3 zoneLocation, string zoneProfile, string zoneGroupID)
+        {
+            if (!String.IsNullOrEmpty(zoneProfile))
+            {
+                string[] result = (string[])BotSpawn?.CallHook("AddGroupSpawn", zoneLocation, zoneProfile, zoneGroupID);
 
-        string[] RemoveBots(string zoneGroupID) => (string[])BotSpawn?.CallHook("RemoveGroupSpawn", zoneGroupID);
+                if (result == null || result.Length < 2)
+                {
+                    DebugPrint("AddGroupSpawn returned invalid response.", false);
+                    return false;
+                }
+
+                switch (result[0])
+                {
+                    case "true":
+                        return true;
+                    case "false":
+                        return false;
+                    case "error":
+                        DebugPrint($"ERROR: AddGroupSpawn failed: {result[1]}", true);
+                        return false;
+                    default:
+                        return false;
+                }
+            }
+            return false;
+        }
+
+        bool RemoveBots(string zoneGroupID)
+        {
+            string[] result = (string[])BotSpawn?.CallHook("RemoveGroupSpawn", zoneGroupID);
+
+            if (result == null || result.Length < 2)
+            {
+                DebugPrint("RemoveGroupSpawn returned invalid response.", false);
+                return false;
+            }
+            else if (result[0] == "error")
+            {
+                DebugPrint($"ERROR: RemoveGroupSpawn failed: {result[1]}", true);
+                return false;
+            }
+            else return true;
+        }
 
         string[] CheckProfile(string profile) => (string[])BotSpawn?.CallHook("ProfileExists", profile);
 
@@ -425,44 +476,39 @@ namespace Oxide.Plugins
         #region SupplySignals
         bool IsProbablySupplySignal(Vector3 landingposition)
         {
-            bool probable = false;
-
-            // potential issues with signals thrown near each other (<40m)
+            //  potential issues with signals thrown near each other (<40m)
             // definite issues with modifications that create more than one supply drop per cargo plane.
             // potential issues with player moving while throwing signal.
 
-            //DebugPrint($"Checking {activeSupplySignals.Count()} active supply signals", false);
+            DebugPrint($"Checking {activeSupplySignals.Count()} active supply signals", false);
             if (activeSupplySignals.Count() > 0)
             {
-                foreach (BaseEntity supplysignal in activeSupplySignals.ToList())
+                foreach (var supplysignal in activeSupplySignals.ToList())
                 {
-                    if (supplysignal == null)
+                    if (supplysignal.Key == null)
                     {
-                        activeSupplySignals.Remove(supplysignal);
+                        activeSupplySignals.Remove(supplysignal.Key);
                         continue;
                     }
 
-                    Vector3 thrownposition = supplysignal.transform.position;
-                    float xdiff = Math.Abs(thrownposition.x - landingposition.x);
-                    float zdiff = Math.Abs(thrownposition.z - landingposition.z);
+                    var thrownposition = supplysignal.Value;
+                    thrownposition.y = 0;
+                    landingposition.y = 0;
+                    var distance = Vector3.Distance(thrownposition, landingposition);
+                    DebugPrint($"Found SupplySignal at {supplysignal.Value} located {distance}m away.", false);
 
-                    //DebugPrint($"Known SupplySignal at {thrownposition} differing by {xdiff}, {zdiff}", false);
-
-                    if (xdiff < compareRadius && zdiff < compareRadius)
+                    if (distance < compareRadius)
                     {
-                        probable = true;
-                        activeSupplySignals.Remove(supplysignal);
+                        activeSupplySignals.Remove(supplysignal.Key);
                         DebugPrint("Found matching SupplySignal.", false);
                         DebugPrint($"Active supply signals remaining: {activeSupplySignals.Count()}", false);
-
-                        break;
+                        return true;
                     }
                 }
-                if (!probable)
-                    //DebugPrint($"No matches found, probably from a timed event cargo_plane", false);
-                    return probable;
+                DebugPrint($"No matches found, probably from a timed event cargo_plane", false);
+                return false;
             }
-            //DebugPrint($"No active signals, must be from a timed event cargo_plane", false);
+            DebugPrint($"No active signals, must be from a timed event cargo_plane", false);
             return false;
         }
 
@@ -475,7 +521,7 @@ namespace Oxide.Plugins
 
             Vector3 position = entity.transform.position;
 
-            if (activeSupplySignals.Contains(entity))
+            if (activeSupplySignals.ContainsKey(entity))
                 return;
             SupplyThrown(player, entity, position);
             return;
@@ -484,7 +530,7 @@ namespace Oxide.Plugins
         void OnExplosiveDropped(BasePlayer player, BaseEntity entity)
         {
             if (entity == null || !(entity is SupplySignal)) return;
-            if (activeSupplySignals.Contains(entity)) return;
+            if (activeSupplySignals.ContainsKey(entity)) return;
 
             Vector3 position = entity.transform.position;
             SupplyThrown(player, entity, position);
@@ -493,7 +539,7 @@ namespace Oxide.Plugins
 
         void SupplyThrown(BasePlayer player, BaseEntity entity, Vector3 position)
         {
-            Vector3 thrownposition = player.transform.position;
+            //Vector3 thrownposition = entity.transform.position;
 
             timer.Once(2.0f, () =>
             {
@@ -507,8 +553,8 @@ namespace Oxide.Plugins
             timer.Once(2.3f, () =>
             {
                 if (entity == null) return;
-                activeSupplySignals.Add(entity);
-                //DebugPrint($"SupplySignal position of {position}", false);
+                activeSupplySignals.Add(entity, position);
+                DebugPrint($"SupplySignal position of {position}", false);
             });
         }
 
@@ -600,7 +646,7 @@ namespace Oxide.Plugins
 
         public class GlobalOptions
         {
-            public string ConfigVersion = "Version 3.0.2";
+            public string ConfigVersion = PluginVersion;
             public bool PluginEnabled = true;
             public bool DebugEnabled = false;
 
@@ -611,6 +657,9 @@ namespace Oxide.Plugins
             public bool BlockTeleport = true;
             public bool BotsEnabled = true;
             public bool DomesEnabled = true;
+
+            public bool PVPDelayEnabled = true;
+            public int PVPDelayTime = 10;
         }
 
         public class SpecificEventOptions
@@ -630,6 +679,77 @@ namespace Oxide.Plugins
             public float Radius = 100;
         }
 
+        #endregion
+
+        #region PVPDelay
+
+        object CanEntityTakeDamage(BaseCombatEntity entity, HitInfo hitinfo)
+        {
+            if (!Settings.Global.PVPDelayEnabled) return null;
+            if (entity is BasePlayer)
+            {
+                var player = entity as BasePlayer;
+
+                if (PVPDelay.ContainsKey(player.userID)) return true; // force allow damage
+            }
+            return null; //allow default behavior
+        }
+
+        private void OnEnterZone(string zoneID, BasePlayer player)
+        {
+            string zoneName = (string)ZoneManager?.Call("GetZoneName", zoneID);
+
+            if (zoneName == "DynamicPVP")
+            {
+                var _name = GetPlayerName(player);
+
+                if (_name != null) DebugPrint($"{_name} has entered PVP Zone {zoneID}.", true);
+            }
+        }
+
+        private void OnExitZone(string zoneID, BasePlayer player)
+        {
+            if (!Settings.Global.PVPDelayEnabled) return;
+
+            string zoneName = (string)ZoneManager?.Call("GetZoneName", zoneID);
+
+            if (zoneName != "DynamicPVP" || player is NPCPlayer) return;
+            if (player.userID < 76560000000000000L) return;
+            if (!player.userID.IsSteamId()) return;
+
+            var _name = GetPlayerName(player);
+
+            if (_name == null) return;
+            DebugPrint($"{_name} has left a PVP Zone {zoneID}.", true);
+
+            if (!PVPDelay.ContainsKey(player.userID))
+            {
+                var time = Settings.Global.PVPDelayTime;
+                DebugPrint($"Adding {player.displayName} to PVPDelay.", true);
+                PVPDelay.Add(player.userID, timer.Repeat(1, time, () =>
+                {
+                    time--;
+                    if (time == 0)
+                    {
+                        DebugPrint($"Remove {player.displayName} from PVPDelay.", true);
+                        PVPDelay.Remove(player.userID);
+                    }
+                }));
+            }
+        }
+
+        public string GetPlayerName(BasePlayer player)
+        {
+            if (player.displayName == "")
+            {
+                if (player.name == "")
+                {
+                    return null;
+                }
+                else return player.name;
+            }
+            else return player.displayName;
+        }
         #endregion
     }
 }
