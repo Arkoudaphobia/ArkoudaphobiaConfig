@@ -18,6 +18,6 @@
       "Loot Damage (true/false)": true,
       "Structure Damage (true/false)": false,
       "Turret Damage (true/false)": false,
-      "World Damage (true/false)": false
+      "World Damage (true/false)": true
     }
   }
