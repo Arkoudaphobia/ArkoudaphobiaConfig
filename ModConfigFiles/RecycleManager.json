@@ -1,0 +1,18 @@
+{
+    "Lists": {
+      "Input Blacklist": [
+        "hemp.seed"
+      ],
+      "Output Blacklist": [
+        "hemp.seed"
+      ],
+      "Recycle Output Multipliers": {
+        "*": 1,
+        "metal.refined": 1
+      }
+    },
+    "Settings": {
+      "Max Items Per Recycle": 100,
+      "Recycle Time": 5.0
+    }
+  }

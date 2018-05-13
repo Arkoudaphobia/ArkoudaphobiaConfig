@@ -1,0 +1,14 @@
+{
+    "Types to autofuel": {
+      "Use Barbeque": true,
+      "Use Campfire": true,
+      "Use Ceiling Light": true,
+      "Use Furnace": true,
+      "Use JackOLanterns": true,
+      "Use Lantern": true,
+      "Use Large Furnace": true,
+      "Use Search Light": true,
+      "Use Small Oil Refinery": true,
+      "Use Tuna Can Lamp": true
+    }
+  }
