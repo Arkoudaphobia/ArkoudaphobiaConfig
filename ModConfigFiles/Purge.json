@@ -17,7 +17,7 @@
       "Heli Damage (true/false)": true,
       "Loot Damage (true/false)": true,
       "Structure Damage (true/false)": false,
-      "Turret Damage (true/false)": false,
+      "Turret Damage (true/false)": true,
       "World Damage (true/false)": true
     }
   }
