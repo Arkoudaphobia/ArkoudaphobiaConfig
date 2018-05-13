@@ -2,6 +2,7 @@
 <ArkoudaphobiaConfig xmlns="http://schema.utmonline.net/xml/2016/RustModuleManafest2">
   <ModFiles>
     <Mod Name="AutoDoors.cs" Enabled="true"/>
+    <Mod Name="AutoFuel.cs" Enabled="true"/>
     <Mod Name="BetterChat.cs" Enabled="true"/>
     <Mod Name="BetterChatFilter.cs" Enabled="true"/>
     <Mod Name="BetterChatMute.cs" Enabled="true"/>
@@ -44,6 +45,7 @@
     <Mod Name="Purge.cs" Enabled="false"/> 
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
+    <Mod Name="RecycleManager.cs" Enabled="true"/>
     <Mod Name="RemoverTool.cs" Enabled="true"/>
     <Mod Name="RustyBearDebug.cs" Enabled="true"/>    
     <Mod Name="SignArtist.cs" Enabled="true"/>
@@ -59,6 +61,7 @@
   </ModFiles>
   <ModConfigFiles>
     <Config Name="AutoDoors.json" remove="false"/>
+    <Config Name="AutoFuel.json" remove="false"/>
     <Config Name="AbsolutMail.json" remove="true"/>
     <Config Name="BetterChat.json" remove="false"/>
     <Config Name="BetterChatFilter.json" remove="false"/>
@@ -92,6 +95,7 @@
     <Config Name="Purge.json" remove="true"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
+    <Config Name="RecycleManager.json" remove="false"/>
     <Config Name="RemoverTool.json" remove="false"/>
     <Config Name="RustIO.json" remove="false"/>
     <Config Name="SleeperAnimalProtection.json" remove="false"/>
