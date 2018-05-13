@@ -1,8 +1,7 @@
 {
-  "Settings": {
-    "Formatting": "{Title}: {Message}",
-    "Message Color": "white",
-    "Title": "MCP",
-    "Title Color": "cyan"
-  }
-}
+    "Format": "{Title}: {Message}",
+    "Title": "Server",
+    "Title Color": "cyan",
+    "Message Color": "white",
+    "Chat Icon (SteamID64)": 0
+  }
