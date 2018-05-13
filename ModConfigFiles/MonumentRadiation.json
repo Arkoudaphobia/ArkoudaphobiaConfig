@@ -1,102 +1,142 @@
 {
-  "Messaging": {
-    "Display_EnterMessage": true,
-    "Display_LeaveMessage": true
-  },
-
-"Options": {
-    "Broadcast_Timers": true,
-    "Use_RandomTimers": true,
-    "Use_Timers": true,
-    "Using_HapisIsland": false,
-    "Using_InfoPanel": true
-  },
-  "Timers": {
-    "Random_OffMax": 45, 
-    "Random_OffMin": 25, 
-    "Random_OnMax": 240, 
-    "Random_OnMin": 5, 
-    "Static_Off": 45, 
-    "Static_On": 240 
-  },
-  "Zones": {
-    "Airfield": {
-      "Activate": false, 
-      "Name": "Airfield", 
-      "Radiation": 30.0, 
-      "Radius": 85.0 
-    },
-    "Dome": {
-      "Activate": true,
-      "Name": "Dome",
-      "Radiation": 35.0,
-      "Radius": 50.0
-    },
-    "LargeHarbor": {
-      "Activate": false,
-      "Name": "Large Harbor",
-      "Radiation": 30.0,
-      "Radius": 120.0
-    },
-    "Lighthouse": {
-      "Activate": false,
-      "Name": "Lighthouse",
-      "Radiation": 30.0,
-      "Radius": 15.0
-    },
-    "Powerplant": {
-      "Activate": true,
-      "Name": "Powerplant",
-      "Radiation": 50.0,
-      "Radius": 120.0
-    },
-    "Radtown": {
-      "Activate": true,
-      "Name": "Radtown",
-      "Radiation": 30.0,
-      "Radius": 85.0
-    },
-    "RocketFactory": { 
-      "Activate": true,
-      "Name": "Rocket Factory",
-      "Radiation": 10.0,
-      "Radius": 140.0
-    },
-    "Satellite": {
-      "Activate": true,
-      "Name": "Satellite",
-      "Radiation": 30.0,
-      "Radius": 60.0
-    },
-    "SmallHarbor": {
-      "Activate": false,
-      "Name": "Small Harbor",
-      "Radiation": 30.0,
-      "Radius": 85.0
-    },
-    "Trainyard": {
-      "Activate": true,
-      "Name": "Trainyard",
-      "Radiation": 30.0,
-      "Radius": 100.0
-    },
-    "Tunnels": {
-      "Activate": true,
-      "Name": "Tunnels",
-      "Radiation": 30.0,
-      "Radius": 90.0
-    },
-    "Warehouse": {
-      "Activate": false,
-      "Name": "Warehouse",
-      "Radiation": 30.0,
-      "Radius": 15.0
-    },
-    "WaterTreatment": {
-      "Activate": true,
-      "Name": "WaterTreatment",
-      "Radiation": 30.0,
-      "Radius": 120.0
-    }
-  }
-}
+    "Messaging Settings": {
+      "Display message to player when they enter a radiation zone": true,
+      "Display message to player when they leave a radiation zone": true
+    },
+    "Timers": {
+      "Random on time (minimum minutes)": 5,
+      "Random on time (maximum minutes)": 30,
+      "Random off time (minimum minutes)": 30,
+      "Random off time (maximum minutes)": 90,
+      "Forced off time (minutes)": 15,
+      "Forced on time (minutes)": 45
+    },
+    "Settings": {
+      "Broadcast radiation status changes": true,
+      "Using Hapis Island map": false,
+      "Enable InfoPanel integration": true,
+      "Use radiation toggle timers": true,
+      "Randomise radiation timers": true
+    },
+    "Zone Settings": {
+      "Airfield": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Airfield",
+        "Radius of radiation": 85.0,
+        "Radiation amount": 10.0
+      },
+      "Dome": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Dome",
+        "Radius of radiation": 50.0,
+        "Radiation amount": 10.0
+      },
+      "Junkyard": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Junkyard",
+        "Radius of radiation": 50.0,
+        "Radiation amount": 10.0
+      },
+      "Lighthouse": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Lighthouse",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "LargeHarbor": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Large Harbor",
+        "Radius of radiation": 120.0,
+        "Radiation amount": 10.0
+      },
+      "GasStation": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "GasStation",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "Powerplant": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Powerplant",
+        "Radius of radiation": 120.0,
+        "Radiation amount": 10.0
+      },
+      "Stone Quarry": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Quarry_Stone",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "Sulfur Quarry": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Quarry_Sulfur",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "HQM Quarry": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Quarry_HQM",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "Radtown": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Radtown",
+        "Radius of radiation": 85.0,
+        "Radiation amount": 10.0
+      },
+      "RocketFactory": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Rocket Factory",
+        "Radius of radiation": 140.0,
+        "Radiation amount": 10.0
+      },
+      "Satellite": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Satellite",
+        "Radius of radiation": 60.0,
+        "Radiation amount": 10.0
+      },
+      "SmallHarbor": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Small Harbor",
+        "Radius of radiation": 85.0,
+        "Radiation amount": 10.0
+      },
+      "Supermarket": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Supermarket",
+        "Radius of radiation": 20.0,
+        "Radiation amount": 10.0
+      },
+      "Trainyard": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Trainyard",
+        "Radius of radiation": 100.0,
+        "Radiation amount": 10.0
+      },
+      "Tunnels": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "Tunnels",
+        "Radius of radiation": 90.0,
+        "Radiation amount": 10.0
+      },
+      "Warehouse": {
+        "Enable radiation at this monument": false,
+        "Monument name (internal use)": "Warehouse",
+        "Radius of radiation": 15.0,
+        "Radiation amount": 10.0
+      },
+      "WaterTreatment": {
+        "Enable radiation at this monument": true,
+        "Monument name (internal use)": "WaterTreatment",
+        "Radius of radiation": 120.0,
+        "Radiation amount": 10.0
+      }
+    },
+    "Version": {
+      "Major": 0,
+      "Minor": 2,
+      "Patch": 50
+    }
+  }
