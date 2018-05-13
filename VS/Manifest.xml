@@ -41,7 +41,7 @@
     <Mod Name="Portals.cs" Enabled="true"/>
     <Mod Name="PrefabSniffer.cs" Enabled="true"/>
     <Mod Name="PrivateMessage.cs" Enabled="true"/>   
-    <Mod Name="Purge.cs" Enabled="true"/> 
+    <Mod Name="Purge.cs" Enabled="false"/> 
     <Mod Name="QuickSmelt.cs" Enabled="true"/>
     <Mod Name="RainOfFire.cs" Enabled="true"/>
     <Mod Name="RemoverTool.cs" Enabled="true"/>
@@ -89,7 +89,7 @@
     <Config Name="PlayerInformations.json" remove="false"/>
     <Config Name="PlayerManager.json" remove="false"/>
     <Config Name="PopupNotifications.json" remove="false"/>
-    <Config Name="Purge.json" remove="false"/>
+    <Config Name="Purge.json" remove="true"/>
     <Config Name="QuickSmelt.json" remove="false"/>
     <Config Name="RainOfFire.json" remove="false"/>
     <Config Name="RemoverTool.json" remove="false"/>
