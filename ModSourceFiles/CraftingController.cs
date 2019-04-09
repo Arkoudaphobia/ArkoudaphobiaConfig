@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Crafting Controller", "Mughisi", "2.4.8", ResourceId = 695)]
+    [Info("Crafting Controller", "Mughisi/nivex", "2.5.1")]
     [Description("Allows modification of crafting times and which items can be crafted")]
     class CraftingController : RustPlugin
     {
@@ -24,12 +24,18 @@ namespace Oxide.Plugins
         // Plugin options
         private const float DefaultCraftingRate = 100;
         private const float DefaultCraftingExperience = 100;
+        private const bool DefaultAdminInstantBulkCraft = false;
+        private const bool DefaultModeratorInstantBulkCraft = false;
+        private const bool DefaultPlayerInstantBulkCraft = false;
         private const bool DefaultAdminInstantCraft = true;
         private const bool DefaultModeratorInstantCraft = false;
         private const bool DefaultCompleteCurrentCraftingOnShutdown = false;
 
         public float CraftingRate { get; private set; }
         public float CraftingExperience { get; private set; }
+        public bool AdminInstantBulkCraft { get; private set; }
+        public bool ModeratorInstantBulkCraft { get; private set; }
+        public bool PlayerInstantBulkCraft { get; private set; }
         public bool AdminInstantCraft { get; private set; }
         public bool ModeratorInstantCraft { get; private set; }
         public bool CompleteCurrentCrafting { get; private set; }
@@ -57,6 +63,7 @@ namespace Oxide.Plugins
         private const string DefaultNoPermission = "You don't have permission to use this command.";
         private const string DefaultShowBlockedItems = "The following items are blocked: ";
         private const string DefaultNoBlockedItems = "No items have been blocked.";
+        private const string DefaultRemovedItem = "Removed individual crafting rate for {0}";
 
         public string CurrentCraftingRate { get; private set; }
         public string ModifyCraftingRate { get; private set; }
@@ -73,6 +80,7 @@ namespace Oxide.Plugins
         public string NoPermission { get; private set; }
         public string ShowBlockedItems { get; private set; }
         public string NoBlockedItems { get; private set; }
+        public string RemovedItem { get; private set; }
 
         #endregion
 
@@ -99,7 +107,7 @@ namespace Oxide.Plugins
             UpdateCraftingRate();
         }
 
-        private void Unloaded()
+        private void Unload()
         {
             foreach (var bp in blueprintDefinitions)
                 bp.time = Blueprints[bp.targetItem.shortname];
@@ -114,12 +122,14 @@ namespace Oxide.Plugins
             ChatPrefixColor = GetConfigValue("Settings", "ChatPrefixColor", DefaultChatPrefixColor);
 
             // Plugin options
+            AdminInstantBulkCraft = GetConfigValue("Options", "InstantBulkCraftForAdmins", DefaultAdminInstantBulkCraft);
+            ModeratorInstantBulkCraft = GetConfigValue("Options", "InstantBulkCraftForModerators", DefaultModeratorInstantCraft);
+            PlayerInstantBulkCraft = GetConfigValue("Options", "InstantBulkCraftIfRateIsZeroForPlayers", DefaultPlayerInstantBulkCraft);
             AdminInstantCraft = GetConfigValue("Options", "InstantCraftForAdmins", DefaultAdminInstantCraft);
             ModeratorInstantCraft = GetConfigValue("Options", "InstantCraftForModerators", DefaultModeratorInstantCraft);
             CraftingRate = GetConfigValue("Options", "CraftingRate", DefaultCraftingRate);
             CraftingExperience = GetConfigValue("Options", "CraftingExperienceRate", DefaultCraftingExperience);
             CompleteCurrentCrafting = GetConfigValue("Options", "CompleteCurrentCraftingOnShutdown", DefaultCompleteCurrentCraftingOnShutdown);
-
 
             // Plugin options - blocked items
             var list = GetConfigValue("Options", "BlockedItems", DefaultBlockedItems);
@@ -153,6 +163,7 @@ namespace Oxide.Plugins
             NoPermission = GetConfigValue("Messages", "NoPermission", DefaultNoPermission);
             ShowBlockedItems = GetConfigValue("Messages", "ShowBlockedItems", DefaultShowBlockedItems);
             NoBlockedItems = GetConfigValue("Messages", "NoBlockedItems", DefaultNoBlockedItems);
+            RemovedItem = GetConfigValue("Messages", "RemovedItem", DefaultRemovedItem);
 
             if (!configChanged) return;
             Puts("Configuration file updated.");
@@ -198,7 +209,7 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (arg.Player() != null && !arg.Player().IsAdmin)
+            if (!arg.IsAdmin)
             {
                 arg.ReplyWith(NoPermission);
                 return;
@@ -230,67 +241,60 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (args.Length == 0 || args.Length < 2)
+            if (args.Length < 1)
             {
                 SendChatMessage(player, NoItemRate);
                 return;
             }
 
-            float rate;
-            if (!float.TryParse(args[args.Length - 1], out rate))
-            {
-                SendChatMessage(player, ModifyError);
-                return;
-            }
-
-            var item = string.Empty;
-            for (var i = 0; i < args.Length - 1; i++)
-                item += args[i] + " ";
-            item = item.Trim();
-
+            var item = args.Any(arg => arg.All(c => char.IsDigit(c) || c == '.')) ? string.Join(" ", args.Take(args.Length - 1)) : string.Join(" ", args);
             if (!Items.Contains(item))
             {
                 SendChatMessage(player, InvalidItem, item);
                 return;
             }
 
+            float rate = args.Any(arg => arg.All(c => char.IsDigit(c) || c == '.')) ? float.Parse(args.First(arg => arg.All(c => char.IsDigit(c) || c == '.'))) : -1f;
+            if (rate == -1f)
+            {
+                if (IndividualRates.ContainsKey(item))
+                {
+                    SendChatMessage(player, string.Format(RemovedItem, item));
+                    IndividualRates.Remove(item);
+                    goto SCV_1;
+                }
+                else SendChatMessage(player, ModifyError);
+                return;
+            }
 
             if (IndividualRates.ContainsKey(item))
                 IndividualRates[item] = rate;
             else
                 IndividualRates.Add(item, rate);
 
-            SetConfigValue("Options", "IndividualCraftingRates", IndividualRates);
             SendChatMessage(player, ModifyCraftingRateItem, item, rate);
+            SCV_1:
+            SetConfigValue("Options", "IndividualCraftingRates", IndividualRates);
             UpdateCraftingRate();
         }
 
         [ConsoleCommand("crafting.itemrate")]
         private void CraftItemCommandConsole(ConsoleSystem.Arg arg)
         {
-            if (arg.Player() != null && !arg.Player().IsAdmin)
+            if (!arg.IsAdmin)
             {
                 arg.ReplyWith(NoPermission);
                 return;
             }
 
-            if (!arg.HasArgs(2))
+            if (!arg.HasArgs(1))
             {
                 arg.ReplyWith(NoItemRate);
                 return;
             }
 
-            var rate = arg.GetFloat(arg.Args.Length - 1, -1f);
-            if (rate == -1f)
-            {
-                arg.ReplyWith(ModifyError);
-                return;
-            }
-
-            var item = string.Empty;
-            for (var i = 0; i < arg.Args.Length - 1; i++)
-                item += arg.Args[i] + " ";
-            item = item.Trim();
+            float rate = arg.Args.Any(x => x.All(c => char.IsDigit(c) || c == '.')) ? float.Parse(arg.Args.First(x => x.All(c => char.IsDigit(c) || c == '.'))) : -1f;
+            var item = arg.Args.Any(x => x.All(c => char.IsDigit(c) || c == '.')) ? string.Join(" ", arg.Args.Take(arg.Args.Length - 1)) : string.Join(" ", arg.Args);
 
             if (!Items.Contains(item))
             {
@@ -298,13 +302,26 @@ namespace Oxide.Plugins
                 return;
             }
 
+            if (rate == -1f)
+            {
+                if (IndividualRates.ContainsKey(item))
+                {
+                    arg.ReplyWith(string.Format(RemovedItem, item));
+                    IndividualRates.Remove(item);
+                    goto SCV_1;
+                }
+                else arg.ReplyWith(ModifyError);
+                return;
+            }
+
             if (IndividualRates.ContainsKey(item))
                 IndividualRates[item] = rate;
             else
                 IndividualRates.Add(item, rate);
 
-            SetConfigValue("Options", "IndividualCraftingRates", IndividualRates);
             arg.ReplyWith(string.Format(ModifyCraftingRateItem, item, rate));
+            SCV_1:
+            SetConfigValue("Options", "IndividualCraftingRates", IndividualRates);
             UpdateCraftingRate();
         }
 
@@ -348,7 +365,7 @@ namespace Oxide.Plugins
         [ConsoleCommand("crafting.block")]
         private void BlockCommandConsole(ConsoleSystem.Arg arg)
         {
-            if (arg.Player() != null && !arg.Player().IsAdmin)
+            if (!arg.IsAdmin)
             {
                 arg.ReplyWith(NoPermission);
                 return;
@@ -509,18 +526,34 @@ namespace Oxide.Plugins
             foreach (var bp in blueprintDefinitions)
             {
                 if (IndividualRates.ContainsKey(bp.targetItem.displayName.english))
-                    bp.time = Blueprints[bp.targetItem.shortname] * IndividualRates[bp.targetItem.displayName.english] / 100;
+                {
+                    //Puts("{0}: {1} -> {2}", bp.targetItem.shortname, bp.time, IndividualRates[bp.targetItem.displayName.english]);
+                    if (IndividualRates[bp.targetItem.displayName.english] != 0f)
+                        bp.time = Blueprints[bp.targetItem.shortname] * (IndividualRates[bp.targetItem.displayName.english] / 100);
+                    else bp.time = 0f;
+                }
                 else
-                    bp.time = Blueprints[bp.targetItem.shortname] * CraftingRate / 100;
+                {
+                    //Puts("{0}: {1} -> {2}", bp.targetItem.shortname, bp.time, Blueprints[bp.targetItem.shortname] * CraftingRate / 100);
+                    if (CraftingRate != 0f)
+                        bp.time = Blueprints[bp.targetItem.shortname] * (CraftingRate / 100);
+                    else bp.time = 0f;
+                }
             }
         }
 
         private object OnItemCraft(ItemCraftTask task, BasePlayer crafter)
         {
             var itemname = task.blueprint.targetItem.displayName.english;
+            if (AdminInstantBulkCraft && task.owner.net.connection.authLevel == 2 && !BlockedItems.Contains(itemname)) return InstantBulkCraft(crafter, task);
+            if (ModeratorInstantBulkCraft && task.owner.net.connection.authLevel == 1 && !BlockedItems.Contains(itemname)) return InstantBulkCraft(crafter, task);
             if (AdminInstantCraft && task.owner.net.connection.authLevel == 2) task.endTime = 1f;
             if (ModeratorInstantCraft && task.owner.net.connection.authLevel == 1) task.endTime = 1f;
-            if (!BlockedItems.Contains(itemname)) return null;
+            if (!BlockedItems.Contains(itemname))
+            {
+                if (PlayerInstantBulkCraft && task.blueprint.time <= 0f) return InstantBulkCraft(crafter, task);
+                return null;
+            }
             task.cancelled = true;
             SendChatMessage(crafter, CraftBlockedItem, itemname);
             foreach (var amount in task.blueprint.ingredients)
@@ -528,28 +561,33 @@ namespace Oxide.Plugins
 
             return false;
         }
-
-        private static bool InstantAdminBulkCraft(BasePlayer player, ItemCraftTask task)
+        
+        private static bool InstantBulkCraft(BasePlayer player, ItemCraftTask task)
         {
-            var crafter = player.inventory.crafting;
-            var amount = task.amount;
+            int amount = task.amount * task.blueprint.amountToCreate;
+            int stacksize = task.blueprint.targetItem.stackable;
 
-            for (var i = 1; i <= amount; i++)
+            var stacks = Enumerable.Repeat(stacksize, amount / stacksize); // credit Norn
+
+            if (amount % stacksize > 0)
             {
-                crafter.taskUID++;
-                var item = new ItemCraftTask
-                {
-                    blueprint = task.blueprint,
-                    endTime = 1f,
-                    taskUID = crafter.taskUID,
-                    owner = player,
-                    instanceData = null
-                };
-
-                crafter.queue.Enqueue(item);
-                item.owner?.Command("note.craft_add", item.taskUID, item.blueprint.targetItem.itemid);
+                stacks = stacks.Concat(Enumerable.Repeat(amount % stacksize, 1));
             }
 
+            if (stacks.Count() > 1)
+            {
+                foreach (int stack_amount in stacks)
+                {
+                    Item item = ItemManager.CreateByItemID(task.blueprint.targetItem.itemid, stack_amount);
+                    if (!player.inventory.GiveItem(item)) item.Drop(player.GetDropPosition(), player.GetDropVelocity());
+                    else player.Command(string.Concat(new object[] { "note.inv ", task.blueprint.targetItem.itemid, " ", stack_amount }), new object[0]);
+                }
+            }
+            else
+            {
+                player.inventory.GiveItem(ItemManager.CreateByItemID(task.blueprint.targetItem.itemid, amount));
+                player.Command(string.Concat(new object[] { "note.inv ", task.blueprint.targetItem.itemid, " ", amount }), new object[0]);
+            }
             return false;
         }
 
@@ -568,17 +606,19 @@ namespace Oxide.Plugins
         T GetConfigValue<T>(string category, string setting, T defaultValue)
         {
             var data = Config[category] as Dictionary<string, object>;
-            object value;
             if (data == null)
             {
                 data = new Dictionary<string, object>();
                 Config[category] = data;
                 configChanged = true;
             }
-            if (data.TryGetValue(setting, out value)) return (T)Convert.ChangeType(value, typeof(T));
-            value = defaultValue;
-            data[setting] = value;
-            configChanged = true;
+            object value;
+            if (!data.TryGetValue(setting, out value))
+            {
+                value = defaultValue;
+                data[setting] = value;
+                configChanged = true;
+            }
             return (T)Convert.ChangeType(value, typeof(T));
         }
 

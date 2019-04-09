@@ -1,6 +1,6 @@
-﻿using Oxide.Core;
+﻿using Newtonsoft.Json;
+using Oxide.Core;
 using Oxide.Core.Plugins;
-using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,11 +9,14 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("NightLantern", "k1lly0u", "2.0.92", ResourceId = 1182)]
+    [Info("Night Lantern", "k1lly0u", "2.0.96", ResourceId = 1182)]
+    [Description("Automatically turns ON and OFF lanterns after sunset and sunrise")]
     class NightLantern : RustPlugin
     {
-        #region Fields 
-        [PluginReference] Plugin NoFuelRequirements;
+        #region Fields
+
+        [PluginReference]
+        private Plugin NoFuelRequirements;
         private static NightLantern ins;
 
         private Dictionary<ulong, Dictionary<ConsumeType, bool>> toggleList = new Dictionary<ulong, Dictionary<ConsumeType, bool>>();
@@ -25,14 +28,20 @@ namespace Oxide.Plugins
         private bool globalToggle = true;
 
         private Timer timeCheck;
-        #endregion
+
+        #endregion Fields
 
         #region Oxide Hooks
+
         private void Loaded()
         {
             permission.RegisterPermission("nightlantern.global", this);
             foreach (var type in Enum.GetValues(typeof(ConsumeType)))
-                permission.RegisterPermission($"nightlantern.{type.ToString()}", this);
+            {
+                if ((ConsumeType)type == ConsumeType.CeilingLight)
+                    continue;
+                permission.RegisterPermission($"nightlantern.{type}", this);
+            }
 
             lang.RegisterMessages(Messages, this);
         }
@@ -40,7 +49,7 @@ namespace Oxide.Plugins
         private void OnServerInitialized()
         {
             ins = this;
-            ServerMgr.Instance.StartCoroutine(CreateAllLights(BaseEntity.serverEntities.Where(x => x is BaseOven || x is SearchLight)));
+            ServerMgr.Instance.StartCoroutine(CreateAllLights(BaseNetworkable.serverEntities.Where(x => x is BaseOven || x is SearchLight)));
             isInitialized = true;
         }
 
@@ -51,7 +60,7 @@ namespace Oxide.Plugins
 
             LightController lightController = oven.GetComponent<LightController>();
             if (lightController != null)
-                lightController.OnConsumeFuel(fuel);           
+                lightController.OnConsumeFuel(fuel);
         }
 
         private void OnItemUse(Item item, int amount)
@@ -69,9 +78,9 @@ namespace Oxide.Plugins
             if (!isInitialized)
                 return;
 
-            InitializeLightController(entity);            
+            InitializeLightController(entity);
         }
-               
+
         private void OnEntityKill(BaseNetworkable entity)
         {
             if (!isInitialized)
@@ -94,23 +103,26 @@ namespace Oxide.Plugins
                 lightController.ToggleLight(false);
                 UnityEngine.Object.DestroyImmediate(lightController);
             }
-                        
+
             if (timeCheck != null)
                 timeCheck.Destroy();
 
             lightControllers.Clear();
             ins = null;
-        }       
-        #endregion
+        }
 
-        #region Functions  
+        #endregion Oxide Hooks
+
+        #region Functions
+
         private IEnumerator CreateAllLights(IEnumerable<BaseNetworkable> entities)
         {
-            if (entities.Count() > 0)
+            IEnumerable<BaseNetworkable> baseNetworkables = entities.ToList();
+            if (baseNetworkables.Any())
             {
-                for (int i = entities.Count() - 1; i >= 0; i--)
+                for (int i = baseNetworkables.Count() - 1; i >= 0; i--)
                 {
-                    BaseNetworkable entity = entities.ElementAt(i);
+                    BaseNetworkable entity = baseNetworkables.ElementAt(i);
 
                     yield return new WaitForSeconds(UnityEngine.Random.Range(0.1f, 0.25f));
                     if (entity == null || entity.IsDestroyed)
@@ -139,7 +151,7 @@ namespace Oxide.Plugins
         {
             if (globalToggle)
             {
-                var time = TOD_Sky.Instance.Cycle.Hour;
+                float time = TOD_Sky.Instance.Cycle.Hour;
                 if (time >= configData.Sunset || (time >= 0 && time < configData.Sunrise))
                 {
                     if (!lightsOn)
@@ -147,7 +159,6 @@ namespace Oxide.Plugins
                         ServerMgr.Instance.StartCoroutine(ToggleAllLights(lightControllers, true));
                         lightsOn = true;
                     }
-
                 }
                 else if (time >= configData.Sunrise && time < configData.Sunset)
                 {
@@ -160,14 +171,15 @@ namespace Oxide.Plugins
             }
             timeCheck = timer.Once(20, CheckCurrentTime);
         }
-                
+
         private IEnumerator ToggleAllLights(IEnumerable<LightController> lights, bool status)
         {
-            if (lights.Count() > 0)
+            IEnumerable<LightController> controllers = lights.ToList();
+            if (controllers.Any())
             {
-                for (int i = lights.Count() - 1; i >= 0; i--)
+                for (int i = controllers.Count() - 1; i >= 0; i--)
                 {
-                    LightController lightController = lights.ElementAt(i);
+                    LightController lightController = controllers.ElementAt(i);
                     yield return new WaitForSeconds(UnityEngine.Random.Range(0.1f, 0.25f));
 
                     if (lightController != null)
@@ -175,7 +187,7 @@ namespace Oxide.Plugins
                 }
             }
         }
-        
+
         private ConsumeType StringToType(string name)
         {
             switch (name)
@@ -189,9 +201,7 @@ namespace Oxide.Plugins
                 case "furnace":
                     return ConsumeType.Furnace;
                 case "furnace.large":
-                    return ConsumeType.LargeFurnace;               
-                case "ceilinglight.deployed":
-                    return ConsumeType.CeilingLight;
+                    return ConsumeType.LargeFurnace;                
                 case "lantern.deployed":
                     return ConsumeType.Lanterns;
                 case "jackolantern.angry":
@@ -203,6 +213,12 @@ namespace Oxide.Plugins
                     return ConsumeType.Searchlight;
                 case "bbq.deployed":
                     return ConsumeType.BBQ;
+                case "refinery_small_deployed":
+                    return ConsumeType.Refinery;
+                case "cursedcauldron.deployed":
+                    return ConsumeType.CursedCauldren;
+                case "chineselantern.deployed":
+                    return ConsumeType.ChineseLantern;
                 default:
                     return ConsumeType.None;
             }
@@ -223,16 +239,18 @@ namespace Oxide.Plugins
         private bool UserHasToggled(ulong playerId, ConsumeType consumeType)
         {
             Dictionary<ConsumeType, bool> userPreferences;
-            if (toggleList.TryGetValue(playerId, out userPreferences))            
+            if (toggleList.TryGetValue(playerId, out userPreferences))
                 return userPreferences[consumeType];
             return configData.Types[consumeType].Enabled;
         }
-        #endregion
+
+        #endregion Functions
 
         #region Component
+
         class LightController : MonoBehaviour
         {
-            private BaseEntity entity;            
+            private BaseEntity entity;
             private ConfigData.LightSettings config;
             private bool isSearchlight;
             private bool ignoreFuelConsumtion;
@@ -248,7 +266,7 @@ namespace Oxide.Plugins
                 entity = GetComponent<BaseEntity>();
                 consumeType = ins.StringToType(entity.ShortPrefabName);
                 config = ins.configData.Types[consumeType];
-                isSearchlight = entity.prefabID == 1912179101;
+                isSearchlight = entity is SearchLight;
 
                 object success = ins.NoFuelRequirements?.Call("IgnoreFuelConsumption", consumeType.ToString(), entity.OwnerID);
                 if (success != null)
@@ -263,27 +281,35 @@ namespace Oxide.Plugins
                 if (isSearchlight)
                 {
                     SearchLight searchLight = entity as SearchLight;
-                    if (status)
+                    if (searchLight != null)
                     {
-                        Item slot = searchLight.inventory.GetSlot(0);
-                        if (slot == null)                        
-                            ItemManager.Create(searchLight.fuelType, 1, 0).MoveToContainer(searchLight.inventory);                        
+                        if (status)
+                        {
+                            Item slot = searchLight.inventory.GetSlot(0);
+                            if (slot == null)
+                            {
+                                ItemManager.Create(searchLight.fuelType).MoveToContainer(searchLight.inventory);
+                            }
+                        }
+                        searchLight.SetFlag(BaseEntity.Flags.On, status);
                     }
-                    searchLight.SetFlag(BaseEntity.Flags.On, status);
                 }
                 else
                 {
                     BaseOven baseOven = entity as BaseOven;
-                    if (config.ConsumeFuel)
+                    if (baseOven != null)
                     {
-                        if (status)
-                            baseOven.StartCooking();
-                        else baseOven.StopCooking();
-                    }
-                    else
-                    {
-                        if (baseOven.IsOn() != status)
-                            baseOven.SetFlag(BaseEntity.Flags.On, status);
+                        if (config.ConsumeFuel)
+                        {
+                            if (status)
+                                baseOven.StartCooking();
+                            else baseOven.StopCooking();
+                        }
+                        else
+                        {
+                            if (baseOven.IsOn() != status)
+                                baseOven.SetFlag(BaseEntity.Flags.On, status);
+                        }
                     }
                 }
                 entity.SendNetworkUpdate();
@@ -294,16 +320,18 @@ namespace Oxide.Plugins
                 if (ignoreFuelConsumtion || config.ConsumeFuel)
                     return;
 
-                fuel.amount++;                
+                fuel.amount++;
             }
 
             public bool IsOwner(ulong playerId) => entity.OwnerID == playerId;
         }
-        #endregion
+
+        #endregion Component
 
         #region Commands
+
         [ChatCommand("lantern")]
-        void cmdLantern(BasePlayer player, string command, string[] args)
+        private void cmdLantern(BasePlayer player, string command, string[] args)
         {
             if (args.Length == 0)
             {
@@ -312,12 +340,15 @@ namespace Oxide.Plugins
                     userPreferences = configData.Types.ToDictionary(x => x.Key, y => y.Value.Enabled);
 
                 bool canToggle = false;
-                foreach(var lightType in configData.Types)
+                foreach (var lightType in configData.Types)
                 {
+                    if (lightType.Key == ConsumeType.CeilingLight)
+                        continue;
+
                     if (lightType.Value.Owner)
                     {
                         if (lightType.Value.Permission && !permission.UserHasPermission(player.UserIDString, $"nightlantern.{lightType.Key}"))
-                            continue;                        
+                            continue;
                         player.ChatMessage(string.Format(msg("user.type", player.userID), lightType.Key, userPreferences[lightType.Key] ? msg("user.enabled", player.userID) : msg("user.disabled", player.userID)));
                         canToggle = true;
                     }
@@ -343,37 +374,41 @@ namespace Oxide.Plugins
             else
             {
                 ConsumeType consumeType = ParseType(args[0]);
-                if (consumeType == ConsumeType.None || !permission.UserHasPermission(player.UserIDString, $"nightlantern.{consumeType}"))
+                if ((consumeType == ConsumeType.None || consumeType == ConsumeType.CeilingLight) || !permission.UserHasPermission(player.UserIDString, $"nightlantern.{consumeType}"))
                 {
                     player.ChatMessage(string.Format(msg("toggle.invalid", player.userID), consumeType));
                     return;
                 }
 
-                if (!toggleList.ContainsKey(player.userID))                
+                if (!toggleList.ContainsKey(player.userID))
                     toggleList.Add(player.userID, configData.Types.ToDictionary(x => x.Key, y => y.Value.Enabled));
 
                 toggleList[player.userID][consumeType] = !toggleList[player.userID][consumeType];
 
-                IEnumerable<LightController> ownedLights = lightControllers.Where(x => x.IsOwner(player.userID) && x.consumeType == consumeType);
-                if (ownedLights.Count() > 0)
+                IEnumerable<LightController> ownedLights = lightControllers.Where(x => x.IsOwner(player.userID) && x.consumeType == consumeType).ToList();
+                if (ownedLights.Any())
                     ServerMgr.Instance.StartCoroutine(ToggleAllLights(ownedLights, toggleList[player.userID][consumeType]));
 
                 player.ChatMessage(string.Format(msg("user.type", player.userID), consumeType, toggleList[player.userID][consumeType] ? msg("user.enabled", player.userID) : msg("user.disabled", player.userID)));
-                return;
-            }   
+            }
         }
-        #endregion
 
-        #region Config   
-        enum ConsumeType { BBQ, Campfire, CeilingLight, Firepit, Fireplace, Furnace, LargeFurnace, Lanterns, JackOLantern, TunaLight, Searchlight, None }
+        #endregion Commands
+
+        #region Config
+
+        private enum ConsumeType { BBQ, Campfire, CeilingLight, ChineseLantern, CursedCauldren, Firepit, Fireplace, Furnace, LargeFurnace, Lanterns, JackOLantern, TunaLight, Searchlight, Refinery, None }
 
         private ConfigData configData;
+
         class ConfigData
         {
             [JsonProperty(PropertyName = "Light Settings")]
             public Dictionary<ConsumeType, LightSettings> Types { get; set; }
+
             [JsonProperty(PropertyName = "Time autolights are disabled")]
             public float Sunrise { get; set; }
+
             [JsonProperty(PropertyName = "Time autolights are enabled")]
             public float Sunset { get; set; }
 
@@ -381,14 +416,18 @@ namespace Oxide.Plugins
             {
                 [JsonProperty(PropertyName = "This type is enabled")]
                 public bool Enabled { get; set; }
+
                 [JsonProperty(PropertyName = "This type consumes fuel")]
-                public bool ConsumeFuel { get; set; }                                
+                public bool ConsumeFuel { get; set; }
+
                 [JsonProperty(PropertyName = "This type can be toggled by the owner")]
                 public bool Owner { get; set; }
+
                 [JsonProperty(PropertyName = "This type requires permission to be toggled by the owner")]
                 public bool Permission { get; set; }
             }
-            public Oxide.Core.VersionNumber Version { get; set; }
+
+            public VersionNumber Version { get; set; }
         }
 
         protected override void LoadConfig()
@@ -423,14 +462,7 @@ namespace Oxide.Plugins
                         Enabled = true,
                         Permission = true,
                         Owner = true
-                    },
-                    [ConsumeType.CeilingLight] = new ConfigData.LightSettings
-                    {
-                        ConsumeFuel = true,
-                        Enabled = true,
-                        Permission = true,
-                        Owner = true
-                    },
+                    },                    
                     [ConsumeType.Firepit] = new ConfigData.LightSettings
                     {
                         ConsumeFuel = true,
@@ -485,6 +517,27 @@ namespace Oxide.Plugins
                         Enabled = true,
                         Permission = true,
                         Owner = true
+                    },
+                    [ConsumeType.Refinery] = new ConfigData.LightSettings
+                    {
+                        ConsumeFuel = true,
+                        Enabled = true,
+                        Permission = true,
+                        Owner = true
+                    },
+                    [ConsumeType.CursedCauldren] = new ConfigData.LightSettings
+                    {
+                        ConsumeFuel = true,
+                        Enabled = true,
+                        Permission = true,
+                        Owner = true
+                    },
+                    [ConsumeType.ChineseLantern] = new ConfigData.LightSettings
+                    {
+                        ConsumeFuel = true,
+                        Enabled = true,
+                        Permission = true,
+                        Owner = true
                     }
                 },
                 Sunrise = 7.5f,
@@ -501,18 +554,35 @@ namespace Oxide.Plugins
 
             ConfigData baseConfig = GetBaseConfig();
 
-            if (configData.Version < new Core.VersionNumber(2, 0, 9))
+            if (configData.Version < new VersionNumber(2, 0, 9))
                 configData = baseConfig;
 
-            if (configData.Version < new Core.VersionNumber(2, 0, 92))
+            if (configData.Version < new VersionNumber(2, 0, 92))
                 configData.Types.Add(ConsumeType.BBQ, baseConfig.Types[ConsumeType.BBQ]);
+
+            if (configData.Version < new VersionNumber(2, 0, 94))
+                configData.Types.Add(ConsumeType.Refinery, baseConfig.Types[ConsumeType.Refinery]);
+
+            if (configData.Version < new VersionNumber(2, 0, 95))
+            {
+                configData.Types.Add(ConsumeType.ChineseLantern, baseConfig.Types[ConsumeType.ChineseLantern]);
+                configData.Types.Add(ConsumeType.CursedCauldren, baseConfig.Types[ConsumeType.CursedCauldren]);
+
+                if (configData.Types.ContainsKey(ConsumeType.CeilingLight))
+                    configData.Types.Remove(ConsumeType.CeilingLight);
+            }
+
+            if (configData.Version < new VersionNumber(2, 0, 96) && !configData.Types.ContainsKey(ConsumeType.Refinery))
+                configData.Types.Add(ConsumeType.Refinery, baseConfig.Types[ConsumeType.Refinery]);
 
             configData.Version = Version;
             PrintWarning("Config update completed!");
         }
-        #endregion
+
+        #endregion Config
 
         #region Data Management
+
         private void SaveData() => Interface.Oxide.DataFileSystem.GetFile("nightlantern_data").WriteObject(toggleList);
 
         private void LoadData()
@@ -526,13 +596,15 @@ namespace Oxide.Plugins
                 toggleList = new Dictionary<ulong, Dictionary<ConsumeType, bool>>();
             }
         }
-        #endregion
+
+        #endregion Data Management
 
         #region Localization
+
         private string msg(string key, ulong playerId = 0U) => lang.GetMessage(key, this, playerId == 0U ? null : playerId.ToString());
 
-        private Dictionary<string, string> Messages = new Dictionary<string, string>
-        {            
+        private readonly Dictionary<string, string> Messages = new Dictionary<string, string>
+        {
             ["global.toggle"] = "Autolights are {0} server wide",
             ["global.toggle.opt"] = "You can toggle autolights globally by typing '/lantern global'",
             ["user.disable"] = "You have disabled autolights that you own of the type {0}",
@@ -543,6 +615,7 @@ namespace Oxide.Plugins
             ["user.toggle.opt"] = "You can toggle the various types by typing '/lantern <light type>'",
             ["toggle.invalid"] = "{0} is an invalid option!"
         };
-        #endregion
+
+        #endregion Localization
     }
 }

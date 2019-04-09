@@ -5,7 +5,8 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("RainOfFire", "emu / k1lly0u", "0.2.51", ResourceId = 1249)]
+    [Info("RainOfFire", "emu / k1lly0u", "0.2.52")]
+    [Description("Simulate a meteor strike using rockets falling from the sky")]
     class RainOfFire : RustPlugin
     {
         #region Fields
@@ -13,25 +14,18 @@ namespace Oxide.Plugins
         Plugin PopupNotifications;
 
         private Timer EventTimer = null;
-        private List<Timer> RocketTimers = new List<Timer>();
-        
-        private float launchHeight = 200f;
-        private float fireRocketChance = 0.05f;
-        private float launchStraightness = 2.0f;
-
-        private float projectileSpeed = 20f;
-        private float gravityModifier = 0f;
-        private float detonationTime = 20f;
+        private List<Timer> RocketTimers = new List<Timer>(); 
         #endregion
 
         #region Oxide Hooks       
-        void OnServerInitialized()
+        private void OnServerInitialized()
         {
             lang.RegisterMessages(Messages, this);
             LoadVariables();
             StartEventTimer();
-        }   
-        void Unload()
+        }  
+        
+        private void Unload()
         {
             StopTimer();
             foreach (var t in RocketTimers)
@@ -50,7 +44,7 @@ namespace Oxide.Plugins
             {
                 if (configData.Options.EventTimers.UseRandomTimer)
                 {
-                    var random = GetRandom(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
+                    var random = RandomRange(configData.Options.EventTimers.RandomTimerMin, configData.Options.EventTimers.RandomTimerMax);
                     EventTimer = timer.Once(random * 60, () => { StartRandomOnMap(); StartEventTimer(); });
                 }
                 else EventTimer = timer.Repeat(configData.Options.EventTimers.EventInterval * 60, 0, () => StartRandomOnMap());
@@ -64,7 +58,7 @@ namespace Oxide.Plugins
 
         private void StartRandomOnMap()
         {
-            float mapsize = MapSize() - 600f;
+            float mapsize = (TerrainMeta.Size.x / 2) - 600f;
 
             float randomX = UnityEngine.Random.Range(-mapsize, mapsize);
             float randomY = UnityEngine.Random.Range(-mapsize, mapsize);
@@ -73,7 +67,7 @@ namespace Oxide.Plugins
 
             StartRainOfFire(callAt, configData.z_IntensitySettings.Settings_Optimal);
         }
-        private bool StartOnPlayer(string playerName, Settings setting)
+        private bool StartOnPlayer(string playerName, ConfigData.Settings setting)
         {
             BasePlayer player = GetPlayerByName(playerName);
 
@@ -84,7 +78,8 @@ namespace Oxide.Plugins
             return true;
         }
         private void StartBarrage(Vector3 origin, Vector3 direction) => timer.Repeat(configData.BarrageSettings.RocketDelay, configData.BarrageSettings.NumberOfRockets, () => SpreadRocket(origin, direction));
-        private void StartRainOfFire(Vector3 origin, Settings setting)
+
+        private void StartRainOfFire(Vector3 origin, ConfigData.Settings setting)
         {
             float radius = setting.Radius;
             int numberOfRockets = setting.RocketAmount;
@@ -98,23 +93,22 @@ namespace Oxide.Plugins
             {
                 if (PopupNotifications)
                     PopupNotifications.Call("CreatePopupNotification", msg("incoming"));
-                else
-                    PrintToChat(msg("incoming"));
+                else PrintToChat(msg("incoming"));
             }
 
             timer.Repeat(intervals, numberOfRockets, () => RandomRocket(origin, radius, setting));
         }      
 
-        private void RandomRocket(Vector3 origin, float radius, Settings setting)
+        private void RandomRocket(Vector3 origin, float radius, ConfigData.Settings setting)
         {
             bool isFireRocket = false;
             Vector2 rand = UnityEngine.Random.insideUnitCircle;
             Vector3 offset = new Vector3(rand.x * radius, 0, rand.y * radius);
 
-            Vector3 direction = (Vector3.up * -launchStraightness + Vector3.right).normalized;
-            Vector3 launchPos = origin + offset - direction * launchHeight;
+            Vector3 direction = (Vector3.up * -2.0f + Vector3.right).normalized;
+            Vector3 launchPos = origin + offset - direction * 200;
 
-            if (GetRandom(1, setting.FireRocketChance) == 1)
+            if (RandomRange(1, setting.FireRocketChance) == 1)
                 isFireRocket = true;
 
             BaseEntity rocket = CreateRocket(launchPos, direction, isFireRocket);
@@ -136,11 +130,10 @@ namespace Oxide.Plugins
         private BaseEntity CreateRocket(Vector3 startPoint, Vector3 direction, bool isFireRocket)
         {
             ItemDefinition projectileItem;
-
+         
             if (isFireRocket)
-                projectileItem = GetFireRocket();
-            else
-                projectileItem = GetRocket();
+                projectileItem = ItemManager.FindItemDefinition("ammo.rocket.fire");
+            else projectileItem = ItemManager.FindItemDefinition("ammo.rocket.basic");
 
             ItemModProjectile component = projectileItem.GetComponent<ItemModProjectile>();
             BaseEntity entity = GameManager.server.CreateEntity(component.projectileObject.resourcePath, startPoint, new Quaternion(), true);
@@ -148,13 +141,13 @@ namespace Oxide.Plugins
             TimedExplosive timedExplosive = entity.GetComponent<TimedExplosive>();
             ServerProjectile serverProjectile = entity.GetComponent<ServerProjectile>();
 
-            serverProjectile.gravityModifier = gravityModifier;
-            serverProjectile.speed = projectileSpeed;
-            timedExplosive.timerAmountMin = detonationTime;
-            timedExplosive.timerAmountMax = detonationTime;
+            serverProjectile.gravityModifier = 0;
+            serverProjectile.speed = 25;
+            timedExplosive.timerAmountMin = 300;
+            timedExplosive.timerAmountMax = 300;
             ScaleAllDamage(timedExplosive.damageTypes, configData.DamageControl.DamageMultiplier);
 
-            entity.SendMessage("InitializeVelocity", (object)(direction * 1f));
+            serverProjectile.InitializeVelocity(direction.normalized * 25);
             entity.Spawn();
             return entity;
         }
@@ -350,6 +343,7 @@ namespace Oxide.Plugins
                     break;
             }
         }
+
         [ConsoleCommand("rof.random")]
         private void ccmdEventRandom(ConsoleSystem.Arg arg)
         {
@@ -408,11 +402,10 @@ namespace Oxide.Plugins
 
             return foundPlayer;
         }
-        static int GetRandom(int min, int max) => UnityEngine.Random.Range(min, max);
-        private float MapSize() => TerrainMeta.Size.x / 2;        
-        private ItemDefinition GetRocket() => ItemManager.FindItemDefinition("ammo.rocket.basic");
-        private ItemDefinition GetFireRocket() => ItemManager.FindItemDefinition("ammo.rocket.fire");
-        static Vector3 GetGroundPosition(Vector3 sourcePos) // credit Wulf & Nogrod
+
+        private static int RandomRange(int min, int max) => UnityEngine.Random.Range(min, max);
+       
+        private Vector3 GetGroundPosition(Vector3 sourcePos)
         {
             RaycastHit hitInfo;
 
@@ -426,12 +419,16 @@ namespace Oxide.Plugins
         #endregion
 
         #region Classes 
-        class ItemCarrier : MonoBehaviour
+        private class ItemCarrier : MonoBehaviour
         {
             private ItemDrop[] carriedItems = null;
+
             private float multiplier;
+
             public void SetCarriedItems(ItemDrop[] carriedItems) => this.carriedItems = carriedItems;
+
             public void SetDropMultiplier(float multiplier) => this.multiplier = multiplier;
+
             private void OnDestroy()
             {
                 if (carriedItems == null)
@@ -441,70 +438,79 @@ namespace Oxide.Plugins
 
                 for (int i = 0; i < carriedItems.Length; i++)
                 {
-                    if ((amount = (int)(GetRandom(carriedItems[i].Minimum, carriedItems[i].Maximum) * multiplier)) > 0)
+                    if ((amount = (int)(RandomRange(carriedItems[i].Minimum, carriedItems[i].Maximum) * multiplier)) > 0)
                         ItemManager.CreateByName(carriedItems[i].Shortname, amount).Drop(gameObject.transform.position, Vector3.up);
                 }
             }           
         }
-        class ItemDrop
+
+        private class ItemDrop
         {
-            public string Shortname;
-            public int Minimum;
-            public int Maximum; 
+            public string Shortname { get; set; }
+            public int Minimum { get; set; }
+            public int Maximum { get; set; }
         }
         #endregion
 
         #region Config        
         private ConfigData configData;
-        class Damage
-        {
-            public float DamageMultiplier { get; set; }
-        }
-        class Barrage
-        {
-            public int NumberOfRockets { get; set; }
-            public float RocketDelay { get; set; }            
-            public float RocketSpread { get; set; }
-        }
-        class Drops
-        {
-            public bool EnableItemDrop { get; set; }
-            public ItemDrop[] ItemsToDrop { get; set; }
-        }
-        class Options
-        {
-            public bool EnableAutomaticEvents { get; set; }
-            public Timers EventTimers { get; set; }
-            public float GlobalDropMultiplier { get; set; }
-            public bool NotifyEvent { get; set; } 
-        }
-        class Timers
-        {
-            public int EventInterval { get; set; }
-            public bool UseRandomTimer { get; set; }
-            public int RandomTimerMin { get; set; }
-            public int RandomTimerMax { get; set; }
-        }
-        class Settings
-        {
-            public int FireRocketChance { get; set; }
-            public float Radius { get; set; }
-            public int RocketAmount { get; set; }
-            public int Duration { get; set; }            
-            public Drops ItemDropControl { get; set; }
-        }
-        class Intensity
-        {
-            public Settings Settings_Mild { get; set; }
-            public Settings Settings_Optimal { get; set; }
-            public Settings Settings_Extreme { get; set; }
-        }
+        
         class ConfigData
         {
-            public Barrage BarrageSettings { get; set; }
-            public Damage DamageControl { get; set; }
-            public Options Options { get; set; }
-            public Intensity z_IntensitySettings { get; set; }
+            public BarrageOptions BarrageSettings { get; set; }
+            public DamageOptions DamageControl { get; set; }
+            public ConfigOptions Options { get; set; }
+            public IntensityOptions z_IntensitySettings { get; set; }
+
+            public class DamageOptions
+            {
+                public float DamageMultiplier { get; set; }
+            }
+
+            public class BarrageOptions
+            {
+                public int NumberOfRockets { get; set; }
+                public float RocketDelay { get; set; }
+                public float RocketSpread { get; set; }
+            }
+
+            public class Drops
+            {
+                public bool EnableItemDrop { get; set; }
+                public ItemDrop[] ItemsToDrop { get; set; }
+            }
+
+            public class ConfigOptions
+            {
+                public bool EnableAutomaticEvents { get; set; }
+                public Timers EventTimers { get; set; }
+                public float GlobalDropMultiplier { get; set; }
+                public bool NotifyEvent { get; set; }
+            }
+
+            public class Timers
+            {
+                public int EventInterval { get; set; }
+                public bool UseRandomTimer { get; set; }
+                public int RandomTimerMin { get; set; }
+                public int RandomTimerMax { get; set; }
+            }
+
+            public class Settings
+            {
+                public int FireRocketChance { get; set; }
+                public float Radius { get; set; }
+                public int RocketAmount { get; set; }
+                public int Duration { get; set; }
+                public Drops ItemDropControl { get; set; }
+            }
+
+            public class IntensityOptions
+            {
+                public Settings Settings_Mild { get; set; }
+                public Settings Settings_Optimal { get; set; }
+                public Settings Settings_Extreme { get; set; }
+            }
         }
         private void LoadVariables()
         {
@@ -515,20 +521,20 @@ namespace Oxide.Plugins
         {
             var config = new ConfigData
             {
-                BarrageSettings = new Barrage
+                BarrageSettings = new ConfigData.BarrageOptions
                 {
                     NumberOfRockets = 20,
                     RocketDelay = 0.33f,
                     RocketSpread = 16f
                 },
-                DamageControl = new Damage
+                DamageControl = new ConfigData.DamageOptions
                 {
                     DamageMultiplier = 0.2f,
                 },                
-                Options = new Options
+                Options = new ConfigData.ConfigOptions
                 {
                     EnableAutomaticEvents = true,
-                    EventTimers = new Timers
+                    EventTimers = new ConfigData.Timers
                     {
                         EventInterval = 30,
                         RandomTimerMax = 45,
@@ -539,14 +545,14 @@ namespace Oxide.Plugins
                     NotifyEvent = true
                     
                 },
-                z_IntensitySettings = new Intensity
+                z_IntensitySettings = new ConfigData.IntensityOptions
                 {
-                    Settings_Mild = new Settings
+                    Settings_Mild = new ConfigData.Settings
                     {
                         FireRocketChance = 30,
                         Radius = 500f,
                         Duration = 240,
-                        ItemDropControl = new Drops
+                        ItemDropControl = new ConfigData.Drops
                         {
                             EnableItemDrop = true,
                             ItemsToDrop = new ItemDrop[]
@@ -567,12 +573,12 @@ namespace Oxide.Plugins
                         },
                         RocketAmount = 20
                     },
-                    Settings_Optimal = new Settings
+                    Settings_Optimal = new ConfigData.Settings
                     {
                         FireRocketChance = 20,
                         Radius = 300f,
                         Duration = 120,
-                        ItemDropControl = new Drops
+                        ItemDropControl = new ConfigData.Drops
                         {
                             EnableItemDrop = true,
                             ItemsToDrop = new ItemDrop[]
@@ -599,12 +605,12 @@ namespace Oxide.Plugins
                         },
                         RocketAmount = 45
                     },
-                    Settings_Extreme = new Settings
+                    Settings_Extreme = new ConfigData.Settings
                     {
                         FireRocketChance = 10,
                         Radius = 100f,
                         Duration = 30,
-                        ItemDropControl = new Drops
+                        ItemDropControl = new ConfigData.Drops
                         {
                             EnableItemDrop = true,
                             ItemsToDrop = new ItemDrop[]

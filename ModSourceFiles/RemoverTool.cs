@@ -12,9 +12,10 @@ using Oxide.Core.Libraries.Covalence;
 using Oxide.Game.Rust.Cui;
 using System.Collections;
 
+
 namespace Oxide.Plugins
 {
-    [Info("RemoverTool", "Reneb/Fuji", "4.2.9", ResourceId = 651)]
+    [Info("RemoverTool", "Reneb/Fuji", "4.2.10", ResourceId = 651)]
     class RemoverTool : RustPlugin
     {
         [PluginReference]
@@ -424,11 +425,16 @@ namespace Oxide.Plugins
         }
         void InitializeConstruction()
         {
-            foreach (var construction in PrefabAttribute.server.GetAll<Construction>())
-            {
-                if (construction.deployable == null && construction.info.name.english != string.Empty)
-                    if (!PrefabNameToStructure.ContainsKey(construction.fullName)) PrefabNameToStructure.Add(construction.fullName, construction.info.name.english);
-            }
+            var pooled = new Dictionary<string, uint>();
+			foreach (var poolStr in GameManifest.Current.pooledStrings.ToList().OrderBy(p => p.str))
+				pooled.Add(poolStr.str, poolStr.hash);
+			
+			foreach(var entityPath in GameManifest.Current.entities.ToList())
+			{
+				var construction = PrefabAttribute.server.Find<Construction>(pooled[entityPath.ToLower()]);
+				if (construction != null && construction.deployable == null)
+					if (!PrefabNameToStructure.ContainsKey(construction.fullName)) PrefabNameToStructure.Add(construction.fullName, construction.info.name.english);
+			}
         }
 
         Dictionary<string, object> DefaultPay()

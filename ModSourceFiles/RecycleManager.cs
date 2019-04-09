@@ -8,9 +8,10 @@ using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("Recycle Manager", "redBDGR", "1.0.10")]
+    [Info("RecycleManager", "redBDGR", "1.0.15")]
     [Description("Easily change features about the recycler")]
-    public class RecycleManager : RustPlugin
+
+    class RecycleManager : RustPlugin
     {
         private bool changed;
 
@@ -58,7 +59,8 @@ namespace Oxide.Plugins
         }
 
         public float recycleTime = 5.0f;
-        private const string permissionAdmin = "recyclemanager.admin";
+        private const string permissionNameADMIN = "recyclemanager.admin";
+        private const string permissionNameCREATE = "recyclemanager.create";
         private int maxItemsPerRecycle = 100;
 
         private static Dictionary<string, object> Multipliers()
@@ -106,15 +108,11 @@ namespace Oxide.Plugins
         private void Init()
         {
             LoadVariables();
-            permission.RegisterPermission(permissionAdmin, this);
-            OutputData = Interface.Oxide.DataFileSystem.GetFile(Name);
+            permission.RegisterPermission(permissionNameADMIN, this);
+            permission.RegisterPermission(permissionNameCREATE, this);
+            OutputData = Interface.Oxide.DataFileSystem.GetFile("RecycleManager");
             LoadData();
-            if (ingredientList.Count == 0)
-                RefreshIngredientList();
-        }
 
-        private void Loaded()
-        {
             lang.RegisterMessages(new Dictionary<string, string>
             {
                 //chat
@@ -122,27 +120,43 @@ namespace Oxide.Plugins
                 ["addrecycler CONSOLE invalid syntax"] = "Invalid syntax! addrecycler <playername/id>",
                 ["No Player Found"] = "No player was found or they are offline",
                 ["AddRecycler CONSOLE success"] = "A recycler was successfully placed at the players location!",
+                ["AddRecycler CannotPlace"] = "You cannot place a recycler here",
                 ["RemoveRecycler CHAT NoEntityFound"] = "There were no valid entities found",
                 ["RemoveRecycler CHAT EntityWasRemoved"] = "The targeted entity was removed",
 
             }, this);
         }
 
+        private void OnServerInitialized()
+        {
+            if (ingredientList.Count == 0)
+                RefreshIngredientList();
+        }
+
         [ChatCommand("addrecycler")]
         private void AddRecyclerCMD(BasePlayer player, string command, String[] args)
         {
-            if (!permission.UserHasPermission(player.UserIDString, permissionAdmin))
+            if (!permission.UserHasPermission(player.UserIDString, permissionNameCREATE) && !permission.UserHasPermission(player.UserIDString, permissionNameADMIN))
             {
                 player.ChatMessage(msg("No Permissions", player.UserIDString));
                 return;
             }
 
-            BaseEntity ent = GameManager.server.CreateEntity("assets/bundled/prefabs/static/recycler_static.prefab", player.transform.position, player.transform.rotation, true);
+            if (!player.IsBuildingAuthed())
+            {
+                if (!permission.UserHasPermission(player.UserIDString, permissionNameADMIN))
+                {
+                    player.ChatMessage(msg("AddRecycler CannotPlace", player.UserIDString));
+                    return;
+                }
+            }
+
+            BaseEntity ent = GameManager.server.CreateEntity("assets/bundled/prefabs/static/recycler_static.prefab", player.transform.position, player.GetNetworkRotation(), true);
             ent.Spawn();
             return;
         }
 
-        [ConsoleCommand("addrecycler")]
+        [ConsoleCommand("recyclemanager.addrecycler")]
         private void AddRecyclerCMDConsole(ConsoleSystem.Arg arg)
         {
             if (arg?.Args == null)
@@ -162,7 +176,7 @@ namespace Oxide.Plugins
                 arg.ReplyWith(msg("No Player Found"));
                 return;
             }
-            BaseEntity ent = GameManager.server.CreateEntity("assets/bundled/prefabs/static/recycler_static.prefab", target.transform.position, target.transform.rotation, true);
+            BaseEntity ent = GameManager.server.CreateEntity("assets/bundled/prefabs/static/recycler_static.prefab", target.transform.position, target.GetNetworkRotation(), true);
             ent.Spawn();
             arg.ReplyWith(msg("AddRecycler CONSOLE success"));
         }
@@ -170,7 +184,7 @@ namespace Oxide.Plugins
         [ChatCommand("removerecycler")]
         private void RemoveRecyclerCMD(BasePlayer player, string command, string[] args)
         {
-            if (!permission.UserHasPermission(player.UserIDString, permissionAdmin))
+            if (!permission.UserHasPermission(player.UserIDString, permissionNameADMIN))
             {
                 player.ChatMessage(msg("No Permissions", player.UserIDString));
                 return;
@@ -192,7 +206,7 @@ namespace Oxide.Plugins
             player.ChatMessage(msg("RemoveRecycler CHAT EntityWasRemoved", player.UserIDString));
         }
 
-        [ConsoleCommand("reloadrecyclerdata")]
+        [ConsoleCommand("recyclemanager.reloadingredientlist")]
         private void reloadDataCONSOLECMD(ConsoleSystem.Arg args)
         {
             if (args.Connection != null)
@@ -202,22 +216,54 @@ namespace Oxide.Plugins
             Puts("Recycler output list has successfully been updated!");
         }
 
+        [ConsoleCommand("recyclemanager.updateingredientlist")]
+        private void UpdateIngredientListCMD(ConsoleSystem.Arg arg)
+        {
+            if (arg.Connection != null)
+                return;
+            UpdateIngredientList();
+            Puts("Recycler ingredients list has been updated!");
+        }
+
         private void OnRecyclerToggle(Recycler recycler, BasePlayer player)
         {
-            if (recycler.IsOn()) return;
+            if (recycler.IsOn())
+            {
+                recycler.CancelInvoke("RecycleThink");
+                return;
+            }
             recycler.CancelInvoke("RecycleThink");
             timer.Once(0.1f, () => { recycler.Invoke("RecycleThink", recycleTime); });
         }
 
-        private bool CanRecycle(Recycler recycler, Item item)
+        private object CanRecycle(Recycler recycler, Item item)
         {
-            return !blacklistedItems.Contains(item.info.shortname) && ingredientList.ContainsKey(item.info.shortname);
+            bool stopRecycle = true;
+            for (int i = 0; i < 6; i++)
+            {
+                Item slot = recycler.inventory.GetSlot(i);
+                if (slot == null)
+                    continue;
+
+                if (!blacklistedItems.Contains(slot.info.shortname) && ingredientList.ContainsKey(slot.info.shortname))
+                {
+                    stopRecycle = false;
+                    break;
+                }
+            }
+            if (stopRecycle)
+                return false;
+            return true;
         }
 
         private object OnRecycleItem(Recycler recycler, Item item)
         {
-            if (!ingredientList.ContainsKey(item.info.shortname))
+            if (!ingredientList.ContainsKey(item.info.shortname) || blacklistedItems.Contains(item.info.shortname))
+            {
+                item.Drop(recycler.transform.TransformPoint(new Vector3(-0.3f, 1.7f, 1f)), Vector3.up, new Quaternion());
                 return false;
+            }
+
             bool flag = false;
             int usedItems = 1;
 
@@ -270,6 +316,23 @@ namespace Oxide.Plugins
                 ingredientList.Add(itemInfo.shortname, x);
             }
             SaveData();
+        }
+
+        private void UpdateIngredientList()
+        {
+            foreach (ItemDefinition itemInfo in ItemManager.itemList)
+            {
+                if (itemInfo.Blueprint == null)
+                    continue;
+                if (itemInfo.Blueprint.ingredients?.Count == 0)
+                    continue;
+                if (ingredientList.ContainsKey(itemInfo.shortname))
+                    continue;
+                List<ItemInfo> x = itemInfo.Blueprint.ingredients?.Select(entry => new ItemInfo { itemAmount = (int)entry.amount / 2, itemName = entry.itemDef.shortname }).ToList();
+                ingredientList.Add(itemInfo.shortname, x);
+            }
+            SaveData();
+            LoadData();
         }
 
         private object GetConfig(string menu, string datavalue, object defaultValue)

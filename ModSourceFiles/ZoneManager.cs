@@ -14,7 +14,8 @@ using Oxide.Game.Rust.Cui;
 
 namespace Oxide.Plugins
 {
-    [Info("ZoneManager", "Reneb / Nogrod", "2.5.08", ResourceId = 739)]
+    [Info("ZoneManager", "Reneb / Nogrod", "2.5.15")]
+    [Description("An advanced management system for creating in-game zones")]
     public class ZoneManager : RustPlugin
     {
         #region Fields
@@ -33,7 +34,7 @@ namespace Oxide.Plugins
         private readonly Dictionary<ulong, string> lastPlayerZone = new Dictionary<ulong, string>();
 
         private readonly Dictionary<BasePlayer, HashSet<Zone>> playerZones = new Dictionary<BasePlayer, HashSet<Zone>>();
-        private readonly Dictionary<BaseCombatEntity, HashSet<Zone>> buildingZones = new Dictionary<BaseCombatEntity, HashSet<Zone>>();
+        private readonly Dictionary<BaseCombatEntity, HashSet<Zone>> entityZones = new Dictionary<BaseCombatEntity, HashSet<Zone>>();
         private readonly Dictionary<BaseNpc, HashSet<Zone>> npcZones = new Dictionary<BaseNpc, HashSet<Zone>>();
         private readonly Dictionary<ResourceDispenser, HashSet<Zone>> resourceZones = new Dictionary<ResourceDispenser, HashSet<Zone>>();
         private readonly Dictionary<BaseEntity, HashSet<Zone>> otherZones = new Dictionary<BaseEntity, HashSet<Zone>>();
@@ -91,13 +92,13 @@ namespace Oxide.Plugins
             Initialized = true;
         }
 
-        private void OnEntityBuilt(Planner planner, GameObject gameobject)
+        private void OnEntityBuilt(Planner planner, GameObject gObject)
         {
             BasePlayer player = planner?.GetOwnerPlayer();
             if (player == null)
                 return;
 
-            BaseEntity entity = gameobject.ToBaseEntity();
+            BaseEntity entity = gObject?.ToBaseEntity();
             if (entity == null)
                 return;
 
@@ -151,6 +152,38 @@ namespace Oxide.Plugins
                 deployedEntity.Kill(BaseNetworkable.DestroyMode.Gib);
                 SendMessage(player, msg("noDeploy", player.UserIDString));
             }            
+        }
+
+        private void OnItemUse(Item item, int amount)
+        {
+            BaseEntity entity = item?.parent?.entityOwner;
+            if (entity == null)
+                return;
+
+            if (entity is FlameTurret || entity is AutoTurret || entity is GunTrap)
+            {
+                if (EntityHasFlag(entity, ZoneFlags.InfiniteTrapAmmo))
+                {
+                    item.amount += amount;
+                    return;
+                }
+            }
+
+            if (entity is SearchLight)
+            {
+                if (EntityHasFlag(entity, ZoneFlags.AlwaysLights))
+                {
+                    item.amount += amount;
+                    return;
+                }
+
+                Zone zone;
+                if (EntityHasFlag(entity, ZoneFlags.AutoLights, out zone))
+                {
+                    if (zone.lightsOn)
+                        item.amount += amount;
+                }
+            }
         }
 
         private void OnRunPlayerMetabolism(PlayerMetabolism metabolism, BaseCombatEntity ownerEntity, float delta)
@@ -227,20 +260,46 @@ namespace Oxide.Plugins
 
             if (victim != null)
             {
-                if (victim.IsSleeping() && HasPlayerFlag(victim, ZoneFlags.SleepGod, false))                
-                    CancelDamage(hitinfo);                
+                if (hitinfo.damageTypes.GetMajorityDamageType() == DamageType.Fall)
+                {
+                    if (HasPlayerFlag(victim, ZoneFlags.NoFallDamage, false))
+                    {
+                        CancelDamage(hitinfo);
+                        return;
+                    }
+                }
+
+                if (victim.IsSleeping() && HasPlayerFlag(victim, ZoneFlags.SleepGod, false))
+                {
+                    CancelDamage(hitinfo);
+                    return;
+                }
                 else if (attacker != null)
                 {
-                    if (attacker.userID < 76560000000000000L) return;
-                    if (HasPlayerFlag(victim, ZoneFlags.PvpGod, false))
+                    //if (attacker.userID < 76560000000000000L || attacker.IsNpc)
+                       // return;
+
+                    if (HasPlayerFlag(victim, ZoneFlags.PvpGod, false) && !victim.IsNpc)
+                    {
+                        if (attacker == victim && hitinfo.damageTypes.GetMajorityDamageType() == DamageType.Suicide && !HasPlayerFlag(victim, ZoneFlags.NoSuicide, false))
+                            return;
+
                         CancelDamage(hitinfo);
-                    else if (HasPlayerFlag(attacker, ZoneFlags.PvpGod, false))
+                        return;
+                    }
+                    else if (HasPlayerFlag(attacker, ZoneFlags.PvpGod, false) && !attacker.IsNpc)
+                    {
                         CancelDamage(hitinfo);
+                        return;
+                    }
                 }
                 else if (HasPlayerFlag(victim, ZoneFlags.PveGod, false))
+                {
                     CancelDamage(hitinfo);
-                else if (hitinfo.Initiator is FireBall && HasPlayerFlag(victim, ZoneFlags.PvpGod, false))
-                    CancelDamage(hitinfo);
+                    return;
+                }
+                else if (hitinfo.Initiator is FireBall && HasPlayerFlag(victim, ZoneFlags.PvpGod, false))                
+                    CancelDamage(hitinfo);                
                 return;
             }
 
@@ -265,7 +324,7 @@ namespace Oxide.Plugins
             {
                 ResourceDispenser resource = entity.GetComponent<ResourceDispenser>();
                 HashSet<Zone> zones;
-                if (!buildingZones.TryGetValue(entity, out zones) && (resource == null || !resourceZones.TryGetValue(resource, out zones)))
+                if (!entityZones.TryGetValue(entity, out zones) && (resource == null || !resourceZones.TryGetValue(resource, out zones)))
                     return;
                 foreach (Zone zone in zones)
                 {
@@ -316,8 +375,8 @@ namespace Oxide.Plugins
             if (building != null && !(entity is LootContainer) && !(entity is BaseHelicopter))
             {
                 HashSet<Zone> zones;
-                if (buildingZones.TryGetValue(building, out zones))
-                    OnBuildingExitZone(null, building, true);
+                if (entityZones.TryGetValue(building, out zones))
+                    OnEntityExitZone(null, building, true);
             }
             else
             {
@@ -348,8 +407,15 @@ namespace Oxide.Plugins
             else if (entity is BuildingBlock && zoneObjects != null)
             {
                 BuildingBlock block = (BuildingBlock)entity;
-                if (EntityHasFlag(entity as BuildingBlock, ZoneFlags.NoStability) && !CanBypass((entity as BuildingBlock).OwnerID, ZoneFlags.NoStability))
-                    block.grounded = true;
+
+                foreach (Zone zone in zoneObjects.Values)
+                {
+                    if (zone.OnBuildingBlockEnter(block))
+                    {
+                        if (HasZoneFlag(zone, ZoneFlags.NoStability) && !CanBypass(block.OwnerID, ZoneFlags.NoStability))
+                            block.grounded = true;
+                    }
+                }
             }
             else if (entity is LootContainer || entity is JunkPile || entity is BaseNpc || entity is WorldItem || entity is DroppedItem || entity is DroppedItemContainer)
                 timer.In(2, () => CheckSpawnedEntity(entity));
@@ -377,7 +443,7 @@ namespace Oxide.Plugins
             return null;
         }        
 
-        private object CanUseVending(VendingMachine machine, BasePlayer player)
+        private object CanUseVending(BasePlayer player, VendingMachine machine)
         {
             if (HasPlayerFlag(player, ZoneFlags.NoVending, false))
             {
@@ -387,7 +453,7 @@ namespace Oxide.Plugins
             return null;
         }
 
-        private object CanHideStash(StashContainer stash, BasePlayer player)
+        private object CanHideStash(BasePlayer player, StashContainer stash)
         {
             if (HasPlayerFlag(player, ZoneFlags.NoStash, false))
             {
@@ -410,7 +476,16 @@ namespace Oxide.Plugins
             }
             return null;
         }
-        
+
+        private void OnDoorOpened(Door door, BasePlayer player)
+        {
+            if (HasPlayerFlag(player, ZoneFlags.NoDoorAccess, false))
+            {
+                SendMessage(player, msg("noDoor", player.UserIDString));
+                door.CloseRequest();
+            }
+        }
+
         #region Looting Hooks
         private object CanLootPlayer(BasePlayer target, BasePlayer looter) => OnLootPlayerInternal(looter, target);
 
@@ -419,7 +494,7 @@ namespace Oxide.Plugins
         private object OnLootPlayerInternal(BasePlayer looter, BasePlayer target)
         {
             if (HasPlayerFlag(looter, ZoneFlags.NoPlayerLoot, false) || (target != null && HasPlayerFlag(target, ZoneFlags.NoPlayerLoot, false)))
-            {
+            {               
                 SendMessage(looter, msg("noLoot", looter.UserIDString));
                 NextTick(looter.EndLooting);
                 return false;
@@ -429,17 +504,46 @@ namespace Oxide.Plugins
 
         private void OnLootEntity(BasePlayer player, BaseEntity entity)
         {
-            if (entity is DroppedItemContainer || entity is LootableCorpse)
-                OnLootInternal(player, ZoneFlags.NoPlayerLoot);
+            if (entity is LootableCorpse)
+                OnLootCorpse(entity as LootableCorpse, player);
+            if (entity is DroppedItemContainer)
+                OnLootContainer(entity as DroppedItemContainer, player);
             if (entity is StorageContainer)
                 OnLootInternal(player, ZoneFlags.NoBoxLoot);            
         }
 
-        private object CanLootEntity(LootableCorpse corpse, BasePlayer player) => CanLootInternal(player, ZoneFlags.NoPlayerLoot);
+        private object CanLootEntity(BasePlayer player, LootableCorpse corpse)
+        {
+            if (corpse.playerSteamID == player.userID && HasPlayerFlag(player, ZoneFlags.LootSelf, false))
+                return null;
+            return CanLootInternal(player, ZoneFlags.NoPlayerLoot);
+        }
 
-        private object CanLootEntity(DroppedItemContainer container, BasePlayer player) => CanLootInternal(player, ZoneFlags.NoPlayerLoot);
+        private void OnLootCorpse(LootableCorpse corpse, BasePlayer player)
+        {
+            if (corpse.playerSteamID == player.userID && HasPlayerFlag(player, ZoneFlags.LootSelf, false))
+                return;
 
-        private object CanLootEntity(StorageContainer container, BasePlayer player) => CanLootInternal(player, ZoneFlags.NoBoxLoot);
+            OnLootInternal(player, ZoneFlags.NoPlayerLoot);
+        }
+
+        private void OnLootContainer(DroppedItemContainer container, BasePlayer player)
+        {
+            if (container.playerSteamID == player.userID && HasPlayerFlag(player, ZoneFlags.LootSelf, false))
+                return;
+
+            OnLootInternal(player, ZoneFlags.NoPlayerLoot);
+        }
+
+        private object CanLootEntity(BasePlayer player, DroppedItemContainer container)
+        {
+            if (container.playerSteamID == player.userID && HasPlayerFlag(player, ZoneFlags.LootSelf, false))           
+                return null;            
+
+            return CanLootInternal(player, ZoneFlags.NoPlayerLoot);
+        }
+
+        private object CanLootEntity(BasePlayer player, StorageContainer container) => CanLootInternal(player, ZoneFlags.NoBoxLoot);
 
         private object CanLootInternal(BasePlayer player, ZoneFlags flag)
         {
@@ -462,7 +566,7 @@ namespace Oxide.Plugins
         #endregion
 
         #region Pickup Hooks
-        private object CanPickupEntity(BaseCombatEntity entity, BasePlayer player) => CanPickupInternal(player, ZoneFlags.NoEntityPickup);
+        private object CanPickupEntity(BasePlayer player, BaseCombatEntity entity) => CanPickupInternal(player, ZoneFlags.NoEntityPickup);
 
         private object CanPickupLock(BasePlayer player, BaseLock baseLock) => CanPickupInternal(player, ZoneFlags.NoEntityPickup);
 
@@ -569,10 +673,13 @@ namespace Oxide.Plugins
             public readonly HashSet<ulong> KeepInList = new HashSet<ulong>();
 
             private HashSet<BasePlayer> players = new HashSet<BasePlayer>();
-            private HashSet<BaseCombatEntity> buildings = new HashSet<BaseCombatEntity>();
+            private HashSet<BaseCombatEntity> entities = new HashSet<BaseCombatEntity>();
 
             private List<TriggerBase> triggers = new List<TriggerBase>();
-            private bool lightsOn;
+            public bool lightsOn;
+
+            private SphereCollider sphereCollider;
+            private BoxCollider boxCollider;
 
             #region Initialization
             private void Awake()
@@ -642,13 +749,15 @@ namespace Oxide.Plugins
                 InitializeComfort();
                 InitializeTemperature();
 
+                FindBuildings();
+
                 SetZoneStatus(active);
             }
 
             private void UpdateCollider()
             {
-                SphereCollider sphereCollider = gameObject.GetComponent<SphereCollider>();
-                BoxCollider boxCollider = gameObject.GetComponent<BoxCollider>();
+                sphereCollider = gameObject.GetComponent<SphereCollider>();
+                boxCollider = gameObject.GetComponent<BoxCollider>();
                 if (definition.Size != Vector3.zero)
                 {
                     if (sphereCollider != null)
@@ -659,7 +768,7 @@ namespace Oxide.Plugins
                         boxCollider = gameObject.AddComponent<BoxCollider>();
                         boxCollider.isTrigger = true;                        
                     }
-                    boxCollider.size = definition.Size;
+                    boxCollider.size = definition.Size;                    
                 }
                 else
                 {
@@ -700,6 +809,29 @@ namespace Oxide.Plugins
                     if (IsInvoking(CheckLights))
                         CancelInvoke(CheckLights);
                     InvokeRepeating(CheckLights, 5f, 30f);
+                }
+            }
+
+            private void FindBuildings()
+            {
+                int entities = definition.Size != Vector3.zero ? Physics.OverlapBoxNonAlloc(definition.Location, definition.Size / 2, colBuffer, Quaternion.Euler(definition.Rotation)) : Physics.OverlapSphereNonAlloc(definition.Location, definition.Radius, colBuffer);
+
+                for (var i = 0; i < entities; i++)
+                {
+                    MeshColliderBatch colliderBatch = colBuffer[i].GetComponent<MeshColliderBatch>();
+                    colBuffer[i] = null;
+                    if (colliderBatch == null)
+                        continue;
+
+                    List<MeshColliderLookup.LookupEntry> colliders = colliderBatch.meshLookup.src.data;
+                    Bounds bounds = gameObject.GetComponent<Collider>().bounds;
+                    foreach (MeshColliderLookup.LookupEntry lookupEntry in colliders)
+                    {
+                        if (lookupEntry.collider && lookupEntry.collider.bounds.Intersects(bounds) && lookupEntry.collider.gameObject.GetComponentInParent<BuildingBlock>())
+                        {
+                            OnColliderEnterZone(lookupEntry.collider);
+                        }
+                    }
                 }
             }
 
@@ -844,7 +976,7 @@ namespace Oxide.Plugins
                 if (currentTime > instance.AutolightOffTime && currentTime < instance.AutolightOnTime)
                 {
                     if (!lightsOn) return;
-                    foreach (var building in buildings)
+                    foreach (var building in entities)
                     {
                         BaseOven oven = building as BaseOven;
                         if (oven != null && !oven.IsInvoking(oven.Cook))
@@ -852,9 +984,17 @@ namespace Oxide.Plugins
                             oven.SetFlag(BaseEntity.Flags.On, false);
                             continue;
                         }
+
                         Door door = building as Door;
                         if (door != null && door.PrefabName.Contains("shutter"))
+                        {
                             door.SetFlag(BaseEntity.Flags.Open, true);
+                            continue;
+                        }
+
+                        SearchLight searchLight = building as SearchLight;
+                        if (searchLight != null)
+                            UpdateSearchlight(searchLight, false);
                     }
                     foreach (var player in players)
                     {
@@ -873,7 +1013,7 @@ namespace Oxide.Plugins
                 else
                 {
                     if (lightsOn) return;
-                    foreach (var building in buildings)
+                    foreach (var building in entities)
                     {
                         BaseOven oven = building as BaseOven;
                         if (oven != null && !oven.IsInvoking(oven.Cook))
@@ -881,10 +1021,19 @@ namespace Oxide.Plugins
                             oven.SetFlag(BaseEntity.Flags.On, true);
                             continue;
                         }
+
                         Door door = building as Door;
                         if (door != null && door.PrefabName.Contains("shutter"))
+                        {
                             door.SetFlag(BaseEntity.Flags.Open, false);
+                            continue;
+                        }
+
+                        SearchLight searchLight = building as SearchLight;
+                        if (searchLight != null)
+                            UpdateSearchlight(searchLight, true);
                     }
+
                     ItemDefinition fuel = ItemManager.FindItemDefinition("lowgradefuel");
                     foreach (BasePlayer player in players)
                     {
@@ -909,17 +1058,42 @@ namespace Oxide.Plugins
                     lightsOn = true;
                 }
             }
-
+            
             private void CheckAlwaysLights()
             {
-                foreach (var building in buildings)
+                foreach (BaseCombatEntity building in entities)
                 {
                     BaseOven oven = building as BaseOven;
-                    if (oven == null || oven.IsInvoking(oven.Cook))
-                        continue;
-                    oven.SetFlag(BaseEntity.Flags.On, true);
+                    if (oven != null && !oven.IsInvoking(oven.Cook))
+                        oven.SetFlag(BaseEntity.Flags.On, true);
+
+                    SearchLight searchLight = building as SearchLight;
+                    if (searchLight != null)                    
+                        UpdateSearchlight(searchLight, true);                    
                 }
             }
+
+            private void UpdateSearchlight(SearchLight searchLight, bool isOn)
+            {
+                if (isOn)
+                {
+                    Item slot = searchLight.inventory.GetSlot(0);
+                    if (slot == null || slot.info != searchLight.inventory.onlyAllowedItem)
+                    {
+                        searchLight.inventory.Clear();
+                        Item item = ItemManager.Create(searchLight.fuelType);
+                        item.MoveToContainer(searchLight.inventory);
+                    }
+
+                    if (!searchLight.IsOn())
+                    {
+                        searchLight.SetFlag(BaseEntity.Flags.On, true, false);
+                        searchLight.FuelUpdate();
+                    }
+                }
+                else searchLight.SetFlag(BaseEntity.Flags.On, false, false);
+            }
+
 
             public void OnEntityKill(BaseCombatEntity entity)
             {
@@ -927,7 +1101,7 @@ namespace Oxide.Plugins
                 if (player != null)
                     players.Remove(player);
                 else if (entity != null && !(entity is LootContainer) && !(entity is BaseHelicopter) && !(entity is BaseNpc))
-                    buildings.Remove(entity);
+                    entities.Remove(entity);
             }
             #endregion
 
@@ -959,7 +1133,7 @@ namespace Oxide.Plugins
             }
 
             private void OnTriggerEnter(Collider col)
-            {                
+            {     
                 BasePlayer player = col.GetComponent<BasePlayer>();
                 if (player != null)
                 {                    
@@ -968,30 +1142,27 @@ namespace Oxide.Plugins
                 }
                 else if (!col.transform.CompareTag("MeshColliderBatch"))
                     OnColliderEnterZone(col);
-                else
-                {
-                    MeshColliderBatch colliderBatch = col.GetComponent<MeshColliderBatch>();
-                    if (colliderBatch == null)
-                        return;
+                //else
+                //{
+                //    //MeshColliderBatch colliderBatch = col.GetComponent<MeshColliderBatch>();
+                //    //if (colliderBatch == null)
+                //    //    return;
 
-                    var colliders = colliderBatch.meshLookup.src.data;
-                    Bounds bounds = gameObject.GetComponent<Collider>().bounds;
-                    foreach (var instance in colliders)
-                    {
-                        if (instance.collider && instance.collider.bounds.Intersects(bounds))
-                            OnColliderEnterZone(instance.collider);
-                    }
-                }
+                //    //var colliders = colliderBatch.meshLookup.src.data;
+                //    //Bounds bounds = gameObject.GetComponent<Collider>().bounds;
+                //    //foreach (var instance in colliders)
+                //    //{
+                //    //    if (instance.collider && instance.collider.bounds.Intersects(bounds))
+                //    //        OnColliderEnterZone(instance.collider);
+                //    //}
+                //}
             }
 
             private void OnColliderEnterZone(Collider col)
             {
-                if (HasZoneFlag(ZoneFlags.NoDecay))
-                {
-                    DecayEntity decayEntity = col.GetComponentInParent<DecayEntity>();
-                    if (decayEntity != null)
-                        decayEntity.decay = null;
-                }
+                BaseEntity entity = col.GetComponentInParent<BaseEntity>();
+                if (entity == null)
+                    return;
 
                 ResourceDispenser resourceDispenser = col.GetComponentInParent<ResourceDispenser>();
                 if (resourceDispenser != null)
@@ -999,23 +1170,29 @@ namespace Oxide.Plugins
                     instance.OnResourceEnterZone(this, resourceDispenser);
                     return;
                 }
-
-                BaseEntity entity = col.GetComponentInParent<BaseEntity>();
-                if (entity == null)
-                    return;
-
-                BaseNpc npc = entity as BaseNpc;
-                if (npc != null)
+               
+                BaseCombatEntity baseCombatEntity = entity as BaseCombatEntity;
+                if (baseCombatEntity != null)
                 {
-                    instance.OnNpcEnterZone(this, npc);
-                    return;
-                }
+                    if (HasZoneFlag(ZoneFlags.NoDecay))
+                    {
+                        DecayEntity decayEntity = col.GetComponentInParent<DecayEntity>();
+                        if (decayEntity != null)
+                            decayEntity.decay = null;
+                    }
 
-                BaseCombatEntity combatEntity = entity as BaseCombatEntity;
-                if (combatEntity != null && !(entity is LootContainer) && !(entity is BaseHelicopter))
-                {
-                    buildings.Add(combatEntity);
-                    instance.OnBuildingEnterZone(this, combatEntity);
+                    BaseNpc npc = baseCombatEntity as BaseNpc;
+                    if (npc != null)
+                    {
+                        instance.OnNpcEnterZone(this, npc);
+                        return;
+                    }
+
+                    if (!(baseCombatEntity is LootContainer) && !(baseCombatEntity is BaseHelicopter))
+                    {
+                        entities.Add(baseCombatEntity);
+                        instance.OnEntityEnterZone(this, baseCombatEntity);
+                    }
                 }
                 else instance.OnOtherEnterZone(this, entity);
             }
@@ -1030,27 +1207,27 @@ namespace Oxide.Plugins
                 }
                 else if(!col.transform.CompareTag("MeshColliderBatch"))
                     OnColliderExitZone(col);
-                else
-                {
-                    MeshColliderBatch colliderBatch = col.GetComponent<MeshColliderBatch>();
-                    if (colliderBatch == null)
-                        return;
+                //else
+                //{
+                //    //MeshColliderBatch colliderBatch = col.GetComponent<MeshColliderBatch>();
+                //    //if (colliderBatch == null)
+                //    //    return;
 
-                    var colliders = colliderBatch.meshLookup.src.data;
-                    Bounds bounds = gameObject.GetComponent<Collider>().bounds;
-                    foreach (var instance in colliders)
-                    {
-                        if (instance.collider && instance.collider.bounds.Intersects(bounds))
-                            OnColliderExitZone(instance.collider);
-                    }
-                }
+                //    //var colliders = colliderBatch.meshLookup.src.data;
+                //    //Bounds bounds = gameObject.GetComponent<Collider>().bounds;
+                //    //foreach (var instance in colliders)
+                //    //{
+                //    //    if (instance.collider && instance.collider.bounds.Intersects(bounds))
+                //    //        OnColliderExitZone(instance.collider);
+                //    //}
+                //}
             }
 
             private void OnColliderExitZone(Collider col)
             {
-                DecayEntity decayEntity = col.GetComponentInParent<DecayEntity>();
-                if (decayEntity != null && decayEntity.decay == null)
-                    decayEntity.decay = PrefabAttribute.server.Find<Decay>(decayEntity.prefabID);
+                BaseEntity entity = col.GetComponentInParent<BaseEntity>();
+                if (entity == null)
+                    return;
 
                 ResourceDispenser resourceDispenser = col.GetComponentInParent<ResourceDispenser>();
                 if (resourceDispenser != null)
@@ -1059,25 +1236,28 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                BaseEntity entity = col.GetComponentInParent<BaseEntity>();
-                if (entity == null)
-                    return;
-
-                BaseNpc npc = entity as BaseNpc;
-                if (npc != null)
+                BaseCombatEntity baseCombatEntity = entity as BaseCombatEntity;
+                if (baseCombatEntity != null)
                 {
-                    instance.OnNpcExitZone(this, npc);
-                    return;
-                }
+                    DecayEntity decayEntity = col.GetComponentInParent<DecayEntity>();
+                    if (decayEntity != null && decayEntity.decay == null)
+                        decayEntity.decay = PrefabAttribute.server.Find<Decay>(decayEntity.prefabID);
 
-                BaseCombatEntity combatEntity = entity as BaseCombatEntity;
-                if (combatEntity != null && !(entity is LootContainer) && !(entity is BaseHelicopter))
-                {
-                    buildings.Remove(combatEntity);
-                    instance.OnBuildingExitZone(this, combatEntity);
-                    return;
-                }
 
+                    BaseNpc npc = baseCombatEntity as BaseNpc;
+                    if (npc != null)
+                    {
+                        instance.OnNpcExitZone(this, npc);
+                        return;
+                    }
+
+                    if (!(baseCombatEntity is LootContainer) && !(baseCombatEntity is BaseHelicopter))
+                    {
+                        entities.Remove(baseCombatEntity);
+                        instance.OnEntityExitZone(this, baseCombatEntity);
+                        return;
+                    }
+                }
                 instance.OnOtherExitZone(this, entity);
             }
 
@@ -1132,6 +1312,40 @@ namespace Oxide.Plugins
                     }
                 }
             }
+
+            public bool OnBuildingBlockEnter(BuildingBlock buildingBlock)
+            {
+                if (entities.Contains(buildingBlock))
+                    return true;
+
+                if (definition.Size != Vector3.zero)
+                {
+                    if (IsInsideBounds(buildingBlock.transform.position))
+                    {
+                        entities.Add(buildingBlock);
+                        instance.OnEntityEnterZone(this, buildingBlock);
+                        return true;
+                    }
+
+                }
+                else
+                {
+                    if (Vector3.Distance(transform.position, buildingBlock.transform.position) <= definition.Radius)
+                    {
+                        entities.Add(buildingBlock);
+                        instance.OnEntityEnterZone(this, buildingBlock);
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private bool IsInsideBounds(Vector3 worldPos)
+            {
+                Vector3 localPos = boxCollider.transform.InverseTransformPoint(worldPos);
+                Vector3 delta = localPos - boxCollider.center + boxCollider.size * 0.5f;
+                return Vector3.Max(Vector3.zero, delta) == Vector3.Min(delta, boxCollider.size);
+            }
             #endregion
 
             #region Zone Definition
@@ -1168,19 +1382,19 @@ namespace Oxide.Plugins
         private void OnZoneDestroy(Zone zone)
         {
             HashSet<Zone> zones;
-            foreach (var key in playerZones.Keys.ToArray())
+            foreach (BasePlayer key in playerZones.Keys.ToArray())
                 if (playerZones.TryGetValue(key, out zones) && zones.Contains(zone))
                     OnPlayerExitZone(zone, key);
-            foreach (var key in buildingZones.Keys.ToArray())
-                if (buildingZones.TryGetValue(key, out zones) && zones.Contains(zone))
-                    OnBuildingExitZone(zone, key);
-            foreach (var key in npcZones.Keys.ToArray())
+            foreach (BaseCombatEntity key in entityZones.Keys.ToArray())
+                if (entityZones.TryGetValue(key, out zones) && zones.Contains(zone))
+                    OnEntityExitZone(zone, key);
+            foreach (BaseNpc key in npcZones.Keys.ToArray())
                 if (npcZones.TryGetValue(key, out zones) && zones.Contains(zone))
                     OnNpcExitZone(zone, key);
-            foreach (var key in resourceZones.Keys.ToArray())
+            foreach (ResourceDispenser key in resourceZones.Keys.ToArray())
                 if (resourceZones.TryGetValue(key, out zones) && zones.Contains(zone))
                     OnResourceExitZone(zone, key);
-            foreach (var key in otherZones.Keys.ToArray())
+            foreach (BaseEntity key in otherZones.Keys.ToArray())
             {
                 if (!otherZones.TryGetValue(key, out zones))
                 {
@@ -1245,6 +1459,10 @@ namespace Oxide.Plugins
             NoAPCTargeting = 1UL << 44,
             NoNPCTargeting = 1UL << 45,
             NoEntityPickup = 1UL << 46,
+            NoFallDamage = 1UL << 47,
+            InfiniteTrapAmmo = 1UL << 48,
+            LootSelf = 1UL << 49,
+            NoDoorAccess = 1UL << 50
         }
 
         private bool HasZoneFlag(Zone zone, ZoneFlags flag) => ((disabledFlags & flag) == flag) ? false : (zone.definition.Flags & ~zone.disabledFlags & flag) == flag;        
@@ -1729,7 +1947,7 @@ namespace Oxide.Plugins
             else if (entity.GetComponent<ResourceDispenser>())
                 resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones);
             else if (entity is BaseCombatEntity)
-                buildingZones.TryGetValue(entity as BaseCombatEntity, out zones);
+                entityZones.TryGetValue(entity as BaseCombatEntity, out zones);
             else otherZones.TryGetValue(entity, out zones);
 
             if (zones != null)
@@ -1738,6 +1956,38 @@ namespace Oxide.Plugins
                 {
                     if (HasZoneFlag(zone, flag))
                         return true;
+                }
+            }
+            return false;
+        }
+
+        private bool EntityHasFlag(BaseEntity entity, ZoneFlags flag, out Zone foundZone)
+        {
+            foundZone = null;
+            if (entity == null)
+                return false;
+
+            HashSet<Zone> zones;
+
+            if (entity is BasePlayer)
+                playerZones.TryGetValue(entity as BasePlayer, out zones);
+            else if (entity is BaseNpc)
+                npcZones.TryGetValue(entity as BaseNpc, out zones);
+            else if (entity.GetComponent<ResourceDispenser>())
+                resourceZones.TryGetValue(entity.GetComponent<ResourceDispenser>(), out zones);
+            else if (entity is BaseCombatEntity)
+                entityZones.TryGetValue(entity as BaseCombatEntity, out zones);
+            else otherZones.TryGetValue(entity, out zones);
+
+            if (zones != null)
+            {
+                foreach (var zone in zones)
+                {
+                    if (HasZoneFlag(zone, flag))
+                    {
+                        foundZone = zone;
+                        return true;
+                    }
                 }
             }
             return false;
@@ -1755,7 +2005,7 @@ namespace Oxide.Plugins
             else if (entity is BasePlayer)
                 playerZones.TryGetValue(entity as BasePlayer, out zones);
             else if (entity is BaseCombatEntity)
-                buildingZones.TryGetValue(entity as BaseCombatEntity, out zones);
+                entityZones.TryGetValue(entity as BaseCombatEntity, out zones);
             else
                 otherZones.TryGetValue(entity, out zones);
 
@@ -1851,7 +2101,7 @@ namespace Oxide.Plugins
             else if (entity is DroppedItemContainer)
             {
                 flag = ZoneFlags.NoDrop;
-                buildingZones.TryGetValue(entity as DroppedItemContainer, out zones);
+                entityZones.TryGetValue(entity as DroppedItemContainer, out zones);
             }
             if (flag == ZoneFlags.None || zones == null) return;
             foreach (var zone in zones)
@@ -1871,6 +2121,9 @@ namespace Oxide.Plugins
         #region Entity Management
         private void OnPlayerEnterZone(Zone zone, BasePlayer player)
         {
+            if (player == null)
+                return;
+
             HashSet<Zone> zones;
             if (!playerZones.TryGetValue(player, out zones))
                 playerZones[player] = zones = new HashSet<Zone>();
@@ -1923,6 +2176,9 @@ namespace Oxide.Plugins
 
         private void OnPlayerExitZone(Zone zone, BasePlayer player, bool all = false)
         {
+            if (player == null)
+                return;
+
             HashSet<Zone> zones;
             if (!playerZones.TryGetValue(player, out zones)) return;
             if (!all)
@@ -1962,6 +2218,9 @@ namespace Oxide.Plugins
 
         private void OnResourceEnterZone(Zone zone, ResourceDispenser entity)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
             if (!resourceZones.TryGetValue(entity, out zones))
                 resourceZones[entity] = zones = new HashSet<Zone>();
@@ -1970,6 +2229,9 @@ namespace Oxide.Plugins
 
         private void OnResourceExitZone(Zone zone, ResourceDispenser resource, bool all = false)
         {
+            if (resource == null)
+                return;
+
             HashSet<Zone> zones;
             if (!resourceZones.TryGetValue(resource, out zones)) return;
             if (!all)
@@ -1984,6 +2246,9 @@ namespace Oxide.Plugins
 
         private void OnNpcEnterZone(Zone zone, BaseNpc entity)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
             if (!npcZones.TryGetValue(entity, out zones))
                 npcZones[entity] = zones = new HashSet<Zone>();
@@ -1995,6 +2260,9 @@ namespace Oxide.Plugins
 
         private void OnNpcExitZone(Zone zone, BaseNpc entity, bool all = false)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
             if (!npcZones.TryGetValue(entity, out zones)) return;
             if (!all)
@@ -2013,11 +2281,14 @@ namespace Oxide.Plugins
             }
         }
 
-        private void OnBuildingEnterZone(Zone zone, BaseCombatEntity entity)
+        private void OnEntityEnterZone(Zone zone, BaseCombatEntity entity)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
-            if (!buildingZones.TryGetValue(entity, out zones))
-                buildingZones[entity] = zones = new HashSet<Zone>();
+            if (!entityZones.TryGetValue(entity, out zones))
+                entityZones[entity] = zones = new HashSet<Zone>();
             if (!zones.Add(zone)) return;
             if (HasZoneFlag(zone, ZoneFlags.NoStability) && !CanBypass(entity.OwnerID, ZoneFlags.NoStability))
             {
@@ -2026,10 +2297,13 @@ namespace Oxide.Plugins
             }            
         }
 
-        private void OnBuildingExitZone(Zone zone, BaseCombatEntity entity, bool all = false)
+        private void OnEntityExitZone(Zone zone, BaseCombatEntity entity, bool all = false)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
-            if (!buildingZones.TryGetValue(entity, out zones))
+            if (!entityZones.TryGetValue(entity, out zones))
                 return;
             bool stability = false;
             if (!all)
@@ -2039,7 +2313,7 @@ namespace Oxide.Plugins
                     return;
                 stability = HasZoneFlag(zone, ZoneFlags.NoStability);
                 if (zones.Count <= 0)
-                    buildingZones.Remove(entity);
+                    entityZones.Remove(entity);
             }
             else
             {
@@ -2048,7 +2322,7 @@ namespace Oxide.Plugins
                     zone1.OnEntityKill(entity);
                     stability |= HasZoneFlag(zone1, ZoneFlags.NoStability);
                 }
-                buildingZones.Remove(entity);
+                entityZones.Remove(entity);
             }
             if (stability)
             {
@@ -2062,6 +2336,9 @@ namespace Oxide.Plugins
 
         private void OnOtherEnterZone(Zone zone, BaseEntity entity)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
             if (!otherZones.TryGetValue(entity, out zones))
                 otherZones[entity] = zones = new HashSet<Zone>();
@@ -2070,6 +2347,9 @@ namespace Oxide.Plugins
 
         private void OnOtherExitZone(Zone zone, BaseEntity entity, bool all = false)
         {
+            if (entity == null)
+                return;
+
             HashSet<Zone> zones;
             if (!otherZones.TryGetValue(entity, out zones))
                 return;
@@ -2095,7 +2375,7 @@ namespace Oxide.Plugins
             {
                 float dist;
                 if (zone.definition.Size != Vector3.zero)
-                    dist = zone.definition.Size.x > zone.definition.Size.z ? zone.definition.Size.x : zone.definition.Size.z;
+                    dist = (zone.definition.Size.x > zone.definition.Size.z ? zone.definition.Size.x : zone.definition.Size.z);
                 else
                     dist = zone.definition.Radius;
                 newPos = zone.transform.position + (player.transform.position - zone.transform.position).normalized * (dist + 5f);
@@ -2209,7 +2489,7 @@ namespace Oxide.Plugins
             }
 
             SendMessage(player, "Players: {0}", playerZones.Count);
-            SendMessage(player, "Buildings: {0}", buildingZones.Count);
+            SendMessage(player, "entities: {0}", entityZones.Count);
             SendMessage(player, "Npcs: {0}", npcZones.Count);
             SendMessage(player, "Resources: {0}", resourceZones.Count);
             SendMessage(player, "Others: {0}", otherZones.Count);
@@ -2684,6 +2964,7 @@ namespace Oxide.Plugins
             ["noSuicide"] = "You are not allowed to suicide in this area!",
             ["noGather"] = "You are not allowed to gather in this area!",
             ["noLoot"] = "You are not allowed loot in this area!",
+            ["noDoor"] = "You do not have permission to open this door!",
             ["noSignUpdates"] = "You can not update signs in this area!",
             ["noOvenToggle"] = "You can not toggle ovens and lights in this area!",
             ["noPickup"] = "You can not pick up objects in this area!",

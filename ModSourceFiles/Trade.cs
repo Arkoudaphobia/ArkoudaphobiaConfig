@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Text;
 using System.Collections.Generic;
 using UnityEngine;
@@ -9,10 +9,10 @@ using System.Linq;
 
 namespace Oxide.Plugins
 {
-    [Info ("Trade", "Calytic/rustservers.io", "1.2.1", ResourceId = 1242)]
+    [Info ("Trade", "Calytic", "1.2.41")]
     class Trade : RustPlugin
     {
-        #region Configuration Data
+        #region Configuration
 
         string box;
         int slots;
@@ -20,9 +20,10 @@ namespace Oxide.Plugins
         float maxRadius;
         float pendingSeconds;
         float radiationMax;
+        bool allowSafeZone;
 
         [PluginReference]
-        Plugin Ignore;
+        Plugin Ignore, Clans, Friends;
 
         Dictionary<string, DateTime> tradeCooldowns = new Dictionary<string, DateTime> ();
 
@@ -221,6 +222,7 @@ namespace Oxide.Plugins
             maxRadius = GetConfig ("Settings", "maxRadius", 5000f);
             pendingSeconds = GetConfig ("Settings", "pendingSeconds", 25f);
             radiationMax = GetConfig ("Settings", "radiationMax", 1f);
+            allowSafeZone = GetConfig ("Settings", "allowSafeZone", true);
         }
 
         void Unloaded ()
@@ -237,7 +239,7 @@ namespace Oxide.Plugins
             }
         }
 
-        protected override void LoadDefaultConfig ()
+        protected new void LoadDefaultConfig ()
         {
             Config ["Settings", "box"] = "assets/prefabs/deployable/woodenbox/woodbox_deployed.prefab";
             Config ["Settings", "slots"] = 30;
@@ -245,6 +247,7 @@ namespace Oxide.Plugins
             Config ["Settings", "maxRadius"] = 5000f;
             Config ["Settings", "pendingSeconds"] = 25f;
             Config ["Settings", "radiationMax"] = 1;
+            Config ["Settings", "allowSafeZone"] = true;
             Config ["VERSION"] = Version.ToString ();
         }
 
@@ -301,12 +304,17 @@ namespace Oxide.Plugins
                 {"Denied: Privilege", "You do no have building privilege"},
                 {"Denied: Swimming", "You cannot do that while swimming"},
                 {"Denied: Falling", "You cannot do that while falling"},
+                {"Denied: Mounted", "You cannot do that while mounted"},
                 {"Denied: Wounded", "You cannot do that while wounded"},
                 {"Denied: Irradiated", "You cannot do that while irradiated"},
                 {"Denied: Generic", "You cannot do that right now"},
                 {"Denied: They Busy", "That player is busy"},
                 {"Denied: They Ignored You", "They ignored you"},
                 {"Denied: Distance", "Too far away"},
+                {"Denied: Ship", "You cannot do that while on a ship"},
+                {"Denied: Lift", "You cannot do that while on a lift"},
+                {"Denied: Balloon", "You cannot do that while on a balloon"},
+                {"Denied: Safe Zone", "You cannot do that while in a safe zone"},
 
                 {"Item: BP", "BP"},
 
@@ -502,7 +510,7 @@ namespace Oxide.Plugins
             }
 
             if (Ignore != null) {
-                var IsIgnored = Ignore.Call ("IsIgnoredS", player.UserIDString, targetPlayer.UserIDString);
+                var IsIgnored = Ignore.Call ("IsIgnored", player.UserIDString, targetPlayer.UserIDString);
                 if ((bool)IsIgnored == true) {
                     SendReply (player, GetMsg ("Denied: They Ignored You", player));
                     return;
@@ -546,9 +554,9 @@ namespace Oxide.Plugins
         [ConsoleCommand ("trade")]
         void ccTrade (ConsoleSystem.Arg arg)
         {
-            if(arg.Connection == null) 
+            if (arg.Connection == null)
                 return;
-            if(arg.Connection.player == null) 
+            if (arg.Connection.player == null)
                 return;
             cmdTrade (arg.Connection.player as BasePlayer, arg.cmd.Name, arg.Args);
         }
@@ -556,9 +564,9 @@ namespace Oxide.Plugins
         [ConsoleCommand ("trade.decline")]
         void ccTradeDecline (ConsoleSystem.Arg arg)
         {
-            if(arg.Connection == null) 
+            if (arg.Connection == null)
                 return;
-            if(arg.Connection.player == null) 
+            if (arg.Connection.player == null)
                 return;
             var player = arg.Connection.player as BasePlayer;
 
@@ -578,27 +586,28 @@ namespace Oxide.Plugins
         [ConsoleCommand ("trade.accept")]
         void ccTradeAccept (ConsoleSystem.Arg arg)
         {
-            if(arg.Connection == null) 
+            if (arg.Connection == null)
                 return;
-            if(arg.Connection.player == null) 
+            if (arg.Connection.player == null)
                 return;
             var player = arg.Connection.player as BasePlayer;
 
-            TradeAccept(player);
+            TradeAccept (player);
         }
-        
-        void TradeAccept(BasePlayer player) {
+
+        void TradeAccept (BasePlayer player)
+        {
             OnlinePlayer onlinePlayer;
             if (onlinePlayers.TryGetValue (player, out onlinePlayer) && onlinePlayer.Trade != null) {
                 var t = onlinePlayers [player].Trade;
                 if (t.sourcePlayer == player) {
-                    if(!CheckSourceInventory(t)) {
+                    if (!CheckSourceInventory (t)) {
                         return;
                     }
 
                     t.sourceAccept = true;
                 } else if (t.targetPlayer == player) {
-                    if(!CheckTargetInventory(t)) {
+                    if (!CheckTargetInventory (t)) {
                         return;
                     }
 
@@ -606,7 +615,7 @@ namespace Oxide.Plugins
                 }
 
                 if (t.targetAccept == true && t.sourceAccept == true) {
-                    CompleteTrade(t);
+                    CompleteTrade (t);
                 } else {
                     ShowTrades (t, "Trade: Pending");
                 }
@@ -614,8 +623,9 @@ namespace Oxide.Plugins
                 HideTrade (player);
             }
         }
-        
-        void CompleteTrade(OpenTrade t) {
+
+        void CompleteTrade (OpenTrade t)
+        {
             if (t.IsInventorySufficient ()) {
                 t.ResetAcceptance ();
                 ShowTrades (t, "Inventory: Generic");
@@ -632,8 +642,9 @@ namespace Oxide.Plugins
             TradeReply (t, "Status: Completing");
             Interface.Oxide.NextTick (() => FinishTrade (t));
         }
-        
-        bool CheckSourceInventory(OpenTrade t) {
+
+        bool CheckSourceInventory (OpenTrade t)
+        {
             var i = t.target.View.inventory.itemList.Count;
             var f = t.source.containerMain.capacity - t.source.containerMain.itemList.Count;
             if (i > f) {
@@ -644,11 +655,12 @@ namespace Oxide.Plugins
                 ShowTrades (t, "Inventory: Generic");
                 return false;
             }
-            
+
             return true;
         }
-        
-        bool CheckTargetInventory(OpenTrade t) {
+
+        bool CheckTargetInventory (OpenTrade t)
+        {
             var i = t.source.View.inventory.itemList.Count;
             var f = t.target.containerMain.capacity - t.target.containerMain.itemList.Count;
             if (i > f) {
@@ -657,7 +669,7 @@ namespace Oxide.Plugins
                 ShowTrades (t, "Inventory: Generic");
                 return false;
             }
-            
+
             return true;
         }
 
@@ -736,6 +748,22 @@ namespace Oxide.Plugins
                     n = i.amount + " x <color=lightblue>" + i.blueprintTargetDef.displayName.english + " [" + GetMsg ("Item: BP", player) + "]</color>";
                 } else {
                     n = i.amount + " x " + i.info.displayName.english;
+                    if(i.info.condition.enabled)
+                    {
+                        var conditionPercent = System.Math.Round(i.condition * 100 / i.info.condition.max, 0);
+                        if(conditionPercent <= 25f)
+                        {
+                            n += " [<color=red>" + conditionPercent + "%</color>]";
+                        }
+                        else if(conditionPercent <= 75f)
+                        {
+                            n += " [<color=yellow>" + conditionPercent + "%</color>]";
+                        }
+                        else if(conditionPercent <= 99f)
+                        {
+                            n += " [<color=green>" + conditionPercent + "%</color>]";
+                        }
+                    }
                 }
 
                 if (x > slotsAvailable) {
@@ -759,6 +787,22 @@ namespace Oxide.Plugins
                             n2 = i.amount + " x <color=lightblue>" + i.blueprintTargetDef.displayName.english + " [" + GetMsg ("Item: BP", player) + "]</color>";
                         } else {
                             n2 = i.amount + " x " + i.info.displayName.english;
+                            if (i.info.condition.enabled)
+                            {
+                                var conditionPercent = System.Math.Round(i.condition * 100 / i.info.condition.max, 0);
+                                if (conditionPercent <= 25f)
+                                {
+                                    n2 += " [<color=red>" + conditionPercent + "%</color>]";
+                                }
+                                else if (conditionPercent <= 75f)
+                                {
+                                    n2 += " [<color=yellow>" + conditionPercent + "%</color>]";
+                                }
+                                else if (conditionPercent <= 99f)
+                                {
+                                    n2 += " [<color=green>" + conditionPercent + "%</color>]";
+                                }
+                            }
                         }
                         if (x > slotsAvailable) {
                             n2 = "<color=red>" + n2 + "</color>";
@@ -1032,29 +1076,54 @@ namespace Oxide.Plugins
                 SendReply (player, GetMsg ("Denied: Permission", player));
                 return false;
             }
+
             if (!player.CanBuild ()) {
                 SendReply (player, GetMsg ("Denied: Privilege", player));
                 return false;
             }
+
             if (radiationMax > 0 && player.radiationLevel > radiationMax) {
                 SendReply (player, GetMsg ("Denied: Irradiated", player));
                 return false;
             }
+
             if (player.IsSwimming ()) {
                 SendReply (player, GetMsg ("Denied: Swimming", player));
                 return false;
             }
-            if (!player.IsOnGround ()) {
+
+            if (!player.IsOnGround () || player.IsFlying || player.isInAir) {
                 SendReply (player, GetMsg ("Denied: Falling", player));
                 return false;
             }
-            if (player.IsFlying) {
-                SendReply (player, GetMsg ("Denied: Falling", player));
+
+            if (player.isMounted) {
+                SendReply (player, GetMsg ("Denied: Mounted", player));
                 return false;
             }
 
             if (player.IsWounded ()) {
                 SendReply (player, GetMsg ("Denied: Wounded", player));
+                return false;
+            }
+
+            if (player.GetComponentInParent<CargoShip> ()) {
+                SendReply (player, GetMsg ("Denied: Ship", player));
+                return false;
+            }
+
+            if (player.GetComponentInParent<HotAirBalloon> ()) {
+                SendReply (player, GetMsg ("Denied: Balloon", player));
+                return false;
+            }
+
+            if (player.GetComponentInParent<Lift> ()) {
+                SendReply (player, GetMsg ("Denied: Lift", player));
+                return false;
+            }
+
+            if (!allowSafeZone && player.InSafeZone ()) {
+                SendReply (player, GetMsg ("Denied: Safe Zone", player));
                 return false;
             }
 

@@ -1,5 +1,4 @@
-﻿
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -7,7 +6,7 @@ using UnityEngine;
 namespace Oxide.Plugins
 {
 
-    [Info("Gathering Manager", "Mughisi", "2.2.4", ResourceId = 675)]
+    [Info("Gathering Manager", "Mughisi", "2.2.61", ResourceId = 675)]
     class GatherManager : RustPlugin
     {
 
@@ -368,48 +367,98 @@ namespace Oxide.Plugins
 
         private void OnDispenserGather(ResourceDispenser dispenser, BaseEntity entity, Item item)
         {
-            if (!entity.ToPlayer()) return;
+            if (!entity.ToPlayer())
+            {
+                return;
+            }
 
             var gatherType = dispenser.gatherType.ToString("G");
             var amount = item.amount;
 
-            if (GatherResourceModifiers.ContainsKey(item.info.displayName.english))
-                item.amount = (int)(item.amount * GatherResourceModifiers[item.info.displayName.english]);
-            else if (GatherResourceModifiers.ContainsKey("*"))
-                item.amount = (int)(item.amount * GatherResourceModifiers["*"]);
+            float modifier;
+            if (GatherResourceModifiers.TryGetValue(item.info.displayName.english, out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
+            else if (GatherResourceModifiers.TryGetValue("*", out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
 
-            if (!GatherDispenserModifiers.ContainsKey(gatherType)) return;
+            if (!GatherResourceModifiers.ContainsKey(gatherType))
+            {
+                return;
+            }
 
             var dispenserModifier = GatherDispenserModifiers[gatherType];
 
-            dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount += amount - item.amount / dispenserModifier;
+            try
+            {
+                dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount += amount - item.amount / dispenserModifier;
 
-            if (dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount < 0)
-                item.amount += (int)dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount;
+                if (dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount < 0)
+                {
+                    item.amount += (int)dispenser.containedItems.Single(x => x.itemid == item.info.itemid).amount;
+                }
+            }
+            catch { }
+        }
+
+        private void OnDispenserBonus(ResourceDispenser dispenser, BaseEntity entity, Item item)
+        {
+            OnDispenserGather(dispenser, entity, item);
+        }
+
+        private void OnCropGather(PlantEntity plant, Item item)
+        {
+            float modifier;
+            if (GatherDispenserModifiers.TryGetValue(item.info.displayName.english, out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
+            else if (GatherDispenserModifiers.TryGetValue("*", out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
         }
 
         private void OnQuarryGather(MiningQuarry quarry, Item item)
         {
-            if (QuarryResourceModifiers.ContainsKey(item.info.displayName.english))
-                item.amount = (int)(item.amount * QuarryResourceModifiers[item.info.displayName.english]);
-            else if (QuarryResourceModifiers.ContainsKey("*"))
-                item.amount = (int)(item.amount * QuarryResourceModifiers["*"]);
+            float modifier;
+            if (QuarryResourceModifiers.TryGetValue(item.info.displayName.english, out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
+            else if (QuarryResourceModifiers.TryGetValue("*", out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
         }
 
         private void OnCollectiblePickup(Item item, BasePlayer player)
         {
-            if (PickupResourceModifiers.ContainsKey(item.info.displayName.english))
-                item.amount = (int)(item.amount * PickupResourceModifiers[item.info.displayName.english]);
-            else if (PickupResourceModifiers.ContainsKey("*"))
-                item.amount = (int)(item.amount * PickupResourceModifiers["*"]);
+            float modifier;
+            if (PickupResourceModifiers.TryGetValue(item.info.displayName.english, out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
+            else if (PickupResourceModifiers.TryGetValue("*", out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
         }
 
         private void OnSurveyGather(SurveyCharge surveyCharge, Item item)
         {
-            if (SurveyResourceModifiers.ContainsKey(item.info.displayName.english))
-                item.amount = (int)(item.amount * SurveyResourceModifiers[item.info.displayName.english]);
-            else if (SurveyResourceModifiers.ContainsKey("*"))
-                item.amount = (int)(item.amount * SurveyResourceModifiers["*"]);
+            float modifier;
+            if (SurveyResourceModifiers.TryGetValue(item.info.displayName.english, out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
+            else if (SurveyResourceModifiers.TryGetValue("*", out modifier))
+            {
+                item.amount = (int)(item.amount * modifier);
+            }
         }
 
         private void OnMiningQuarryEnabled(MiningQuarry quarry)
@@ -418,7 +467,7 @@ namespace Oxide.Plugins
             quarry.CancelInvoke("ProcessResources");
             quarry.InvokeRepeating("ProcessResources", MiningQuarryResourceTickRate, MiningQuarryResourceTickRate);
         }
-        
+
         private void LoadConfigValues()
         {
             // Plugin settings

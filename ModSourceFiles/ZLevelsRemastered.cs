@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("ZLevelsRemastered", "Fujikura/Visagalis", "2.9.4", ResourceId = 1453)]
+    [Info("ZLevelsRemastered", "FuJiCuRa", "2.9.5", ResourceId = 1453)]
     [Description("Lets players level up as they harvest different resources and when crafting")]
 
 	
@@ -53,7 +53,9 @@ namespace Oxide.Plugins
 		string pluginPrefix;
 		bool playerCuiDefaultEnabled;
 		bool playerPluginDefaultEnabled;
-		bool exludeWeaponsOnGather;
+		bool excludeWeaponsOnGather;
+		bool excludeJackhammerOnGather;
+		bool excludeChainsawOnGather;
 		bool enableDispenserGather;
 		bool enableCollectiblePickup;
 		bool enableCropGather;
@@ -120,7 +122,9 @@ namespace Oxide.Plugins
 			enableLevelupBroadcast = Convert.ToBoolean(GetConfig("Generic", "enableLevelupBroadcast", false));
 			playerCuiDefaultEnabled = Convert.ToBoolean(GetConfig("Generic", "playerCuiDefaultEnabled", true));
 			playerPluginDefaultEnabled = Convert.ToBoolean(GetConfig("Generic", "playerPluginDefaultEnabled", true));
-			exludeWeaponsOnGather =  Convert.ToBoolean(GetConfig("Generic", "exludeWeaponsOnGather", false));
+			excludeWeaponsOnGather =  Convert.ToBoolean(GetConfig("Generic", "exludeWeaponsOnGather", false));
+			excludeJackhammerOnGather =  Convert.ToBoolean(GetConfig("Generic", "excludeJackhammerOnGather", true));
+			excludeChainsawOnGather =  Convert.ToBoolean(GetConfig("Generic", "excludeChainsawOnGather", true));
 
 			enableDispenserGather =  Convert.ToBoolean(GetConfig("Functions", "enableDispenserGather", true));
 			enableCollectiblePickup = Convert.ToBoolean(GetConfig("Functions", "enableCollectiblePickup", true));
@@ -280,10 +284,6 @@ namespace Oxide.Plugins
 			SaveData();
 			foreach (var player in BasePlayer.activePlayerList)
 				DestroyGUI(player);
-			var objs = UnityEngine.Object.FindObjectsOfType<FinishBonusClass>().ToList();
-			if (objs.Count > 0)
-				foreach (var obj in objs)
-					GameObject.Destroy(obj);
         }
 
 		void OnNewSave(string strFilename)
@@ -326,7 +326,8 @@ namespace Oxide.Plugins
 				if (player != null)
 					UpdatePlayer(player);
 			}
-			SaveData();			
+			SaveData();
+			Puts("Stats can be reset by > zl.reset <");
 		}
 		
 		void CheckCollectible()
@@ -526,40 +527,19 @@ namespace Oxide.Plugins
 				return;
 			var player = entity as BasePlayer;
 			CheckPlayer(player);
-			if (!playerPrefs.PlayerInfo[player.userID].ONOFF || exludeWeaponsOnGather && player.GetActiveItem()?.info?.category == ItemCategory.Weapon)
+			if (!playerPrefs.PlayerInfo[player.userID].ONOFF || excludeWeaponsOnGather && player.GetActiveItem()?.info?.category == ItemCategory.Weapon)
 				return;
-			if (dispenser.gameObject.GetComponent<FinishBonusClass>())
-				dispenser.gameObject.GetComponent<FinishBonusClass>().OnHit(player);
-			else
-				dispenser.gameObject.AddComponent<FinishBonusClass>().finishBonus = dispenser.finishBonus;
 			if (!hasRights(player.UserIDString))
 				return;
-            if (IsSkillEnabled(Skills.WOODCUTTING) &&(int)dispenser.gatherType == 0) levelHandler(player, item, Skills.WOODCUTTING);
+			if ((excludeJackhammerOnGather && player.GetHeldEntity() is Jackhammer) || (excludeChainsawOnGather && player.GetHeldEntity() is Chainsaw))
+				return;
+		   if (IsSkillEnabled(Skills.WOODCUTTING) &&(int)dispenser.gatherType == 0) levelHandler(player, item, Skills.WOODCUTTING);
             if (IsSkillEnabled(Skills.MINING) && (int)dispenser.gatherType == 1) levelHandler(player, item, Skills.MINING);
             if (IsSkillEnabled(Skills.SKINNING) && (int)dispenser.gatherType == 2) levelHandler(player, item, Skills.SKINNING);
         }
-
-		sealed class FinishBonusClass : MonoBehaviour
-		{
-			public List<ItemAmount> finishBonus;
-			BasePlayer hitPlayer;
-			
-			public void OnHit(BasePlayer player)
-			{
-				hitPlayer = player;
-			}
-			
-			public void FinishBonusAssigned()
-			{
-				foreach (var current in finishBonus)
-				{
-					var item = ItemManager.Create(current.itemDef, Mathf.CeilToInt(current.amount), 0uL);
-					zLevels.levelHandler(hitPlayer, item, Skills.MINING);
-					current.amount = (float)item.amount;
-				}
-			}
-		}
-		
+				
+		void OnDispenserBonus(ResourceDispenser dispenser, BaseEntity entity, Item item) => OnDispenserGather(dispenser, entity, item);
+				
         void OnCollectiblePickup(Item item, BasePlayer player, CollectibleEntity entity)
         {
             if (!initialized || !enableCollectiblePickup || item == null || player == null || !hasRights(player.UserIDString))

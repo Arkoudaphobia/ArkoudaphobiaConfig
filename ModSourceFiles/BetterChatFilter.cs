@@ -10,7 +10,7 @@ using System.Text.RegularExpressions;
 
 namespace Oxide.Plugins
 {
-    [Info("BetterChatFilter", "LaserHydra, jemes. and Slut", "1.2", ResourceId = 2403)]
+    [Info("BetterChatFilter", "Kinesis", "1.2.1", ResourceId = 2403)]
     [Description("Filter for Better Chat")]
     public class BetterChatFilter : CovalencePlugin
     {

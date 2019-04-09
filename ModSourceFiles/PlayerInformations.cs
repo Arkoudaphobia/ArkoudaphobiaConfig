@@ -8,7 +8,7 @@ using Newtonsoft.Json;
 
 namespace Oxide.Plugins
 {
-    [Info("PlayerInformations", "Reneb", "1.2.9", ResourceId = 1940)]
+    [Info("PlayerInformations", "austinv900", "1.2.11")]
     [Description("Logs players informations.")]
     public class PlayerInformations : CovalencePlugin
     {
@@ -238,6 +238,7 @@ namespace Oxide.Plugins
         {
             if (PlayerDatabase == null)
             {
+				PrintWarning("PlayerDatabase is not loaded, Please make sure you have the plugin PlayerDatabase");
                 timer.Once(0.01f, () => Interface.Oxide.UnloadPlugin("PlayerInformations"));
                 return;
             }
@@ -493,9 +494,14 @@ namespace Oxide.Plugins
 
         void RecordIP(string steamid, string playerip)
         {
+            if (string.IsNullOrEmpty(playerip) || string.IsNullOrEmpty(steamid))
+            {
+                return;
+            }
+
             var IPlist = new List<string>();
 
-            var success = PlayerDatabase?.Call("GetPlayerData", steamid, "IPs");
+            var success = PlayerDatabase.Call("GetPlayerData", steamid, "IPs");
 
             if (success is List<string>)
                 IPlist = (List<string>)success;
@@ -554,10 +560,10 @@ namespace Oxide.Plugins
             {
                 return GetMsg("/ipowners XX.XX.XX.XX", steamid);
             }
-            HashSet<string> knownPlayers = new HashSet<string>();
+            List<string> knownPlayers = new List<string>();
             var success = PlayerDatabase.Call("GetAllKnownPlayers");
-            if (success is HashSet<string>)
-                knownPlayers = (HashSet<string>)success;
+            if (success is List<string>)
+                knownPlayers = (List<string>)success;
             if (knownPlayers.Count == 0)
             {
                 return GetMsg("Couldn't get the list of players", steamid);

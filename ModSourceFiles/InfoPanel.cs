@@ -12,7 +12,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("InfoPanel", "Ghosst / Nogrod", "0.9.8", ResourceId = 1356)]
+    [Info("InfoPanel", "Ghosst / Nogrod", "0.9.9")]
     [Description("A little panel with useful informations.")]
     public class InfoPanel : RustPlugin
     {
@@ -67,7 +67,7 @@ namespace Oxide.Plugins
                             Height = 0.03f,
                             AnchorX = "Left",
                             AnchorY = "Bottom",
-                            Margin = "0.005 0.162 0.005 0.005",
+                            Margin = "0.005 0.165 0.005 0.005",
                             BackgroundColor = "0 0 0 0.4",
                         }
                     },
@@ -89,14 +89,14 @@ namespace Oxide.Plugins
                             Height = 0.03f,
                             AnchorX = "Left",
                             AnchorY = "Top",
-                            Margin = "0.005 0.175 0.005 0.005",
+                            Margin = "0.005 0.005 0.005 0.005",
                             BackgroundColor = "0 0 0 0.4",
                         }
                     },
                     { "TopRightDock", new DockConfig
                         {
                             Available = true,
-                            Width = 0.39f,
+                            Width = 0.29f,
                             Height = 0.03f,
                             AnchorX = "Right",
                             AnchorY = "Top",
@@ -230,7 +230,7 @@ namespace Oxide.Plugins
                     { "Coordinates", new PanelConfig
                         {
                             Available = true,
-                            Dock = "BottomRightDock",
+                            Dock = "TopLeftDock",
                             Order = 7,
                             AnchorX = "Left",
                             AnchorY = "Bottom",
@@ -264,7 +264,7 @@ namespace Oxide.Plugins
                     },
                     { "Compass", new PanelConfig
                         {
-                            Available = true,
+                            Available = false,
                             Dock = "BottomRightDock",
                             Order = 8,
                             AnchorX = "Left",
@@ -336,13 +336,13 @@ namespace Oxide.Plugins
                             AnchorX = "Left",
                             AnchorY = "Bottom",
                             Margin = "0 0 0 0.01",
-                            Width = 0.17f,
+                            Width = 0.225f,
                             Height = 0.95f,
                             BackgroundColor = "0 0 0 0.4",
                             Image = new PanelImageConfig
                             {
                                 Order =  1,
-                                Width = 0.5f,
+                                Width = 0.4f,
                                 Height = 0.8f,
                                 Margin = "0 0.05 0.1 0.05",
                                 Url = "http://i.imgur.com/XIIZkqD.png",
@@ -411,9 +411,65 @@ namespace Oxide.Plugins
 
                         }
                     },
-                    { "Radiation", new PanelConfig
+					
+					{ "ChinookEvent", new PanelConfig
                         {
                             Available = true,
+                            Dock = "TopLeftDock",
+                            Order = 5,
+                            AnchorX = "Left",
+                            AnchorY = "Bottom",
+                            Margin = "0 0 0 0.01",
+                            Width = 0.1f,
+                            Height = 0.95f,
+                            BackgroundColor = "0 0 0 0.4",
+                            Image = new PanelImageConfig
+                            {
+                                Order =  1,
+                                Width = 0.75f,
+                                Height = 0.8f,
+                                Margin = "0 0.15 0.1 0.1",
+                                Url = "https://i.imgur.com/49d8ZcK.png",
+                            },
+                            PanelSettings = new Dictionary<string,object>
+                            {
+                                { "InactiveColor", "1 1 1 0.1" },
+                                { "ActiveColor", "0.7 0.2 0.2 1" },
+                            }
+
+                        }
+                    },
+                    { "CargoShipEvent", new PanelConfig
+                        {
+                            Available = true,
+                            Dock = "TopLeftDock",
+                            Order = 5,
+                            AnchorX = "Left",
+                            AnchorY = "Bottom",
+                            Margin = "0 0 0 0.01",
+                            Width = 0.1f,
+                            Height = 0.95f,
+                            BackgroundColor = "0 0 0 0.4",
+                            Image = new PanelImageConfig
+                            {
+                                Order =  1,
+                                Width = 0.75f,
+                                Height = 0.8f,
+                                Margin = "0 0.15 0.1 0.1",
+                                Url = "https://i.imgur.com/WQiNxyM.png",
+                            },
+                            PanelSettings = new Dictionary<string,object>
+                            {
+                                { "InactiveColor", "1 1 1 0.1" },
+                                 { "ActiveColor", "0 1 0 1" },
+                            }
+
+                        }
+                    },
+					
+                    { "Radiation", new PanelConfig
+                        {
+                            Available = false,
                             Dock = "TopLeftDock",
                             Order = 6,
                             AnchorX = "Left",
@@ -680,6 +736,8 @@ namespace Oxide.Plugins
 
             Airplane = new AirplaneEvent();
             Helicopter = new HelicopterEvent();
+			Cargoship = new CargoshipEvent();
+            Chinook = new ChinookEvent();
 
             CompassObj = new Compass
             (
@@ -770,6 +828,28 @@ namespace Oxide.Plugins
             {
                 Helicopter.Refresh(storedData, PlayerPanels);
             }
+			
+			ActiveChinooks = UnityEngine.Object.FindObjectsOfType<CH47Helicopter>().ToList();
+
+            if (ActiveChinooks.Count > 0)
+            {
+                CheckChinook();
+            }
+            else
+            {
+                Chinook.Refresh(storedData, PlayerPanels);
+            }
+
+            ActiveCargoships = UnityEngine.Object.FindObjectsOfType<CargoShip>().ToList();
+
+            if (ActiveCargoships.Count > 0)
+            {
+                CheckCargoship();
+            }
+            else
+            {
+                Cargoship.Refresh(storedData, PlayerPanels);
+            }
         }
 
         void OnPlayerInit(BasePlayer player)
@@ -819,7 +899,6 @@ namespace Oxide.Plugins
                 }
             }
 
-
             if (Entity is CargoPlane && Settings.Panels["AirdropEvent"].Available)
             {
                 ActivePlanes.Add((CargoPlane) Entity);
@@ -829,6 +908,27 @@ namespace Oxide.Plugins
                     CheckAirplane();
                 }
             }
+			
+			if (Entity is CargoShip && Settings.Panels["CargoShipEvent"].Available)
+            {
+                ActiveCargoships.Add((CargoShip)Entity);
+
+                if (CargoshipTimer == false)
+                {
+                    CheckCargoship();
+                }
+            }
+
+            if (Entity is CH47Helicopter && Settings.Panels["ChinookEvent"].Available)
+            {
+                ActiveChinooks.Add((CH47Helicopter)Entity);
+
+                if (ChinookTimer == false)
+                {
+                    CheckChinook();
+                }
+            }
+			
         }
 
         private void Unload()
@@ -1152,9 +1252,19 @@ namespace Oxide.Plugins
         private List<BaseHelicopter> ActiveHelicopters;
         private bool HelicopterTimer = false;
 
+		private CargoshipEvent Cargoship;
+        private List<CargoShip> ActiveCargoships;
+        private bool CargoshipTimer = false;
+
+        private ChinookEvent Chinook;
+        private List<CH47Helicopter> ActiveChinooks;
+        private bool ChinookTimer = false;
+		
         private Radiation Rad;
 
         private BaseHelicopter ActiveHelicopter;
+		private CH47Helicopter ActiveChinook;
+        private CargoShip ActiveCargoship;
 
         public class AirplaneEvent
         {
@@ -1230,6 +1340,91 @@ namespace Oxide.Plugins
                 {
                     IPanel iPanel;
                     if (!panel.Value.TryGetValue("HelicopterEventImage", out iPanel)) continue;
+                    var panelRawImage = (IPanelRawImage)iPanel;
+                    if (panelRawImage.Color != ImageColor)
+                    {
+                        panelRawImage.Color = ImageColor;
+                        panelRawImage.Refresh();
+                    }
+                }
+            }
+        }
+		
+		
+        public class CargoshipEvent
+        {
+            public bool isActive = false;
+            public Color ImageColor;
+
+            public CargoshipEvent()
+            {
+                ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("CargoShipEvent", "InactiveColor", "1 1 1 0.1"));
+            }
+
+            public void SetActivity(bool active)
+            {
+                isActive = active;
+
+                if (isActive)
+                {
+                    ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("CargoShipEvent", "ActiveColor", "1 0 0 1"));
+                    return;
+                }
+
+                ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("CargoShipEvent", "InactiveColor", "1 1 1 0.1"));
+            }
+
+            public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
+            {
+                if (!Settings.CheckPanelAvailability("CargoShipEvent"))
+                    return;
+
+                foreach (var panel in panels)
+                {
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("CargoShipEventImage", out iPanel)) continue;
+                    var panelRawImage = (IPanelRawImage)iPanel;
+                    if (panelRawImage.Color != ImageColor)
+                    {
+                        panelRawImage.Color = ImageColor;
+                        panelRawImage.Refresh();
+                    }
+                }
+            }
+        }
+
+        public class ChinookEvent
+        {
+            public bool isActive = false;
+            public Color ImageColor;
+
+            public ChinookEvent()
+            {
+                ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("ChinookEvent", "InactiveColor", "1 1 1 0.1"));
+            }
+
+            public void SetActivity(bool active)
+            {
+                isActive = active;
+
+                if (isActive)
+                {
+                    ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("ChinookEvent", "ActiveColor", "1 0 0 1"));
+                    return;
+                }
+
+                ImageColor = ColorEx.Parse(Settings.GetPanelSettingsValue("ChinookEvent", "InactiveColor", "1 1 1 0.1"));
+            }
+
+            public void Refresh(StoredData storedData, Dictionary<string, Dictionary<string, IPanel>> panels)
+            {
+                if (!Settings.CheckPanelAvailability("ChinookEvent"))
+                    return;
+
+                foreach (var panel in panels)
+                {
+                    IPanel iPanel;
+                    if (!panel.Value.TryGetValue("ChinookEventImage", out iPanel)) continue;
                     var panelRawImage = (IPanelRawImage)iPanel;
                     if (panelRawImage.Color != ImageColor)
                     {
@@ -1339,6 +1534,52 @@ namespace Oxide.Plugins
             Helicopter.SetActivity(false);
             Helicopter.Refresh(storedData, PlayerPanels);
             HelicopterTimer = false;
+        }
+		
+		public void CheckCargoship()
+        {
+            ActiveCargoships.RemoveAll(p => !p.IsValid() || !p.gameObject.activeInHierarchy);
+
+            if (ActiveCargoships.Count > 0)
+            {
+
+                if (Cargoship.isActive == false)
+                {
+                    Cargoship.SetActivity(true);
+                    Cargoship.Refresh(storedData, PlayerPanels);
+                }
+
+                CargoshipTimer = true;
+                timer.In(5, CheckCargoship);
+                return;
+            }
+
+            Cargoship.SetActivity(false);
+            Cargoship.Refresh(storedData, PlayerPanels);
+            CargoshipTimer = false;
+        }
+
+        public void CheckChinook()
+        {
+            ActiveChinooks.RemoveAll(p => !p.IsValid() || !p.gameObject.activeInHierarchy);
+
+            if (ActiveChinooks.Count > 0)
+            {
+
+                if (Chinook.isActive == false)
+                {
+                    Chinook.SetActivity(true);
+                    Chinook.Refresh(storedData, PlayerPanels);
+                }
+
+                ChinookTimer = true;
+                timer.In(5, CheckChinook);
+                return;
+            }
+
+            Chinook.SetActivity(false);
+            Chinook.Refresh(storedData, PlayerPanels);
+            ChinookTimer = false;
         }
 
         #endregion
@@ -2434,6 +2675,12 @@ namespace Oxide.Plugins
                         break;
                     case "HelicopterEventImage":
                         ((IPanelRawImage) Panel.Value).Color = Helicopter.ImageColor;
+                        break;
+					case "ChinookEventImage":
+                        ((IPanelRawImage)Panel.Value).Color = Chinook.ImageColor;
+                        break;
+                    case "CargoShipEventImage":
+                        ((IPanelRawImage)Panel.Value).Color = Cargoship.ImageColor;
                         break;
                     case "CompassText":
                         ((IPanelText) Panel.Value).Content = CompassObj.GetDirection(player.UserIDString);

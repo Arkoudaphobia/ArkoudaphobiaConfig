@@ -8,14 +8,14 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("TimeOfDay", "Fujikura", "2.3.2", ResourceId = 1355)]
+    [Info("TimeOfDay", "FuJiCuRa", "2.3.4")]
     [Description("Does alter day and night duration.")]
     public class TimeOfDay : RustPlugin
     {
-		bool Changed = false;
+		bool Changed;
 		bool Initialized;
-		int componentSearchAttempts = 0;
-		TOD_Time timeComponent = null;
+		int componentSearchAttempts;
+		TOD_Time timeComponent;
 		bool activatedDay;
 
 		int authLevelCmds;
@@ -54,22 +54,22 @@ namespace Oxide.Plugins
 
 		void LoadVariables()
 		{
-			dayLength =  Convert.ToInt32(GetConfig("Settings", "dayLength", 30));
-			nightLength =  Convert.ToInt32(GetConfig("Settings", "nightLength", 30));
-			freezeDate = Convert.ToBoolean(GetConfig("Settings", "freezeDate", false));
-			authLevelCmds = Convert.ToInt32(GetConfig("Settings", "authLevelCmds", 1));
-			authLevelFreeze = Convert.ToInt32(GetConfig("Settings", "authLevelFreeze", 2));
-			autoSkipNight = Convert.ToBoolean(GetConfig("Settings", "autoSkipNight", false));
-			autoSkipDay = Convert.ToBoolean(GetConfig("Settings", "autoSkipDay", false));
-			logAutoSkipConsole = Convert.ToBoolean(GetConfig("Settings", "logAutoSkipConsole", true));
+			dayLength =  System.Convert.ToInt32(GetConfig("Settings", "dayLength", 30));
+			nightLength =  System.Convert.ToInt32(GetConfig("Settings", "nightLength", 30));
+			freezeDate = System.Convert.ToBoolean(GetConfig("Settings", "freezeDate", false));
+			authLevelCmds = System.Convert.ToInt32(GetConfig("Settings", "authLevelCmds", 1));
+			authLevelFreeze = System.Convert.ToInt32(GetConfig("Settings", "authLevelFreeze", 2));
+			autoSkipNight = System.Convert.ToBoolean(GetConfig("Settings", "autoSkipNight", false));
+			autoSkipDay = System.Convert.ToBoolean(GetConfig("Settings", "autoSkipDay", false));
+			logAutoSkipConsole = System.Convert.ToBoolean(GetConfig("Settings", "logAutoSkipConsole", true));
 			
-			presetDay =  Convert.ToInt32(GetConfig("DatePreset", "presetDay", 1));
-			presetMonth =  Convert.ToInt32(GetConfig("DatePreset", "presetMonth", 1));
-			presetYear =  Convert.ToInt32(GetConfig("DatePreset", "presetYear", 2020));
-			setPresetDate = Convert.ToBoolean(GetConfig("DatePreset", "setPresetDate", false));
+			presetDay =  System.Convert.ToInt32(GetConfig("DatePreset", "presetDay", 1));
+			presetMonth =  System.Convert.ToInt32(GetConfig("DatePreset", "presetMonth", 1));
+			presetYear =  System.Convert.ToInt32(GetConfig("DatePreset", "presetYear", 2020));
+			setPresetDate = System.Convert.ToBoolean(GetConfig("DatePreset", "setPresetDate", false));
 			
-			freezeTimeOnload = Convert.ToBoolean(GetConfig("TimeFreeze", "freezeTimeOnload", false));
-			timeToFreeze = Convert.ToSingle(GetConfig("TimeFreeze", "timeToFreeze", 12.0));
+			freezeTimeOnload = System.Convert.ToBoolean(GetConfig("TimeFreeze", "freezeTimeOnload", false));
+			timeToFreeze = System.Convert.ToSingle(GetConfig("TimeFreeze", "timeToFreeze", 12.0));
 
 			if (!Changed) return;
 			SaveConfig();
@@ -190,7 +190,8 @@ namespace Oxide.Plugins
 			if (!Initialized) return;
 			if (autoSkipNight)
 			{
-				TOD_Sky.Instance.Cycle.Hour = TOD_Sky.Instance.SunriseTime;
+				float timeToAdd = (24 - TOD_Sky.Instance.Cycle.Hour) + TOD_Sky.Instance.SunriseTime;
+				TOD_Sky.Instance.Cycle.Hour += timeToAdd;
 				if (logAutoSkipConsole)
 					Puts("Nighttime autoskipped");
 				OnSunrise();
@@ -203,7 +204,7 @@ namespace Oxide.Plugins
         }
 		
 		[ConsoleCommand("tod.daylength")]
-        void consoleDayLength(ConsoleSystem.Arg arg)
+        void ConsoleDayLength(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
 			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
@@ -234,7 +235,7 @@ namespace Oxide.Plugins
 		}
 		
 		[ConsoleCommand("tod.nightlength")]
-        void consoleNightLength(ConsoleSystem.Arg arg)
+        void ConsoleNightLength(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
 			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
@@ -264,7 +265,7 @@ namespace Oxide.Plugins
 		}
 		
 		[ConsoleCommand("tod.freezetime")]
-        void consoleFreezeTime(ConsoleSystem.Arg arg)
+        void ConsoleFreezeTime(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
 			if (arg.Connection != null && arg.Connection.authLevel < authLevelFreeze) return;
@@ -278,7 +279,7 @@ namespace Oxide.Plugins
 		}
 
 		[ConsoleCommand("tod.skipday")]
-        void consoleSkipDay(ConsoleSystem.Arg arg)
+        void ConsoleSkipDay(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
 			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
@@ -293,7 +294,7 @@ namespace Oxide.Plugins
 		}
 
 		[ConsoleCommand("tod.skipnight")]
-        void consoleSkipNight(ConsoleSystem.Arg arg)
+        void ConsoleSkipNight(ConsoleSystem.Arg arg)
         {
             if (!Initialized) return;
 			if (arg.Connection != null && arg.Connection.authLevel < authLevelCmds) return;
@@ -308,9 +309,10 @@ namespace Oxide.Plugins
 		}			
 
         [ChatCommand("tod")]
-        private void TodCommand(BasePlayer Player, string Command, string[] Args)
+        private void TodCommand(BasePlayer player, string command, string[] args)
         {
-			if (!Initialized) return;
+			if (!Initialized)
+				return;
 			TimeSpan ts1= TimeSpan.FromHours(TOD_Sky.Instance.SunriseTime);
 			TimeSpan ts2= TimeSpan.FromHours(TOD_Sky.Instance.SunsetTime);
 			
@@ -321,32 +323,32 @@ namespace Oxide.Plugins
 			stringBuilder.AppendLine("Sunset Hour".PadRight(15) + string.Format("{0}:{1}", System.Math.Truncate(ts2.TotalHours).ToString(), ts2.Minutes.ToString()));
 			stringBuilder.AppendLine("Daylength".PadRight(15) + dayLength.ToString() + " minutes");
 			stringBuilder.Append("Nightlength".PadRight(15) + nightLength.ToString() + " minutes");
-			PrintPluginMessageToChat(Player, stringBuilder.ToString().TrimEnd());
+			PrintPluginMessageToChat(player, stringBuilder.ToString().TrimEnd());
         }
 
         [HookMethod("SendHelpText")]
-        private void SendHelpText(BasePlayer Player)
+        private void SendHelpText(BasePlayer player)
         {
             if (!Initialized) return;
 			StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append(FormNeutralMessage("-------------------- Available Commands --------------------\n"));
 			stringBuilder.Append(FormNeutralMessage("/tod") + " - Shows current Time Of Day.\n");
-            PrintPluginMessageToChat(Player, stringBuilder.ToString());
+            PrintPluginMessageToChat(player, stringBuilder.ToString());
         }
 
-        private void PrintPluginMessageToChat(BasePlayer Player, string Message)
+        private void PrintPluginMessageToChat(BasePlayer player, string message)
         {
-            PrintToChat(Player, "<b><size=16>[<color=#ffa500ff>" + this.Name + "</color>]</size></b>\n" + Message);
+            PrintToChat(player, "<b><size=16>[<color=#ffa500ff>" + this.Name + "</color>]</size></b>\n" + message);
         }
 
-        private void PrintPluginMessageToChat(string Message)
+        private void PrintPluginMessageToChat(string message)
         {
-            PrintToChat("<b><size=16>[<color=#ffa500ff>" + this.Name + "</color>]</size></b>\n" + Message);
+            PrintToChat("<b><size=16>[<color=#ffa500ff>" + this.Name + "</color>]</size></b>\n" + message);
         }
 
-        private string FormNeutralMessage(string Message)
+        private string FormNeutralMessage(string message)
         {
-            return "<color=#c0c0c0ff>" + Message + "</color>";
+            return "<color=#c0c0c0ff>" + message + "</color>";
         }
 
     }

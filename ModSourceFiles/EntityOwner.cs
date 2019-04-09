@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using Facepunch;
 using Oxide.Core;
@@ -11,209 +10,163 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Entity Owner", "rustservers.io", "3.1.7", ResourceId = 1255)]
-    [Description("Modify entity ownership and cupboard/turret authorization")]      
+    [Info ("Entity Owner", "Calytic", "3.2.0")]
+    [Description ("Modify entity ownership and cupboard/turret authorization")]
     class EntityOwner : RustPlugin
     {
         #region Data & Config
-        private Dictionary<string, string> messages = new Dictionary<string, string>();
-        private readonly int layerMasks = LayerMask.GetMask("Construction", "Construction Trigger", "Trigger", "Deployed");
+        readonly int layerMasks = LayerMask.GetMask ("Construction", "Construction Trigger", "Trigger", "Deployed");
 
-        private bool prodKeyCode = true;
-        private int EntityLimit = 8000;
-        private float DistanceThreshold = 3f;
-        private float CupboardDistanceThreshold = 20f;
+        int EntityLimit = 8000;
+        float DistanceThreshold = 3f;
+        float CupboardDistanceThreshold = 20f;
 
-        private bool debug = false;
+        bool debug;
 
         #endregion
 
         #region Data Handling & Initialization
 
-        private List<string> texts = new List<string>() {
-            "You are not allowed to use this command",
-            "Ownership data wiped!",
-            "No target found",
-            "Owner: {0}",
-            "Target player not found",
-            "Invalid syntax: /owner",
-            "Invalid Syntax. \n/own type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/own player",
-            "Invalid Syntax. \n/unown type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/unown player",
-            "Invalid Syntax. \n/prod2 type \nTypes:\n all/block/entity/storage/cupboard/sign/sleepingbag/plant/oven/door/turret",
-            "Invalid Syntax. \n/auth turret player\n/auth cupboard player/auth player\n/auth",
-            "No building or entities found.",
-            "Changing ownership..",
-            "Removing ownership..",
-            "Exceeded entity limit.",
-            "Counted {0} entities ({1}/{2})",
-            "New owner of all around is: {0}",
-            "Owner: You were given ownership of this house and nearby deployables",
-            "No entities found.",
-            "Prodding structure..",
-            "Prodding cupboards..",
-            "Count ({0})",
-            "Unknown player",
-            "Unknown: {0}%",
-            "Authorizing cupboards..",
-            "Authorized {0} on {1} cupboards",
-            "({0}) Authorized",
-            "Ownership data expired!",
-            "Authorized {0} on {1} turrets",
-            "Authorizing turrets..",
-            "Prodding turrets..",
-            "Deauthorized {0} on {1} turrets",
-            "Deauthorizing turrets..",
-            "Deauthorizing cupboards..",
-            "Deauthorized {0} on {1} cupboards",
-            "Code: {0}",
+        Dictionary<string, string> texts = new Dictionary<string, string> {
+            {"Denied: Permission", "You are not allowed to use this command"},
+            {"Target: None", "No target found"},
+            {"Target: Owner", "Owner: {0}"},
+            {"Target: Limit", "Exceeded entity limit."},
+            {"Syntax: Owner", "Invalid syntax: /owner"},
+            {"Syntax: Own", "Invalid Syntax. \n/own type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/own player"},
+            {"Syntax: Unown", "Invalid Syntax. \n/unown type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/unown player"},
+            {"Syntax: Prod2", "Invalid Syntax. \n/prod2 type \nTypes:\n all/block/entity/storage/cupboard/sign/sleepingbag/plant/oven/door/turret"},
+            {"Syntax: Auth", "Invalid Syntax. \n/auth turret player\n/auth cupboard player/auth player\n/auth"},
+            {"Syntax: Deauth", "Invalid Syntax. \n/deauth turret player\n/deauth cupboard player/deauth player\n/deauth"},
+            {"Ownership: Changing", "Changing ownership.."},
+            {"Ownership: Removing", "Removing ownership.."},
+            {"Ownership: New", "New owner of all around is: {0}"},
+            {"Ownership: New Self", "Owner: You were given ownership of this house and nearby deployables"},
+            {"Ownership: Count", "Count ({0})"},
+            {"Ownership: Removed", "Ownership removed"},
+            {"Ownership: Changed", "Ownership changed"},
+            {"Entities: None", "No entities found."},
+            {"Entities: Authorized", "({0}) Authorized"},
+            {"Entities: Count", "Counted {0} entities ({1}/{2})"},
+            {"Structure: Prodding","Prodding structure.."},
+            {"Structure: Condition Percent", "Condition: {0}%"},
+            {"Player: Unknown Percent", "Unknown: {0}%"},
+            {"Player: None", "Target player not found"},
+            {"Cupboards: Prodding", "Prodding cupboards.."},
+            {"Cupboards: Authorizing", "Authorizing cupboards.."},
+            {"Cupboards: Authorized", "Authorized {0} on {1} cupboards"},
+            {"Cupboards: Deauthorizing", "Deauthorizing cupboards.."},
+            {"Cupboard: Deauthorized", "Deauthorized {0} on {1} cupboards"},
+            {"Turrets: Authorized", "Authorized {0} on {1} turrets"},
+            {"Turrets: Authorizing", "Authorizing turrets.."},
+            {"Turrets: Prodding", "Prodding turrets.."},
+            {"Turrets: Deauthorized", "Deauthorized {0} on {1} turrets"},
+            {"Turrets: Deauthorizing", "Deauthorizing turrets.."},
+            {"Lock: Code", "Code: {0}"}
         };
 
         // Loads the default configuration
-        protected override void LoadDefaultConfig()
+        protected override void LoadDefaultConfig ()
         {
-            PrintToConsole("Creating new configuration file");
+            Config ["VERSION"] = Version.ToString ();
+            Config ["EntityLimit"] = 8000;
+            Config ["DistanceThreshold"] = 3.0f;
+            Config ["CupboardDistanceThreshold"] = 20f;
 
-            var messages = new Dictionary<string, object>();
-
-            foreach (var text in texts)
-            {
-                if (messages.ContainsKey(text))
-                {
-                    PrintWarning("Duplicate translation string: {0}", text);
-                }
-                else
-                {
-                    messages.Add(text, text);
-                }
-            }
-
-            Config["messages"] = messages;
-            Config["VERSION"] = Version.ToString();
-            Config["EntityLimit"] = 8000;
-            Config["DistanceThreshold"] = 3.0f;
-            Config["CupboardDistanceThreshold"] = 20f;
-            Config["prodKeyCode"] = true;
-
-            Config.Save();
+            Config.Save ();
         }
 
-        protected void ReloadConfig()
+        new void LoadDefaultMessages ()
         {
-            var messages = new Dictionary<string, object>();
+            lang.RegisterMessages (texts, this);
+        }
 
-            foreach (var text in texts)
-            {
-                if (!messages.ContainsKey(text))
-                {
-                    messages.Add(text, text);
-                }
-            }
-
-            Config["messages"] = messages;
-            Config["VERSION"] = Version.ToString();
+        protected void ReloadConfig ()
+        {
+            Config ["VERSION"] = Version.ToString ();
 
             // NEW CONFIGURATION OPTIONS HERE
-            Config["prodKeyCode"] = GetConfig("prodKeyCode", true);
             // END NEW CONFIGURATION OPTIONS
 
-            PrintToConsole("Upgrading Configuration File");
-            SaveConfig();
-            LoadMessages();
+            PrintToConsole ("Upgrading Configuration File");
+            SaveConfig ();
         }
 
         // Gets a config value of a specific type
-        private T GetConfig<T>(string name, T defaultValue)
+        T GetConfig<T> (string name, T defaultValue)
         {
-            if (Config[name] == null)
-            {
+            if (Config [name] == null) {
                 return defaultValue;
             }
 
-            return (T)Convert.ChangeType(Config[name], typeof(T));
+            return (T)Convert.ChangeType (Config [name], typeof (T));
         }
 
-        void OnServerInitialized()
+        string GetMsg (string key, BasePlayer player = null)
         {
-            try
-            {
-                LoadConfig();
+            return lang.GetMessage (key, this, player == null ? null : player.UserIDString);
+        }
 
-                debug = GetConfig("Debug", false);
-                EntityLimit = GetConfig("EntityLimit", 8000);
-                DistanceThreshold = GetConfig("DistanceThreshold", 3f);
-                CupboardDistanceThreshold = GetConfig("CupboardDistanceThreshold", 20f);
-                prodKeyCode = GetConfig("prodKeyCode", true);
+        void OnServerInitialized ()
+        {
+            try {
+                LoadConfig ();
 
-                if (DistanceThreshold >= 5)
-                {
-                    PrintWarning("ALERT: Distance threshold configuration option is ABOVE 5.  This may cause serious performance degradation (lag) when using EntityOwner commands");
+                debug = GetConfig ("Debug", false);
+                EntityLimit = GetConfig ("EntityLimit", 8000);
+                DistanceThreshold = GetConfig ("DistanceThreshold", 3f);
+                CupboardDistanceThreshold = GetConfig ("CupboardDistanceThreshold", 20f);
+
+                if (DistanceThreshold >= 5) {
+                    PrintWarning ("ALERT: Distance threshold configuration option is ABOVE 5.  This may cause serious performance degradation (lag) when using EntityOwner commands");
                 }
 
-                LoadMessages();
+                if (!permission.PermissionExists ("entityowner.cancheckowners")) permission.RegisterPermission ("entityowner.cancheckowners", this);
+                if (!permission.PermissionExists ("entityowner.cancheckcodes")) permission.RegisterPermission ("entityowner.cancheckcodes", this);
+                if (!permission.PermissionExists ("entityowner.canchangeowners")) permission.RegisterPermission ("entityowner.canchangeowners", this);
+                if (!permission.PermissionExists ("entityowner.seedetails")) permission.RegisterPermission ("entityowner.seedetails", this);
 
-                if (!permission.PermissionExists("entityowner.cancheckowners")) permission.RegisterPermission("entityowner.cancheckowners", this);
-                if (!permission.PermissionExists("entityowner.canchangeowners")) permission.RegisterPermission("entityowner.canchangeowners", this);
-
-                LoadData();
-            }
-            catch (Exception ex)
-            {
-                PrintError("OnServerInitialized failed: {0}", ex.Message);
+                LoadData ();
+            } catch (Exception ex) {
+                PrintError ("OnServerInitialized failed: {0}", ex.Message);
             }
         }
 
-        void LoadMessages() {
-            var customMessages = GetConfig<Dictionary<string, object>>("messages", null);
-            if (customMessages != null)
-            {
-                foreach (var kvp in customMessages.ToList())
-                {
-                    messages[kvp.Key] = kvp.Value.ToString();
-                }
-            }
-        }
-
-        void LoadData()
+        void LoadData ()
         {
-            if (Config["VERSION"] == null)
-            {
+            if (Config ["VERSION"] == null) {
                 // FOR COMPATIBILITY WITH INITIAL VERSIONS WITHOUT VERSIONED CONFIG
-                ReloadConfig();
-            }
-            else if (GetConfig("VERSION", Version.ToString()) != Version.ToString())
-            {
+                ReloadConfig ();
+            } else if (GetConfig ("VERSION", Version.ToString ()) != Version.ToString ()) {
                 // ADDS NEW, IF ANY, CONFIGURATION OPTIONS
-                ReloadConfig();
+                ReloadConfig ();
             }
         }
 
-        [HookMethod("SendHelpText")]
-        private void SendHelpText(BasePlayer player)
+        [HookMethod ("SendHelpText")]
+        void SendHelpText (BasePlayer player)
         {
-            var sb = new StringBuilder();
-            if (canCheckOwners(player) || canChangeOwners(player))
-            {
-                sb.Append("<size=18>EntityOwner</size> by <color=#ce422b>Calytic</color> at <color=#ce422b>http://rustservers.io</color>\n");
+            var sb = new StringBuilder ();
+            if (canCheckOwners (player) || canChangeOwners (player)) {
+                sb.Append ("<size=18>EntityOwner</size> by <color=#ce422b>Calytic</color> at <color=#ce422b>http://rustservers.io</color>\n");
             }
 
-            if (canCheckOwners(player))
-            {
-                sb.Append("  ").Append("<color=\"#ffd479\">/prod</color> - Check ownership of entity you are looking at").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/prod2</color> - Check ownership of entire structure/all deployables").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/prod2 block</color> - Check ownership structure only").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/prod2 cupboard</color> - Check authorization on all nearby cupboards").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/auth</color> - Check authorization list of tool cupboard you are looking at").Append("\n");
+            if (canCheckOwners (player)) {
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/prod</color> - Check ownership of entity you are looking at").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/prod2</color> - Check ownership of entire structure/all deployables").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/prod2 block</color> - Check ownership structure only").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/prod2 cupboard</color> - Check authorization on all nearby cupboards").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/auth</color> - Check authorization list of tool cupboard you are looking at").Append ("\n");
             }
 
-            if (canChangeOwners(player))
-            {
-                sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block]</color> - Take ownership of entire structure").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/unown [all/block]</color> - Remove ownership from entire structure").Append("\n");
-                sb.Append("  ").Append("<color=\"#ffd479\">/auth PlayerName</color> - Authorize specified player on all nearby cupboards").Append("\n");
+            if (canChangeOwners (player)) {
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/own [all/block]</color> - Take ownership of entire structure").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/own [all/block] PlayerName</color> - Give ownership of entire structure to specified player").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/unown [all/block]</color> - Remove ownership from entire structure").Append ("\n");
+                sb.Append ("  ").Append ("<color=\"#ffd479\">/auth PlayerName</color> - Authorize specified player on all nearby cupboards").Append ("\n");
             }
 
-            player.ChatMessage(sb.ToString());
+            SendReply (player, sb.ToString ());
         }
 
         #endregion
@@ -222,214 +175,214 @@ namespace Oxide.Plugins
 
         #region Chat Commands
 
-        [ChatCommand("prod")]
-        void cmdProd(BasePlayer player, string command, string[] args)
+        [ChatCommand ("prod")]
+        void cmdProd (BasePlayer player, string command, string [] args)
         {
-            if (!canCheckOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canCheckOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
-            if (args == null || args.Length == 0)
-            {
+            if (args == null || args.Length == 0) {
                 //var input = serverinput.GetValue(player) as InputState;
                 //var currentRot = Quaternion.Euler(input.current.aimAngles) * Vector3.forward;
                 //var target = RaycastAll<BaseEntity>(player.transform.position + new Vector3(0f, 1.5f, 0f), currentRot);
-                var target = RaycastAll<BaseEntity>(player.eyes.HeadRay());
-                if (target is bool)
-                {
-                    SendReply(player, messages["No target found"]);
+                var target = RaycastAll<BaseEntity> (player.eyes.HeadRay ());
+                if (target is bool) {
+                    SendReply (player, GetMsg ("Target: None", player));
                     return;
                 }
-                if (target is BaseEntity)
-                {
+                if (target is BaseEntity) {
                     var targetEntity = target as BaseEntity;
-                    var owner = GetOwnerName((BaseEntity)target);
-                    if (string.IsNullOrEmpty(owner))
-                    {
+                    var owner = GetOwnerName ((BaseEntity)target);
+                    if (string.IsNullOrEmpty (owner)) {
                         owner = "N/A";
                     }
 
-                    string msg = string.Format(messages["Owner: {0}"], owner) + "\n<color=lightgrey>" + targetEntity.ShortPrefabName + "</color>";
+                    string msg = string.Format (GetMsg ("Target: Owner", player), owner);
 
-                    if(prodKeyCode) {
-                        if(target is Door) {
-                            Door door = (Door)target;
-                            BaseLock baseLock = door.GetSlot(BaseEntity.Slot.Lock) as BaseLock;
-                            if(baseLock is CodeLock) {
-                                CodeLock codeLock = (CodeLock)baseLock;
-                                string keyCode = codeLock.code;
-                                msg += "\n" + string.Format(messages["Code: {0}"], keyCode);
-                            }
+                    if (canSeeDetails (player)) {
+                        msg += "\n<color=lightgrey>Name: " + targetEntity.ShortPrefabName + "</color>";
+                        if (targetEntity.skinID > 0) {
+                            msg += "\n<color=lightgrey>Skin: " + targetEntity.skinID + "</color>";
+                        }
+
+                        if (targetEntity.PrefabName != targetEntity.ShortPrefabName) {
+                            msg += "\n<color=lightgrey>Prefab: \"" + targetEntity.PrefabName + "\"</color>";
+                        }
+
+                        msg += "\n<color=lightgrey>Outside: " + (targetEntity.IsOutside () ? "Yes" : "No") + "</color>";
+                    }
+
+                    if (canCheckCodes (player)) {
+                        var baseLock = targetEntity.GetSlot (BaseEntity.Slot.Lock);
+                        if (baseLock is CodeLock) {
+                            CodeLock codeLock = (CodeLock)baseLock;
+                            string keyCode = codeLock.code;
+                            msg += "\n" + string.Format (GetMsg ("Lock: Code", player), keyCode);
                         }
                     }
 
-                    SendReply(player, msg);
+                    SendReply (player, msg);
                 }
-            }
-            else
-            {
-                SendReply(player, messages["Invalid syntax: /owner"]);
+            } else {
+                SendReply (player, GetMsg ("Syntax: Owner", player));
             }
         }
 
-        [ChatCommand("own")]
-        void cmdOwn(BasePlayer player, string command, string[] args)
+        [ChatCommand ("own")]
+        void cmdOwn (BasePlayer player, string command, string [] args)
         {
-            if (!canChangeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canChangeOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
 
             var massTrigger = false;
             string type = null;
-            ulong target = 0;;
+            ulong target = player.userID; ;
 
-            if (args.Length == 0)
-            {
-                args = new string[1] { "all" };
+            if (args.Length == 0) {
+                args = new string [1] { "1" };
             }
-
-            if (args.Length > 2)
-            {
-                SendReply(player, messages["Invalid Syntax. \n/own type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/own player"]);
+            if (args.Length > 2) {
+                SendReply (player, GetMsg ("Syntax: Own", player));
                 return;
             }
-            else if (args.Length == 1)
-            {
-                type = args[0];
-                if (type == "all" || type == "storage" || type == "block" || type == "cupboard" || type == "sign" || type == "sleepingbag" || type == "plant" || type == "oven" || type == "door" || type == "turret")
-                {
+            if (args.Length == 1) {
+                if (type == "all" || type == "storage" || type == "block" || type == "cupboard" || type == "sign" || type == "sleepingbag" || type == "plant" || type == "oven" || type == "door" || type == "turret") {
                     massTrigger = true;
                     target = player.userID;
-                }
-                else
-                {
-                    target = FindUserIDByPartialName(type);
-                    type = "all";
-                    if (target == 0)
-                    {
-                        SendReply(player, messages["Target player not found"]);
-                    }
-                    else
-                    {
+                } else if (!string.IsNullOrEmpty (type)) {
+                    target = FindUserIDByPartialName (type);
+                    type = "1";
+                    if (target == 0) {
+                        SendReply (player, GetMsg ("Player: None", player));
+                    } else {
                         massTrigger = true;
                     }
+                } else {
+                    massTrigger = true;
+                    type = "1";
                 }
-
-            }
-            else if (args.Length == 2)
-            {
-                type = args[0];
-                target = FindUserIDByPartialName(args[1]);
-                if (target == 0)
-                {
-                    SendReply(player, messages["Target player not found"]);
-                }
-                else
-                {
+            } else if (args.Length == 2) {
+                type = args [0];
+                target = FindUserIDByPartialName (args [1]);
+                if (target == 0) {
+                    SendReply (player, GetMsg ("Player: None", player));
+                } else {
                     massTrigger = true;
                 }
             }
 
-            if (!massTrigger || type == null || target == null) return;
-                switch (type)
-                {
-                    case "all":
-                        massChangeOwner<BaseEntity>(player, target);
-                        break;
-                    case "block":
-                        massChangeOwner<BuildingBlock>(player, target);
-                        break;
-                    case "storage":
-                        massChangeOwner<StorageContainer>(player, target);
-                        break;
-                    case "sign":
-                        massChangeOwner<Signage>(player, target);
-                        break;
-                    case "sleepingbag":
-                        massChangeOwner<SleepingBag>(player, target);
-                        break;
-                    case "plant":
-                        massChangeOwner<PlantEntity>(player, target);
-                        break;
-                    case "oven":
-                        massChangeOwner<BaseOven>(player, target);
-                        break;
-                    case "turret":
-                        massChangeOwner<AutoTurret>(player, target);
-                        break;
-                    case "door":
-                        massChangeOwner<Door>(player, target);
-                        break;
-                    case "cupboard":
-                        massChangeOwner<BuildingPrivlidge>(player, target);
-                        break;
+            if (!massTrigger || type == null) return;
+            switch (type) {
+            case "1":
+                BaseEntity entity;
+                if (TryGetEntity<BaseEntity> (player, out entity)) {
+                    ChangeOwner (entity, target);
+                    SendReply (player, GetMsg ("Ownership: Changed", player));
+                } else {
+                    SendReply (player, GetMsg ("Target: None", player));
                 }
+                break;
+            case "all":
+                massChangeOwner<BaseEntity> (player, target);
+                break;
+            case "block":
+                massChangeOwner<BuildingBlock> (player, target);
+                break;
+            case "storage":
+                massChangeOwner<StorageContainer> (player, target);
+                break;
+            case "sign":
+                massChangeOwner<Signage> (player, target);
+                break;
+            case "sleepingbag":
+                massChangeOwner<SleepingBag> (player, target);
+                break;
+            case "plant":
+                massChangeOwner<PlantEntity> (player, target);
+                break;
+            case "oven":
+                massChangeOwner<BaseOven> (player, target);
+                break;
+            case "turret":
+                massChangeOwner<AutoTurret> (player, target);
+                break;
+            case "door":
+                massChangeOwner<Door> (player, target);
+                break;
+            case "cupboard":
+                massChangeOwner<BuildingPrivlidge> (player, target);
+                break;
             }
+        }
 
-        [ChatCommand("unown")]
-        void cmdUnown(BasePlayer player, string command, string[] args)
+        [ChatCommand ("unown")]
+        void cmdUnown (BasePlayer player, string command, string [] args)
         {
-            if (!canChangeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canChangeOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
 
-            if (args.Length == 0)
-            {
-                args = new[] { "all" };
+            if (args.Length == 0) {
+                args = new [] { "1" };
             }
 
-            if (args.Length > 1)
-            {
-                SendReply(player, messages["Invalid Syntax. \n/unown type player\nTypes: all/block/storage/cupboard/sign/sleepingbag/plant/oven/door/turret\n/unown player"]);
+            if (args.Length > 1) {
+                SendReply (player, GetMsg ("Syntax: Unown", player));
                 return;
             }
             if (args.Length != 1) return;
-                switch (args[0])
-                {
-                    case "all":
-                        massChangeOwner<BaseEntity>(player);
-                        break;
-                    case "block":
-                        massChangeOwner<BuildingBlock>(player);
-                        break;
-                    case "storage":
-                        massChangeOwner<StorageContainer>(player);
-                        break;
-                    case "sign":
-                        massChangeOwner<Signage>(player);
-                        break;
-                    case "sleepingbag":
-                        massChangeOwner<SleepingBag>(player);
-                        break;
-                    case "plant":
-                        massChangeOwner<PlantEntity>(player);
-                        break;
-                    case "oven":
-                        massChangeOwner<BaseOven>(player);
-                        break;
-                    case "turret":
-                        massChangeOwner<AutoTurret>(player);
-                        break;
-                    case "door":
-                        massChangeOwner<Door>(player);
-                        break;
-                    case "cupboard":
-                        massChangeOwner<BuildingPrivlidge>(player);
-                        break;
+            switch (args [0]) {
+            case "1":
+                BaseEntity entity;
+                if (TryGetEntity<BaseEntity> (player, out entity)) {
+                    RemoveOwner (entity);
+                    SendReply (player, GetMsg ("Ownership: Removed", player));
+                } else {
+                    SendReply (player, GetMsg ("Target: None", player));
                 }
+                break;
+            case "all":
+                massChangeOwner<BaseEntity> (player);
+                break;
+            case "block":
+                massChangeOwner<BuildingBlock> (player);
+                break;
+            case "storage":
+                massChangeOwner<StorageContainer> (player);
+                break;
+            case "sign":
+                massChangeOwner<Signage> (player);
+                break;
+            case "sleepingbag":
+                massChangeOwner<SleepingBag> (player);
+                break;
+            case "plant":
+                massChangeOwner<PlantEntity> (player);
+                break;
+            case "oven":
+                massChangeOwner<BaseOven> (player);
+                break;
+            case "turret":
+                massChangeOwner<AutoTurret> (player);
+                break;
+            case "door":
+                massChangeOwner<Door> (player);
+                break;
+            case "cupboard":
+                massChangeOwner<BuildingPrivlidge> (player);
+                break;
             }
+        }
 
-        [ChatCommand("auth")]
-        void cmdAuth(BasePlayer player, string command, string[] args)
+        [ChatCommand ("auth")]
+        void cmdAuth (BasePlayer player, string command, string [] args)
         {
-            if (!canChangeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canChangeOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
 
@@ -440,105 +393,77 @@ namespace Oxide.Plugins
             var error = false;
             BasePlayer target = null;
 
-            if (args.Length > 2)
-            {
+            if (args.Length > 2) {
                 error = true;
-            }
-            else if (args.Length == 1)
-            {
-                if (args[0] == "cupboard")
-                {
+            } else if (args.Length == 1) {
+                if (args [0] == "cupboard") {
                     checkCupboard = true;
-                }
-                else if (args[0] == "turret")
-                {
+                } else if (args [0] == "turret") {
                     checkTurret = true;
-                }
-                else
-                {
+                } else {
                     massCupboard = true;
-                    target = FindPlayerByPartialName(args[0]);
+                    target = FindPlayerByPartialName (args [0]);
                 }
-            }
-            else if (args.Length == 0)
-            {
+            } else if (args.Length == 0) {
                 checkCupboard = true;
-            }
-            else if (args.Length == 2)
-            {
-                if (args[0] == "cupboard")
-                {
+            } else if (args.Length == 2) {
+                if (args [0] == "cupboard") {
                     massCupboard = true;
-                    target = FindPlayerByPartialName(args[1]);
-                }
-                else if (args[0] == "turret")
-                {
+                    target = FindPlayerByPartialName (args [1]);
+                } else if (args [0] == "turret") {
                     massTurret = true;
-                    target = FindPlayerByPartialName(args[1]);
-                }
-                else
-                {
+                    target = FindPlayerByPartialName (args [1]);
+                } else {
                     error = true;
                 }
             }
 
-            if ((massTurret || massCupboard) && target?.net?.connection == null)
-            {
-                SendReply(player, messages["Target player not found"]);
+            if ((massTurret || massCupboard) && target?.net?.connection == null) {
+                SendReply (player, GetMsg ("Player: None", player));
                 return;
             }
 
-            if (error)
-            {
-                SendReply(player, messages["Invalid Syntax. \n/auth turret player\n/auth cupboard player/auth player\n/auth"]);
+            if (error) {
+                SendReply (player, GetMsg ("Syntax: Auth", player));
                 return;
             }
 
-            if (massCupboard)
-            {
-                massCupboardAuthorize(player, target);
+            if (massCupboard) {
+                massCupboardAuthorize (player, target);
             }
 
-            if (checkCupboard)
-            {
-                var priv = RaycastAll<BuildingPrivlidge>(player.eyes.HeadRay());
-                if (priv is bool)
-                {
-                    SendReply(player, messages["No target found"]);
+            if (checkCupboard) {
+                var priv = RaycastAll<BuildingPrivlidge> (player.eyes.HeadRay ());
+                if (priv is bool) {
+                    SendReply (player, GetMsg ("Target: None", player));
                     return;
                 }
-                if (priv is BuildingPrivlidge)
-                {
-                    ProdCupboard(player, (BuildingPrivlidge)priv);
+                if (priv is BuildingPrivlidge) {
+                    ProdCupboard (player, (BuildingPrivlidge)priv);
                 }
             }
 
-            if (massTurret)
-            {
-                massTurretAuthorize(player, target);
+            if (massTurret) {
+                massTurretAuthorize (player, target);
             }
 
-            if (checkTurret)
-            {
-                var turret = RaycastAll<AutoTurret>(player.eyes.HeadRay());
-                if (turret is bool)
-                {
-                    SendReply(player, messages["No target found"]);
+            if (checkTurret) {
+                var turret = RaycastAll<AutoTurret> (player.eyes.HeadRay ());
+                if (turret is bool) {
+                    SendReply (player, GetMsg ("Target: None", player));
                     return;
                 }
-                if (turret is AutoTurret)
-                {
-                    ProdTurret(player, (AutoTurret)turret);
+                if (turret is AutoTurret) {
+                    ProdTurret (player, (AutoTurret)turret);
                 }
             }
         }
 
-        [ChatCommand("deauth")]
-        void cmdDeauth(BasePlayer player, string command, string[] args)
+        [ChatCommand ("deauth")]
+        void cmdDeauth (BasePlayer player, string command, string [] args)
         {
-            if (!canChangeOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canChangeOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
 
@@ -547,138 +472,110 @@ namespace Oxide.Plugins
             var error = false;
             BasePlayer target = null;
 
-            if (args.Length > 2)
-            {
+            if (args.Length > 2) {
                 error = true;
-            }
-            else if (args.Length == 1)
-            {
-                if (args[0] == "cupboard")
-                {
-                    SendReply(player, "Invalid Syntax. /deauth cupboard PlayerName");
+            } else if (args.Length == 1) {
+                if (args [0] == "cupboard") {
+                    SendReply (player, "Invalid Syntax. /deauth cupboard PlayerName");
                     return;
                 }
-                else if (args[0] == "turret")
-                {
-                    SendReply(player, "Invalid Syntax. /deauth turret PlayerName");
+                if (args [0] == "turret") {
+                    SendReply (player, "Invalid Syntax. /deauth turret PlayerName");
                     return;
                 }
-                else
-                {
-                    massCupboard = true;
-                    target = FindPlayerByPartialName(args[0]);
-                }
-            }
-            else if (args.Length == 0)
-            {
-                SendReply(player, "Invalid Syntax. /deauth PlayerName\n/deauth turret/cupboard PlayerName");
+
+                massCupboard = true;
+                target = FindPlayerByPartialName (args [0]);
+            } else if (args.Length == 0) {
+                SendReply (player, "Invalid Syntax. /deauth PlayerName\n/deauth turret/cupboard PlayerName");
                 return;
-            }
-            else if (args.Length == 2)
-            {
-                if (args[0] == "cupboard")
-                {
+            } else if (args.Length == 2) {
+                if (args [0] == "cupboard") {
                     massCupboard = true;
-                    target = FindPlayerByPartialName(args[1]);
-                }
-                else if (args[0] == "turret")
-                {
+                    target = FindPlayerByPartialName (args [1]);
+                } else if (args [0] == "turret") {
                     massTurret = true;
-                    target = FindPlayerByPartialName(args[1]);
-                }
-                else
-                {
+                    target = FindPlayerByPartialName (args [1]);
+                } else {
                     error = true;
                 }
             }
 
-            if ((massTurret || massCupboard) && target?.net?.connection == null)
-            {
-                    SendReply(player, messages["Target player not found"]);
-                    return;
-                }
-
-            if (error)
-            {
-                SendReply(player, messages["Invalid Syntax. \n/auth turret player\n/auth cupboard player/auth player\n/auth"]);
+            if ((massTurret || massCupboard) && target?.net?.connection == null) {
+                SendReply (player, GetMsg ("Player: None", player));
                 return;
             }
 
-            if (massCupboard)
-            {
-                massCupboardDeauthorize(player, target);
+            if (error) {
+                SendReply (player, GetMsg ("Syntax: Deauth", player));
+                return;
             }
 
-            if (massTurret)
-            {
-                massTurretDeauthorize(player, target);
+            if (massCupboard) {
+                massCupboardDeauthorize (player, target);
+            }
+
+            if (massTurret) {
+                massTurretDeauthorize (player, target);
             }
         }
 
-        [ChatCommand("prod2")]
-        void cmdProd2(BasePlayer player, string command, string[] args)
+        [ChatCommand ("prod2")]
+        void cmdProd2 (BasePlayer player, string command, string [] args)
         {
-            if (!canCheckOwners(player))
-            {
-                SendReply(player, messages["You are not allowed to use this command"]);
+            if (!canCheckOwners (player)) {
+                SendReply (player, GetMsg ("Denied: Permission", player));
                 return;
             }
 
             bool highlight = false;
-            if (args.Length > 0)
-            {
-                if(args[0] == "highlight") {
+            if (args.Length > 0) {
+                if (args [0] == "highlight") {
                     highlight = true;
-                    args = args.Skip(1).ToArray();
+                    args = args.Skip (1).ToArray ();
                 }
-                if (args.Length == 0)
-                {
-                    massProd<BaseEntity>(player, highlight);
+                if (args.Length == 0) {
+                    massProd<BaseEntity> (player, highlight);
                     return;
                 }
 
-                switch (args[0])
-                {
-                    case "all":
-                        args = args.Skip(1).ToArray();
-                        massProd<BaseEntity>(player, highlight, args);
-                        break;
-                    case "block":
-                        massProd<BuildingBlock>(player, highlight);
-                        break;
-                    case "storage":
-                        massProd<StorageContainer>(player, highlight);
-                        break;
-                    case "sign":
-                        massProd<Signage>(player, highlight);
-                        break;
-                    case "sleepingbag":
-                        massProd<SleepingBag>(player, highlight);
-                        break;
-                    case "plant":
-                        massProd<PlantEntity>(player, highlight);
-                        break;
-                    case "oven":
-                        massProd<BaseOven>(player, highlight);
-                        break;
-                    case "turret":
-                        massProdTurret(player, highlight);
-                        break;
-                    case "cupboard":
-                        massProdCupboard(player, highlight);
-                        break;
-                    default:
-                        massProd<BaseEntity>(player, highlight, args);
-                        break;
+                switch (args [0]) {
+                case "all":
+                    args = args.Skip (1).ToArray ();
+                    massProd<BaseEntity> (player, highlight, args);
+                    break;
+                case "block":
+                    massProd<BuildingBlock> (player, highlight);
+                    break;
+                case "storage":
+                    massProd<StorageContainer> (player, highlight);
+                    break;
+                case "sign":
+                    massProd<Signage> (player, highlight);
+                    break;
+                case "sleepingbag":
+                    massProd<SleepingBag> (player, highlight);
+                    break;
+                case "plant":
+                    massProd<PlantEntity> (player, highlight);
+                    break;
+                case "oven":
+                    massProd<BaseOven> (player, highlight);
+                    break;
+                case "turret":
+                    massProdTurret (player, highlight);
+                    break;
+                case "cupboard":
+                    massProdCupboard (player, highlight);
+                    break;
+                default:
+                    massProd<BaseEntity> (player, highlight, args);
+                    break;
                 }
-            }
-            else if (args.Length == 0)
-            {
-                massProd<BaseEntity>(player);
-            }
-            else
-            {
-                SendReply(player, messages["Invalid Syntax. \n/prod2 type \nTypes:\n all/block/entity/storage/cupboard/sign/sleepingbag/plant/oven/door/turret"]);
+            } else if (args.Length == 0) {
+                massProd<BaseEntity> (player);
+            } else {
+                SendReply (player, GetMsg ("Syntax: Prod2", player));
             }
         }
 
@@ -686,469 +583,452 @@ namespace Oxide.Plugins
 
         #region Permission Checks
 
-        bool canCheckOwners(BasePlayer player)
+        bool canCheckOwners (BasePlayer player)
         {
             if (player == null) return false;
             if (player.net.connection.authLevel > 0) return true;
-            return permission.UserHasPermission(player.UserIDString, "entityowner.cancheckowners");
+            return permission.UserHasPermission (player.UserIDString, "entityowner.cancheckowners");
         }
 
-        bool canChangeOwners(BasePlayer player)
+        bool canCheckCodes (BasePlayer player)
         {
             if (player == null) return false;
             if (player.net.connection.authLevel > 0) return true;
-            return permission.UserHasPermission(player.UserIDString, "entityowner.canchangeowners");
+            return permission.UserHasPermission (player.UserIDString, "entityowner.cancheckcodes");
+        }
+
+        bool canSeeDetails (BasePlayer player)
+        {
+            if (player == null) return false;
+            if (player.net.connection.authLevel > 0) return true;
+            return permission.UserHasPermission (player.UserIDString, "entityowner.seedetails");
+        }
+
+        bool canChangeOwners (BasePlayer player)
+        {
+            if (player == null) return false;
+            if (player.net.connection.authLevel > 0) return true;
+            return permission.UserHasPermission (player.UserIDString, "entityowner.canchangeowners");
         }
 
         #endregion
 
         #region Ownership Methods
 
-        private void massChangeOwner<T>(BasePlayer player, ulong target = 0) where T : BaseEntity
+        bool TryGetEntity<T> (BasePlayer player, out BaseEntity entity) where T : BaseEntity
+        {
+            entity = null;
+
+            var target = RaycastAll<BaseEntity> (player.eyes.HeadRay ());
+
+            if (target is T) {
+                entity = target as T;
+                return true;
+            }
+
+            return false;
+        }
+
+        void massChangeOwner<T> (BasePlayer player, ulong target = 0) where T : BaseEntity
         {
             object entityObject = false;
 
-            if (typeof(T) == typeof(BuildingBlock))
-            {
-                entityObject = FindBuilding(player.transform.position, DistanceThreshold);
-            }
-            else
-            {
-                entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            if (typeof (T) == typeof (BuildingBlock)) {
+                entityObject = FindBuilding (player.transform.position, DistanceThreshold);
+            } else {
+                entityObject = FindEntity (player.transform.position, DistanceThreshold);
             }
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
-                if (target == 0)
-                {
-                    SendReply(player, messages["Removing ownership.."]);
-                }
-                else
-                {
-                    SendReply(player, messages["Changing ownership.."]);
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
+                if (target == 0) {
+                    SendReply (player, GetMsg ("Ownership: Removing", player));
+                } else {
+                    SendReply (player, GetMsg ("Ownership: Changing", player));
                 }
 
                 var entity = entityObject as T;
-                var entityList = new HashSet<T>();
-                var checkFrom = new List<Vector3>();
-                entityList.Add((T)entity);
-                checkFrom.Add(entity.transform.position);
+                var entityList = new HashSet<T> ();
+                var checkFrom = new List<Vector3> ();
+                entityList.Add ((T)entity);
+                checkFrom.Add (entity.transform.position);
                 var c = 1;
-                if (target == 0)
-                {
-                    RemoveOwner(entity);
-                }
-                else
-                {
-                    ChangeOwner(entity, target);
+                if (target == 0) {
+                    RemoveOwner (entity);
+                } else {
+                    ChangeOwner (entity, target);
                 }
                 var current = 0;
                 var bbs = 0;
                 var ebs = 0;
-                if (entity is BuildingBlock)
-                {
+                if (entity is BuildingBlock) {
                     bbs++;
-                }
-                else
-                {
+                } else {
                     ebs++;
                 }
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
-                        if (debug)
-                        {
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                    if (current > EntityLimit) {
+                        if (debug) {
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
                         }
-                        SendReply(player, string.Format(messages["Counted {0} entities ({1}/{2})"], c, bbs, ebs));
+                        SendReply (player, string.Format (GetMsg ("Entities: Count", player), c, bbs, ebs));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Counted {0} entities ({1}/{2})"], c, bbs, ebs));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Entities: Count", player), c, bbs, ebs));
                         break;
                     }
 
-                    var hits = FindEntities<T>(checkFrom[current - 1], DistanceThreshold);
+                    var hits = FindEntities<T> (checkFrom [current - 1], DistanceThreshold);
 
-                    foreach (var entityComponent in hits.ToList())
-                    {
-                        if (!entityList.Add(entityComponent)) continue;
+                    foreach (var entityComponent in hits.ToList ()) {
+                        if (!entityList.Add (entityComponent)) continue;
                         c++;
-                        checkFrom.Add(entityComponent.transform.position);
+                        checkFrom.Add (entityComponent.transform.position);
 
-                        if (entityComponent is BuildingBlock)
-                        {
+                        if (entityComponent is BuildingBlock) {
                             bbs++;
-                        }
-                        else
-                        {
+                        } else {
                             ebs++;
                         }
 
-                        if (target == 0)
-                        {
-                            RemoveOwner(entityComponent);
-                        }
-                        else
-                        {
-                            ChangeOwner(entityComponent, target);
+                        if (target == 0) {
+                            RemoveOwner (entityComponent);
+                        } else {
+                            ChangeOwner (entityComponent, target);
                         }
                     }
-                    Pool.FreeList(ref hits);
+                    Pool.FreeList (ref hits);
                 }
 
-                if(target == 0) {
-                    SendReply(player, string.Format(messages["New owner of all around is: {0}"], "No one"));
+                if (target == 0) {
+                    SendReply (player, string.Format (GetMsg ("Ownership: New", player), "No one"));
                 } else {
-                    BasePlayer targetPlayer = BasePlayer.FindByID(target);
+                    BasePlayer targetPlayer = BasePlayer.FindByID (target);
 
-                    if (targetPlayer != null)
-                    {
-                        SendReply(player, string.Format(messages["New owner of all around is: {0}"], targetPlayer.displayName));
-                        SendReply(targetPlayer, messages["Owner: You were given ownership of this house and nearby deployables"]);
-                    }
-                    else
-                    {
-                        IPlayer pl = covalence.Players.FindPlayerById(target.ToString());
-                        SendReply(player, string.Format(messages["Owner: {0}"], pl.Name));
+                    if (targetPlayer != null) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: New", player), targetPlayer.displayName));
+                        SendReply (targetPlayer, GetMsg ("Ownership: New Self", player));
+                    } else {
+                        IPlayer pl = covalence.Players.FindPlayerById (target.ToString ());
+                        SendReply (player, string.Format (GetMsg ("Target: Owner", player), pl.Name));
                     }
                 }
             }
         }
 
-        private void massProd<T>(BasePlayer player, bool highlight = false, params string[] filter) where T : BaseEntity
+        void massProd<T> (BasePlayer player, bool highlight = false, params string [] filter) where T : BaseEntity
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
-                var prodOwners = new Dictionary<ulong, int>();
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
+                float health = 0f;
+                float maxHealth = 0f;
+                var prodOwners = new Dictionary<ulong, int> ();
                 var entity = entityObject as BaseEntity;
-                if (entity.transform == null)
-                {
-                    SendReply(player, messages["No entities found."]);
+                if (entity.transform == null) {
+                    SendReply (player, GetMsg ("Entities: None", player));
                     return;
                 }
 
-                SendReply(player, messages["Prodding structure.."]);
+                SendReply (player, GetMsg ("Structure: Prodding", player));
 
-                var entityList = new HashSet<T>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<T> ();
+                var checkFrom = new List<Vector3> ();
 
                 if (entity is T) {
-                    entityList.Add((T)entity);
+                    entityList.Add ((T)entity);
                 }
 
                 var total = 0;
                 var skip = false;
-                if (entity is T)
-                {
-                    if(filter.Length > 0) {
+                if (entity is T) {
+                    if (filter.Length > 0) {
                         skip = true;
-                        foreach(var f in filter) {
-                            if(entity.name.ToLower().Contains(f.ToLower())) {
+                        foreach (var f in filter) {
+                            if (entity.name.ToLower ().Contains (f.ToLower ())) {
                                 skip = false;
                                 break;
                             }
                         }
                     }
 
-                    if(!skip) {
-                        prodOwners.Add(entity.OwnerID, 1);
+                    if (!skip) {
+                        prodOwners.Add (entity.OwnerID, 1);
+                        health += entity.Health ();
+                        maxHealth += entity.MaxHealth ();
                         total++;
                     }
                 }
 
                 var current = -1;
                 var distanceThreshold = DistanceThreshold;
-                if (typeof(T) != typeof(BuildingBlock) && typeof(T) != typeof(BaseEntity))
+                if (typeof (T) != typeof (BuildingBlock) && typeof (T) != typeof (BaseEntity))
                     distanceThreshold += 30;
 
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
-                        if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                    if (current > EntityLimit) {
+                        SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, $"Count ({total})");
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, $"Count ({total})");
+                    if (current > checkFrom.Count) {
                         break;
                     }
 
-                    var hits = FindEntities<T>(checkFrom.Count > 0 ? checkFrom[current-1] : entity.transform.position, distanceThreshold);
+                    var hits = FindEntities<T> (checkFrom.Count > 0 ? checkFrom [current - 1] : entity.transform.position, distanceThreshold);
                     skip = false;
-                    foreach (var fentity in hits)
-                    {
-                        if (fentity.transform == null || !entityList.Add(fentity) || fentity.name == "player/player")
+                    foreach (var fentity in hits) {
+                        if (fentity.transform == null || !entityList.Add (fentity) || fentity.name == "player/player")
                             continue;
 
-                        if(filter.Length > 0) {
+                        if (filter.Length > 0) {
                             skip = true;
-                            foreach(var f in filter) {
-                                if(fentity.name.ToLower().Contains(f.ToLower())) {
+                            foreach (var f in filter) {
+                                if (fentity.name.ToLower ().Contains (f.ToLower ())) {
                                     skip = false;
                                     break;
                                 }
                             }
                         }
 
-                        checkFrom.Add(fentity.transform.position);
+                        checkFrom.Add (fentity.transform.position);
 
-                        if(!skip) {
+                        if (!skip) {
                             total++;
-                            if(highlight) {
-                                SendHighlight(player, fentity.transform.position);
+                            if (highlight) {
+                                SendHighlight (player, fentity.transform.position);
                             }
 
                             var pid = fentity.OwnerID;
-                            if (prodOwners.ContainsKey(pid))
-                            {
-                                prodOwners[pid]++;
+                            if (prodOwners.ContainsKey (pid)) {
+                                prodOwners [pid]++;
+                            } else {
+                                prodOwners.Add (pid, 1);
                             }
-                            else
-                            {
-                                prodOwners.Add(pid, 1);
-                            }
+
+                            health += fentity.Health ();
+                            maxHealth += fentity.MaxHealth ();
                         }
                     }
 
-                    Pool.FreeList(ref hits);
+                    Pool.FreeList (ref hits);
                 }
 
-                var percs = new Dictionary<ulong, int>();
                 var unknown = 100;
-                if (total > 0)
-                {
-                    foreach (var kvp in prodOwners)
-                    {
-                        var perc = kvp.Value * 100 / total;
-                        percs.Add(kvp.Key, perc);
-                        var n = FindPlayerName(kvp.Key);
 
-                        if (n != messages["Unknown player"])
-                        {
-                            SendReply(player, $"{n}: {perc}%");
+                var msg = string.Empty;
+
+                msg = "<size=16>Structure</size>\n";
+                msg += $"Entities: {total}\n";
+
+                if (health > 0 && maxHealth > 0) {
+                    var condition = Mathf.Round (health * 100 / maxHealth);
+                    msg += string.Format (GetMsg ("Structure: Condition Percent", player), condition);
+                }
+
+                SendReply (player, msg);
+
+                msg = "<size=16>Ownership</size>\n";
+
+                if (total > 0) {
+                    foreach (var kvp in prodOwners) {
+                        var perc = kvp.Value * 100 / total;
+                        if (kvp.Key != 0) {
+                            var n = FindPlayerName (kvp.Key);
+                            msg += $"{n}: {perc}%\n";
                             unknown -= perc;
                         }
                     }
                 }
 
                 if (unknown > 0)
-                    SendReply(player, string.Format(messages["Unknown: {0}%"], unknown));
+                    msg += string.Format (GetMsg ("Player: Unknown Percent", player), unknown);
 
+                SendReply (player, msg);
             }
         }
 
-        void SendHighlight(BasePlayer player, Vector3 position) {
-            player.SendConsoleCommand("ddraw.sphere",  30f, Color.magenta, position, 2f);
-            player.SendNetworkUpdateImmediate();
+        void SendHighlight (BasePlayer player, Vector3 position)
+        {
+            player.SendConsoleCommand ("ddraw.sphere", 30f, Color.magenta, position, 2f);
+            player.SendNetworkUpdateImmediate ();
         }
 
-        private void ProdCupboard(BasePlayer player, BuildingPrivlidge cupboard)
+        void ProdCupboard (BasePlayer player, BuildingPrivlidge cupboard)
         {
             List<string> authorizedUsers;
-            var sb = new StringBuilder();
-            if(TryGetCupboardUserNames(cupboard, out authorizedUsers)) {
-                sb.AppendLine(string.Format(messages["({0}) Authorized"], authorizedUsers.Count));
+            var sb = new StringBuilder ();
+            if (TryGetCupboardUserNames (cupboard, out authorizedUsers)) {
+                sb.AppendLine (string.Format (GetMsg ("Entities: Authorized", player), authorizedUsers.Count));
                 foreach (var n in authorizedUsers)
-                    sb.AppendLine(n);
+                    sb.AppendLine (n);
 
             } else
-                sb.Append(string.Format(messages["({0}) Authorized"], 0));
+                sb.Append (string.Format (GetMsg ("Target: None", player)));
 
-            SendReply(player, sb.ToString());
+            SendReply (player, sb.ToString ());
         }
 
-        private void ProdTurret(BasePlayer player, AutoTurret turret)
+        void ProdTurret (BasePlayer player, AutoTurret turret)
         {
             List<string> authorizedUsers;
-            var sb = new StringBuilder();
-            if(TryGetTurretUserNames(turret, out authorizedUsers)) {
-                sb.Append(string.Format(messages["({0}) Authorized"], 0));
-            } else {
-                sb.AppendLine(string.Format(messages["({0}) Authorized"], authorizedUsers.Count));
+            var sb = new StringBuilder ();
+            if (TryGetTurretUserNames (turret, out authorizedUsers)) {
+                sb.AppendLine (string.Format (GetMsg ("Entities: Authorized", player), authorizedUsers.Count));
                 foreach (var n in authorizedUsers)
-                    sb.AppendLine(n);
+                    sb.AppendLine (n);
+            } else {
+                sb.Append (string.Format (GetMsg ("Target: None", player)));
             }
 
-            SendReply(player, sb.ToString());
+            SendReply (player, sb.ToString ());
         }
 
-        private void massProdCupboard(BasePlayer player, bool highlight = false)
+        void massProdCupboard (BasePlayer player, bool highlight = false)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                var prodOwners = new Dictionary<ulong, int>();
-                SendReply(player, messages["Prodding cupboards.."]);
+                var prodOwners = new Dictionary<ulong, int> ();
+                SendReply (player, GetMsg ("Cupboards: Prodding", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge> (checkFrom [current - 1], CupboardDistanceThreshold);
 
-                    foreach (var e in entities)
-                    {
-                        if (!entityList.Add(e)) { continue; }
-                        if(highlight) {
-                            SendHighlight(player, e.transform.position);
+                    foreach (var e in entities) {
+                        if (!entityList.Add (e)) { continue; }
+                        if (highlight) {
+                            SendHighlight (player, e.transform.position);
                         }
-                        checkFrom.Add(e.transform.position);
+                        checkFrom.Add (e.transform.position);
 
-                        foreach (var pnid in e.authorizedPlayers)
-                        {
-                            if (prodOwners.ContainsKey(pnid.userid))
-                                prodOwners[pnid.userid]++;
+                        foreach (var pnid in e.authorizedPlayers) {
+                            if (prodOwners.ContainsKey (pnid.userid))
+                                prodOwners [pnid.userid]++;
                             else
-                                prodOwners.Add(pnid.userid, 1);
+                                prodOwners.Add (pnid.userid, 1);
                         }
 
                         total++;
                     }
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                var percs = new Dictionary<ulong, int>();
+                var percs = new Dictionary<ulong, int> ();
                 var unknown = 100;
-                if (total > 0)
-                {
-                    foreach (var kvp in prodOwners)
-                    {
+                if (total > 0) {
+                    foreach (var kvp in prodOwners) {
                         var perc = kvp.Value * 100 / total;
-                        percs.Add(kvp.Key, perc);
-                        var n = FindPlayerName(kvp.Key);
+                        percs.Add (kvp.Key, perc);
+                        var n = FindPlayerName (kvp.Key);
 
-                        if (n != messages["Unknown player"])
-                        {
-                            SendReply(player, n + ": " + perc + "%");
+                        if (!n.Contains ("Unknown: ")) {
+                            SendReply (player, n + ": " + perc + "%");
                             unknown -= perc;
                         }
                     }
 
                     if (unknown > 0)
-                        SendReply(player, string.Format(messages["Unknown: {0}%"], unknown));
+                        SendReply (player, string.Format (GetMsg ("Player: Unknown Percent", player), unknown));
                 }
             }
         }
 
-        private void massProdTurret(BasePlayer player, bool highlight = false)
+        void massProdTurret (BasePlayer player, bool highlight = false)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                var prodOwners = new Dictionary<ulong, int>();
-                SendReply(player, messages["Prodding turrets.."]);
+                var prodOwners = new Dictionary<ulong, int> ();
+                SendReply (player, GetMsg ("Turrets: Prodding", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
+                    var entities = FindEntities<BaseEntity> (checkFrom [current - 1], DistanceThreshold);
 
-                    foreach (var e in entities)
-                    {
-                        if (!entityList.Add(e)) { continue; }
-                        if(highlight) {
-                            SendHighlight(player, e.transform.position);
+                    foreach (var e in entities) {
+                        if (!entityList.Add (e)) { continue; }
+                        if (highlight) {
+                            SendHighlight (player, e.transform.position);
                         }
-                        checkFrom.Add(e.transform.position);
+                        checkFrom.Add (e.transform.position);
 
-                        if(e is AutoTurret) {
+                        if (e is AutoTurret) {
                             var turret = e as AutoTurret;
-                            if(turret.OwnerID.IsSteamId()) {
-                                if (prodOwners.ContainsKey(turret.OwnerID))
-                                    prodOwners[turret.OwnerID]++;
+                            if (turret.OwnerID.IsSteamId ()) {
+                                if (prodOwners.ContainsKey (turret.OwnerID))
+                                    prodOwners [turret.OwnerID]++;
                                 else
-                                    prodOwners.Add(turret.OwnerID, 1);
+                                    prodOwners.Add (turret.OwnerID, 1);
                             }
 
-                            foreach (var pnid in turret.authorizedPlayers)
-                            {
-                                if (prodOwners.ContainsKey(pnid.userid))
-                                    prodOwners[pnid.userid]++;
+                            foreach (var pnid in turret.authorizedPlayers) {
+                                if (prodOwners.ContainsKey (pnid.userid))
+                                    prodOwners [pnid.userid]++;
                                 else
-                                    prodOwners.Add(pnid.userid, 1);
+                                    prodOwners.Add (pnid.userid, 1);
                             }
-                        } else if(e is FlameTurret) {
+                        } else if (e is FlameTurret) {
                             var turret = e as FlameTurret;
-                            if(turret.OwnerID.IsSteamId()) {
-                                if (prodOwners.ContainsKey(turret.OwnerID))
-                                    prodOwners[turret.OwnerID]++;
+                            if (turret.OwnerID.IsSteamId ()) {
+                                if (prodOwners.ContainsKey (turret.OwnerID))
+                                    prodOwners [turret.OwnerID]++;
                                 else
-                                    prodOwners.Add(turret.OwnerID, 1);
+                                    prodOwners.Add (turret.OwnerID, 1);
                             }
                         } else {
                             continue;
@@ -1159,405 +1039,372 @@ namespace Oxide.Plugins
                         total++;
                     }
 
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                var percs = new Dictionary<ulong, int>();
+                var percs = new Dictionary<ulong, int> ();
                 var unknown = 100;
-                if (total > 0)
-                {
-                    foreach (var kvp in prodOwners)
-                    {
+                if (total > 0) {
+                    foreach (var kvp in prodOwners) {
                         var perc = kvp.Value * 100 / total;
-                        percs.Add(kvp.Key, perc);
-                        var n = FindPlayerName(kvp.Key);
+                        percs.Add (kvp.Key, perc);
+                        var n = FindPlayerName (kvp.Key);
 
-                        if (n != messages["Unknown player"])
-                        {
-                            SendReply(player, n + ": " + perc + "%");
+                        if (!n.Contains ("Unknown: ")) {
+                            SendReply (player, n + ": " + perc + "%");
                             unknown -= perc;
                         }
                     }
 
                     if (unknown > 0)
-                        SendReply(player, string.Format(messages["Unknown: {0}%"], unknown));
+                        SendReply (player, string.Format (GetMsg ("Player: Unknown Percent", player), unknown));
                 }
             }
         }
 
-        private void massCupboardAuthorize(BasePlayer player, BasePlayer target)
+        void massCupboardAuthorize (BasePlayer player, BasePlayer target)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                SendReply(player, messages["Authorizing cupboards.."]);
+                SendReply (player, GetMsg ("Cupboards: Authorizing", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge> (checkFrom [current - 1], CupboardDistanceThreshold);
 
-                    foreach (var priv in entities)
-                    {
-                        if (!entityList.Add(priv)) continue;
-                        checkFrom.Add(priv.transform.position);
-                        if (HasCupboardAccess(priv, target)) continue;
-                        priv.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
-                        {
+                    foreach (var priv in entities) {
+                        if (!entityList.Add (priv)) continue;
+                        checkFrom.Add (priv.transform.position);
+                        if (HasCupboardAccess (priv, target)) continue;
+                        priv.authorizedPlayers.Add (new ProtoBuf.PlayerNameID () {
                             userid = target.userID,
                             username = target.displayName
                         });
 
-                        priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                        
+                        priv.SendNetworkUpdate (BasePlayer.NetworkQueue.Update);
+
                         total++;
                     }
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Authorized {0} on {1} cupboards"], target.displayName, total));
+                SendReply (player, string.Format (GetMsg ("Cupboards: Authorized", player), target.displayName, total));
             }
         }
 
-        private void massCupboardDeauthorize(BasePlayer player, BasePlayer target)
+        void massCupboardDeauthorize (BasePlayer player, BasePlayer target)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                SendReply(player, messages["Deauthorizing cupboards.."]);
+                SendReply (player, GetMsg ("Cupboards: Deauthorizing", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BuildingPrivlidge>(checkFrom[current - 1], CupboardDistanceThreshold);
+                    var entities = FindEntities<BuildingPrivlidge> (checkFrom [current - 1], CupboardDistanceThreshold);
 
-                    foreach (var priv in entities)
-                    {
-                        if (!entityList.Add(priv)) continue;
-                        checkFrom.Add(priv.transform.position);
+                    foreach (var priv in entities) {
+                        if (!entityList.Add (priv)) continue;
+                        checkFrom.Add (priv.transform.position);
 
-                        if (!HasCupboardAccess(priv, target)) continue;
-                        foreach (var p in priv.authorizedPlayers.ToArray())
-                        {
-                            if (p.userid == target.userID)
-                            {
-                                priv.authorizedPlayers.Remove(p);
-                                priv.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
+                        if (!HasCupboardAccess (priv, target)) continue;
+                        foreach (var p in priv.authorizedPlayers.ToArray ()) {
+                            if (p.userid == target.userID) {
+                                priv.authorizedPlayers.Remove (p);
+                                priv.SendNetworkUpdate (BasePlayer.NetworkQueue.Update);
                             }
                         }
 
                         total++;
                     }
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Deauthorized {0} on {1} cupboards"], target.displayName, total));
+                SendReply (player, string.Format (GetMsg ("Cupboard: Deauthorized", player), target.displayName, total));
             }
         }
 
-        private void massTurretAuthorize(BasePlayer player, BasePlayer target)
+        void massTurretAuthorize (BasePlayer player, BasePlayer target)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                SendReply(player, messages["Authorizing turrets.."]);
+                SendReply (player, GetMsg ("Turrets: Authorizing", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
+                    var entities = FindEntities<BaseEntity> (checkFrom [current - 1], DistanceThreshold);
 
-                    foreach (var e in entities)
-                    {
-                        if (!entityList.Add(e)) continue;
-                            checkFrom.Add(e.transform.position);
+                    foreach (var e in entities) {
+                        if (!entityList.Add (e)) continue;
+                        checkFrom.Add (e.transform.position);
 
                         var turret = e as AutoTurret;
-                        if (turret == null || HasTurretAccess(turret, target)) continue;
-                        turret.authorizedPlayers.Add(new ProtoBuf.PlayerNameID()
-                        {
+                        if (turret == null || HasTurretAccess (turret, target)) continue;
+                        turret.authorizedPlayers.Add (new ProtoBuf.PlayerNameID () {
                             userid = target.userID,
                             username = target.displayName
                         });
 
-                        turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                        turret.SetTarget(null);
+                        turret.SendNetworkUpdate (BasePlayer.NetworkQueue.Update);
+                        turret.SetTarget (null);
                         total++;
                     }
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Authorized {0} on {1} turrets"], target.displayName, total));
+                SendReply (player, string.Format (GetMsg ("Turrets: Authorized", player), target.displayName, total));
             }
         }
 
-        private void massTurretDeauthorize(BasePlayer player, BasePlayer target)
+        void massTurretDeauthorize (BasePlayer player, BasePlayer target)
         {
             object entityObject = false;
 
-            entityObject = FindEntity(player.transform.position, DistanceThreshold);
+            entityObject = FindEntity (player.transform.position, DistanceThreshold);
 
-            if (entityObject is bool)
-            {
-                SendReply(player, messages["No entities found."]);
-            }
-            else
-            {
+            if (entityObject is bool) {
+                SendReply (player, GetMsg ("Entities: None", player));
+            } else {
                 var total = 0;
-                SendReply(player, messages["Deauthorizing turrets.."]);
+                SendReply (player, GetMsg ("Turrets: Deauthorizing", player));
                 var entity = entityObject as BaseEntity;
-                var entityList = new HashSet<BaseEntity>();
-                var checkFrom = new List<Vector3>();
+                var entityList = new HashSet<BaseEntity> ();
+                var checkFrom = new List<Vector3> ();
 
-                checkFrom.Add(entity.transform.position);
+                checkFrom.Add (entity.transform.position);
 
                 var current = 0;
-                while (true)
-                {
+                while (true) {
                     current++;
-                    if (current > EntityLimit)
-                    {
+                    if (current > EntityLimit) {
                         if (debug)
-                            SendReply(player, messages["Exceeded entity limit."] + " " + EntityLimit);
+                            SendReply (player, GetMsg ("Target: Limit", player) + " " + EntityLimit);
 
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
-                    if (current > checkFrom.Count)
-                    {
-                        SendReply(player, string.Format(messages["Count ({0})"], total));
+                    if (current > checkFrom.Count) {
+                        SendReply (player, string.Format (GetMsg ("Ownership: Count", player), total));
                         break;
                     }
 
-                    var entities = FindEntities<BaseEntity>(checkFrom[current - 1], DistanceThreshold);
+                    var entities = FindEntities<BaseEntity> (checkFrom [current - 1], DistanceThreshold);
 
-                    foreach (var e in entities)
-                    {
-                        if (!entityList.Add(e)) continue;
-                            checkFrom.Add(e.transform.position);
+                    foreach (var e in entities) {
+                        if (!entityList.Add (e)) continue;
+                        checkFrom.Add (e.transform.position);
 
                         var turret = e as AutoTurret;
-                        if (turret == null || !HasTurretAccess(turret, target)) continue;
-                        foreach (var p in turret.authorizedPlayers.ToArray())
-                        {
-                            if (p.userid == target.userID)
-                            {
-                                turret.authorizedPlayers.Remove(p);
-                                turret.SendNetworkUpdate(BasePlayer.NetworkQueue.Update);
-                                turret.SetTarget(null);
+                        if (turret == null || !HasTurretAccess (turret, target)) continue;
+                        foreach (var p in turret.authorizedPlayers.ToArray ()) {
+                            if (p.userid == target.userID) {
+                                turret.authorizedPlayers.Remove (p);
+                                turret.SetTarget (null);
                                 total++;
                             }
                         }
+
+                        turret.SendNetworkUpdate (BasePlayer.NetworkQueue.Update);
                     }
-                    Pool.FreeList(ref entities);
+                    Pool.FreeList (ref entities);
                 }
 
-                SendReply(player, string.Format(messages["Deauthorized {0} on {1} turrets"], target.displayName, total));
+                SendReply (player, string.Format (GetMsg ("Turrets: Deauthorized", player), target.displayName, total));
             }
         }
 
-        private bool TryGetCupboardUserNames(BuildingPrivlidge cupboard, out List<string> names)
+        bool TryGetCupboardUserNames (BuildingPrivlidge cupboard, out List<string> names)
         {
-            names = new List<string>();
-            if(cupboard.authorizedPlayers == null)
+            names = new List<string> ();
+            if (cupboard.authorizedPlayers == null)
                 return false;
             if (cupboard.authorizedPlayers.Count == 0)
                 return false;
 
             foreach (var pnid in cupboard.authorizedPlayers)
-                names.Add($"{FindPlayerName(pnid.userid)} - {pnid.userid}");
+                names.Add ($"{FindPlayerName (pnid.userid)} - {pnid.userid}");
 
             return true;
         }
 
-        private bool TryGetTurretUserNames(AutoTurret turret, out List<string> names)
+        bool TryGetTurretUserNames (AutoTurret turret, out List<string> names)
         {
-            names = new List<string>();
+            names = new List<string> ();
             if (turret.authorizedPlayers == null)
                 return false;
             if (turret.authorizedPlayers.Count == 0)
                 return false;
 
             foreach (var pnid in turret.authorizedPlayers)
-                names.Add($"{FindPlayerName(pnid.userid)} - {pnid.userid}");
+                names.Add ($"{FindPlayerName (pnid.userid)} - {pnid.userid}");
 
             return true;
         }
 
-        private bool HasCupboardAccess(BuildingPrivlidge cupboard, BasePlayer player)
+        bool HasCupboardAccess (BuildingPrivlidge cupboard, BasePlayer player)
         {
-            return cupboard.IsAuthed(player);
+            return cupboard.IsAuthed (player);
         }
 
-        private bool HasTurretAccess(AutoTurret turret, BasePlayer player)
+        bool HasTurretAccess (AutoTurret turret, BasePlayer player)
         {
-            return turret.IsAuthed(player);
+            return turret.IsAuthed (player);
         }
 
-        string GetOwnerName(BaseEntity entity)
+        string GetOwnerName (BaseEntity entity)
         {
-            return FindPlayerName(entity.OwnerID);
+            return FindPlayerName (entity.OwnerID);
         }
 
-        BasePlayer GetOwnerPlayer(BaseEntity entity)
+        BasePlayer GetOwnerPlayer (BaseEntity entity)
         {
-            if(entity.OwnerID.IsSteamId()) {
-                return BasePlayer.FindByID(entity.OwnerID);
+            if (entity.OwnerID.IsSteamId ()) {
+                return BasePlayer.FindByID (entity.OwnerID);
             }
 
             return null;
         }
 
-        IPlayer GetOwnerIPlayer(BaseEntity entity) {
-            if(entity.OwnerID.IsSteamId()) {
-                return covalence.Players.FindPlayerById(entity.OwnerID.ToString());
+        IPlayer GetOwnerIPlayer (BaseEntity entity)
+        {
+            if (entity.OwnerID.IsSteamId ()) {
+                return covalence.Players.FindPlayerById (entity.OwnerID.ToString ());
             }
 
             return null;
         }
 
-        void RemoveOwner(BaseEntity entity)
+        void RemoveOwner (BaseEntity entity)
         {
             entity.OwnerID = 0;
         }
 
-        bool ChangeOwner(BaseEntity entity, object player)
+        bool ChangeOwner (BaseEntity entity, object player)
         {
-            if(player is BasePlayer) {
+            if (player is BasePlayer) {
                 entity.OwnerID = ((BasePlayer)player).userID;
                 return true;
-            } if(player is IPlayer) {
-                entity.OwnerID = Convert.ToUInt64(((IPlayer)player).Id);
+            }
+            if (player is IPlayer) {
+                entity.OwnerID = Convert.ToUInt64 (((IPlayer)player).Id);
                 return true;
-            } else if(player is ulong && ((ulong)player).IsSteamId()) {
+            }
+
+            if (player is ulong && ((ulong)player).IsSteamId ()) {
                 entity.OwnerID = (ulong)player;
                 return true;
-            } else if(player is string) {
+            }
+
+            if (player is string) {
                 ulong id;
-                if(ulong.TryParse((string)player, out id) && id.IsSteamId()) {
-                    entity.OwnerID = (ulong)player;
+                if (ulong.TryParse ((string)player, out id) && id.IsSteamId ()) {
+                    entity.OwnerID = id;
                     return true;
-                } else {
-                    var basePlayer = BasePlayer.Find((string)player);
-                    if(basePlayer is BasePlayer) {
-                        entity.OwnerID = basePlayer.userID;
-                        return true;
-                    }
+                }
+
+                var basePlayer = BasePlayer.Find ((string)player);
+                if (basePlayer is BasePlayer) {
+                    entity.OwnerID = basePlayer.userID;
+                    return true;
                 }
             }
 
             return false;
         }
 
-        object FindEntityData(BaseEntity entity)
+        object FindEntityData (BaseEntity entity)
         {
-            if (!entity.OwnerID.IsSteamId())
-            {
+            if (!entity.OwnerID.IsSteamId ()) {
                 return false;
             }
 
-            return entity.OwnerID.ToString();
+            return entity.OwnerID.ToString ();
         }
 
         #endregion
 
         #region Utility Methods
 
-        private object RaycastAll<T>(Vector3 Pos, Vector3 Aim) where T : BaseEntity
+        object RaycastAll<T> (Vector3 position, Vector3 aim) where T : BaseEntity
         {
-            var hits = Physics.RaycastAll(Pos, Aim);
-            GamePhysics.Sort(hits);
+            var hits = Physics.RaycastAll (position, aim);
+            GamePhysics.Sort (hits);
             var distance = 100f;
             object target = false;
-            foreach (var hit in hits)
-            {
-                var ent = hit.GetEntity();
-                if (ent is T && hit.distance < distance)
-                {
+            foreach (var hit in hits) {
+                var ent = hit.GetEntity ();
+                if (ent is T && hit.distance < distance) {
                     target = ent;
                     break;
                 }
@@ -1566,17 +1413,15 @@ namespace Oxide.Plugins
             return target;
         }
 
-        private object RaycastAll<T>(Ray ray) where T : BaseEntity
+        object RaycastAll<T> (Ray ray) where T : BaseEntity
         {
-            var hits = Physics.RaycastAll(ray);
-            GamePhysics.Sort(hits);
+            var hits = Physics.RaycastAll (ray);
+            GamePhysics.Sort (hits);
             var distance = 100f;
             object target = false;
-            foreach (var hit in hits)
-            {
-                var ent = hit.GetEntity();
-                if (ent is T && hit.distance < distance)
-                {
+            foreach (var hit in hits) {
+                var ent = hit.GetEntity ();
+                if (ent is T && hit.distance < distance) {
                     target = ent;
                     break;
                 }
@@ -1585,41 +1430,38 @@ namespace Oxide.Plugins
             return target;
         }
 
-        object FindBuilding(Vector3 position, float distance = 3f)
+        object FindBuilding (Vector3 position, float distance = 3f)
         {
-            var hit = FindEntity<BuildingBlock>(position, distance);
+            var hit = FindEntity<BuildingBlock> (position, distance);
 
-            if (hit != null)
-            {
+            if (hit != null) {
                 return hit;
             }
 
             return false;
         }
 
-        object FindEntity(Vector3 position, float distance = 3f, params string[] filter)
+        object FindEntity (Vector3 position, float distance = 3f, params string [] filter)
         {
-            var hit = FindEntity<BaseEntity>(position, distance, filter);
+            var hit = FindEntity<BaseEntity> (position, distance, filter);
 
-            if (hit != null)
-            {
+            if (hit != null) {
                 return hit;
             }
 
             return false;
         }
 
-        T FindEntity<T>(Vector3 position, float distance = 3f, params string[] filter) where T : BaseEntity
+        T FindEntity<T> (Vector3 position, float distance = 3f, params string [] filter) where T : BaseEntity
         {
-            var list = Pool.GetList<T>();
-            Vis.Entities(position, distance, list, layerMasks);
+            var list = Pool.GetList<T> ();
+            Vis.Entities (position, distance, list, layerMasks);
 
-            if (list.Count > 0)
-            {
-                foreach(var e in list) {
-                    if(filter.Length > 0) {
-                        foreach(var f in filter) {
-                            if(e.name.Contains(f)) {
+            if (list.Count > 0) {
+                foreach (var e in list) {
+                    if (filter.Length > 0) {
+                        foreach (var f in filter) {
+                            if (e.name.Contains (f)) {
                                 return e;
                             }
                         }
@@ -1627,136 +1469,103 @@ namespace Oxide.Plugins
                         return e;
                     }
                 }
-                Pool.FreeList(ref list);
+                Pool.FreeList (ref list);
             }
 
             return null;
         }
 
-        List<T> FindEntities<T>(Vector3 position, float distance = 3f) where T : BaseEntity
+        List<T> FindEntities<T> (Vector3 position, float distance = 3f) where T : BaseEntity
         {
-            var list = Pool.GetList<T>();
-            Vis.Entities(position, distance, list, layerMasks);
+            var list = Pool.GetList<T> ();
+            Vis.Entities (position, distance, list, layerMasks);
             return list;
         }
 
-        List<BuildingBlock> GetProfileConstructions(BasePlayer player)
+        List<BuildingBlock> GetProfileConstructions (BasePlayer player)
         {
-            var result = new List<BuildingBlock>();
-            var blocks = UnityEngine.Object.FindObjectsOfType<BuildingBlock>();
-            foreach (var block in blocks)
-            {
-                if (block.OwnerID == player.userID)
-                {
-                    result.Add(block);
+            var result = new List<BuildingBlock> ();
+            var blocks = UnityEngine.Object.FindObjectsOfType<BuildingBlock> ();
+            foreach (var block in blocks) {
+                if (block.OwnerID == player.userID) {
+                    result.Add (block);
                 }
             }
 
             return result;
         }
 
-        List<BaseEntity> GetProfileDeployables(BasePlayer player)
+        List<BaseEntity> GetProfileDeployables (BasePlayer player)
         {
-            var result = new List<BaseEntity>();
-            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
-            foreach (var entity in entities)
-            {
-                if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
-                {
-                    result.Add(entity);
+            var result = new List<BaseEntity> ();
+            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity> ();
+            foreach (var entity in entities) {
+                if (entity.OwnerID == player.userID && !(entity is BuildingBlock)) {
+                    result.Add (entity);
                 }
             }
 
             return result;
         }
 
-        void ClearProfile(BasePlayer player)
+        void ClearProfile (BasePlayer player)
         {
-            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity>();
-            foreach (var entity in entities)
-            {
-                if (entity.OwnerID == player.userID && !(entity is BuildingBlock))
-                {
-                    RemoveOwner(entity);
+            var entities = UnityEngine.Object.FindObjectsOfType<BaseEntity> ();
+            foreach (var entity in entities) {
+                if (entity.OwnerID == player.userID && !(entity is BuildingBlock)) {
+                    RemoveOwner (entity);
                 }
             }
         }
 
-        private void SendChatMessage(BasePlayer player, string message)
+        string FindPlayerName (ulong playerID)
         {
-            player.ChatMessage(message);
-        }
-
-        private string FindPlayerName(ulong playerID)
-        {
-            if(playerID.IsSteamId()) {
-                var player = FindPlayerByPartialName(playerID.ToString());
-                if (player)
-                {
-                    if (player.IsSleeping())
-                    {
+            if (playerID.IsSteamId ()) {
+                var player = FindPlayerByPartialName (playerID.ToString ());
+                if (player) {
+                    if (player.IsSleeping ()) {
                         return $"{player.displayName} [<color=lightblue>Sleeping</color>]";
                     }
-                    else {
-                        return $"{player.displayName} [<color=lime>Online</color>]";
-                    }
+
+                    return $"{player.displayName} [<color=lime>Online</color>]";
                 }
 
-                var p = covalence.Players.FindPlayerById(playerID.ToString());
-                if (p != null)
-                {
+                var p = covalence.Players.FindPlayerById (playerID.ToString ());
+                if (p != null) {
                     return $"{p.Name} [<color=red>Offline</color>]";
                 }
             }
 
-            return $"Unknown : {playerID}";
+            return $"Unknown: {playerID}";
         }
 
-        void SetValue(object inputObject, string propertyName, object propertyVal)
+        ulong FindUserIDByPartialName (string name)
         {
-            var type = inputObject.GetType();
-            var propertyInfo = type.GetField(propertyName, BindingFlags.NonPublic | BindingFlags.Instance);
-
-            var propertyType = propertyInfo.FieldType;
-
-            var targetType = IsNullableType(propertyType) ? Nullable.GetUnderlyingType(propertyType) : propertyType;
-
-            propertyVal = Convert.ChangeType(propertyVal, targetType);
-
-            propertyInfo.SetValue(inputObject, propertyVal);
-        }
-
-        private bool IsNullableType(Type type)
-        {
-            return type.IsGenericType && type.GetGenericTypeDefinition().Equals(typeof(Nullable<>));
-        }
-
-        protected ulong FindUserIDByPartialName(string name) {
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty (name))
                 return 0;
 
             ulong userID;
-            if(ulong.TryParse(name, out userID)) {
+            if (ulong.TryParse (name, out userID)) {
                 return userID;
             }
 
-            IPlayer player = covalence.Players.FindPlayer(name);
+            IPlayer player = covalence.Players.FindPlayer (name);
 
-            if(player != null) {
-                return Convert.ToUInt64(player.Id);
+            if (player != null) {
+                return Convert.ToUInt64 (player.Id);
             }
 
             return 0;
         }
 
-        protected BasePlayer FindPlayerByPartialName(string name)
+        BasePlayer FindPlayerByPartialName (string name)
         {
-            if (string.IsNullOrEmpty(name))
+            if (string.IsNullOrEmpty (name))
                 return null;
 
-            IPlayer player = covalence.Players.FindPlayer(name);
+            IPlayer player = covalence.Players.FindPlayer (name);
 
-            if(player != null) {
+            if (player != null) {
                 return (BasePlayer)player.Object;
             }
 

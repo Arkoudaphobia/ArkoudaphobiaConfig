@@ -3,63 +3,192 @@ using System.Linq;
 using System;
 using UnityEngine;
 using Oxide.Core.Plugins;
+using Oxide.Game.Rust.Libraries;
+using Oxide.Core;
 
 namespace Oxide.Plugins
 {
-    [Info("Stack Size Controller", "Canopy Sheep", "1.9.9", ResourceId = 2320)]
+    [Info("Stack Size Controller", "Canopy Sheep", "2.0.0", ResourceId = 2320)]
     [Description("Allows you to set the max stack size of every item.")]
     public class StackSizeController : RustPlugin
     {
-        #region Hooks
+        #region Data
+
+        Items items;
+        class Items
+        {
+            public Dictionary<string, int> itemlist = new Dictionary<string, int>();
+        }
+
+        void LoadData()
+        {
+            var itemsdatafile = Interface.Oxide.DataFileSystem.GetFile("StackSizeController");
+            try
+            {
+                items = itemsdatafile.ReadObject<Items>();
+            }
+            catch
+            {
+                Puts("Error: Data file corrupt, regenerating...");
+            }
+        }
+
+        void UpdateItems()
+        {
+            var gameitemList = ItemManager.itemList;
+            int stacksize;
+
+            foreach (var item in gameitemList)
+            {
+                if (!(items.itemlist.ContainsKey(item.displayName.english)))
+                {
+                    stacksize = DetermineStack(item);
+                    items.itemlist.Add(item.displayName.english, stacksize);
+                }
+            }
+
+            List<string> KeysToRemove = new List<string>();
+            bool foundItem = false;
+
+            foreach (KeyValuePair<string, int> item in items.itemlist)
+            {
+                foreach (var itemingamelist in gameitemList)
+                {
+                    if (itemingamelist.displayName.english == item.Key)
+                    {
+                        foundItem = true;
+                        break;
+                    }
+                }
+                if (!(foundItem)) { KeysToRemove.Add(item.Key); }
+                foundItem = false;
+            }
+
+            if (KeysToRemove.Count > 0) { Puts("Cleaning data file..."); }
+            foreach (string key in KeysToRemove)
+            {
+                items.itemlist.Remove(key);
+            }
+
+            SaveData();
+            LoadStackSizes();
+        }
+
+        int DetermineStack(ItemDefinition item)
+        {
+            if (item.condition.enabled && item.condition.max > 0 && (!configData.Settings.StackHealthItems))
+            {
+                return 1;
+            }
+            else
+            {
+                if (configData.Settings.DefaultStack != 0 && (!configData.Settings.CategoryDefaultStack.ContainsKey(item.category.ToString())))
+                {
+                    //items.itemlist.Add(item.displayName.english, configData.Settings.DefaultStack);
+                    return configData.Settings.DefaultStack;
+                }
+                else if (configData.Settings.CategoryDefaultStack.ContainsKey(item.category.ToString()) && configData.Settings.CategoryDefaultStack[item.category.ToString()] != 0)
+                {
+                    //items.itemlist.Add(item.displayName.english, configData.Settings.CategoryDefaultStack[item.category.ToString()]);
+                    return configData.Settings.CategoryDefaultStack[item.category.ToString()];
+                }
+                else if (configData.Settings.DefaultStack != 0 && configData.Settings.CategoryDefaultStack[item.category.ToString()] == 0)
+                {
+                    return configData.Settings.DefaultStack;
+                }
+                else
+                {
+                    //items.itemlist.Add(item.displayName.english, item.stackable); 
+                    return item.stackable;
+                }
+            }
+        }
+
+        void LoadStackSizes()
+        {
+            var gameitemList = ItemManager.itemList;
+
+            foreach (var item in gameitemList)
+            {
+                item.stackable = items.itemlist[item.displayName.english];
+            }
+        }
+
+        void SaveData()
+        {
+            Interface.Oxide.DataFileSystem.WriteObject("StackSizeController", items);
+        }
+
+        #endregion
+
+        #region Config
+
+        ConfigData configData;
+        class ConfigData
+        {
+            public SettingsData Settings { get; set; }
+        }
+
+        class SettingsData
+        {
+            public int DefaultStack { get; set; }
+            public bool StackHealthItems { get; set; }
+            public Dictionary<string, int> CategoryDefaultStack { get; set; }
+        }
+
+        void TryConfig()
+        {
+            try
+            {
+                configData = Config.ReadObject<ConfigData>();
+            }
+            catch (Exception)
+            {
+                Puts("Corrupt config");
+                LoadDefaultConfig();
+            }
+        }
+
         protected override void LoadDefaultConfig()
         {
-			PrintWarning("Creating a new configuration file.");
+            Puts("Generating a new config file...");
 
-			var gameObjectArray = FileSystem.LoadAll<GameObject>("Assets/", ".item");
-			var itemList = gameObjectArray.Select(x => x.GetComponent<ItemDefinition>()).Where(x => x != null).ToList();
+            Config.WriteObject(new ConfigData
+            {
+                Settings = new SettingsData
+                {
+                    DefaultStack = 0,
+                    StackHealthItems = true,
+                    CategoryDefaultStack = new Dictionary<string, int>()
+                    {
+                        { "Ammunition", 0 },
+                        { "Attire", 0 },
+                        { "Common", 0 },
+                        { "Component", 0 },
+                        { "Construction", 0 },
+                        { "Food", 0 },
+                        { "Items", 0 },
+                        { "Medical", 0 },
+                        { "Misc", 0 },
+                        { "Resources", 0 },
+                        { "Tools", 0 },
+                        { "Traps", 0 },
+                        { "Weapon", 0 },
+                    },
+                },
+            }, true);
+        }
+        #endregion
 
-			foreach (var item in itemList)
-			{
-				if (item.condition.enabled && item.condition.max > 0) { continue; }
-
-				Config[item.displayName.english] = item.stackable;
-			}
-		}
-
+        #region Hooks
         void OnServerInitialized()
         {
+            TryConfig();
+            LoadData();
+            UpdateItems();
+
             permission.RegisterPermission("stacksizecontroller.canChangeStackSize", this);
-
-			var dirty = false;
-			var itemList = ItemManager.itemList;
-
-			foreach (var item in itemList)
-			{
-				if (item.condition.enabled && item.condition.max > 0)
-                {
-                    if (Config[item.displayName.english] != null && (int)Config[item.displayName.english] != 1)
-                    {
-                        PrintWarning("WARNING: Item '" + item.displayName.english + "' will not stack more than 1 in game because it has durabililty (FACEPUNCH OVERRIDE). Changing stack size to 1..");
-                        Config[item.displayName.english] = 1;
-                        dirty = true;
-                    }
-                    continue;
-                }
-
-				if (Config[item.displayName.english] == null)
-				{
-					Config[item.displayName.english] = item.stackable;
-					dirty = true;
-				}
-
-				item.stackable = (int)Config[item.displayName.english];
-			}
-
-			if (dirty == false) { return; }
-
-			PrintWarning("Updating configuration file with new values.");
-			SaveConfig();
-		}
+        }
 
         bool hasPermission(BasePlayer player, string perm)
         {
@@ -69,14 +198,14 @@ namespace Oxide.Plugins
             }
             return permission.UserHasPermission(player.userID.ToString(), perm);
         }
-        
+
         object CanMoveItem(Item item, PlayerInventory inventory, uint container, int slot, uint amount)
         {
             if (item.amount < UInt16.MaxValue) { return null; }
 
             ItemContainer itemContainer = inventory.FindContainer(container);
             if (itemContainer == null) { return null; }
-            
+
             ItemContainer playerInventory = inventory.GetContainer(PlayerInventory.Type.Main);
             BasePlayer player = playerInventory.GetOwnerPlayer();
 
@@ -120,7 +249,7 @@ namespace Oxide.Plugins
             }
 
             bool aboveMaxStack = false;
-            int configAmount = (int)Config[item.info.displayName.english];
+            int configAmount = (int)items.itemlist[item.info.displayName.english];
 
             if (item.amount > configAmount) { aboveMaxStack = true; }
             if (amount + item.amount / UInt16.MaxValue == item.amount % UInt16.MaxValue)
@@ -145,7 +274,7 @@ namespace Oxide.Plugins
                 if (aboveMaxStack)
                 {
                     Item split;
-					if (configAmount > item.amount / 2) { split = item.SplitItem(Convert.ToInt32(item.amount) / 2); }
+                    if (configAmount > item.amount / 2) { split = item.SplitItem(Convert.ToInt32(item.amount) / 2); }
                     else { split = item.SplitItem(configAmount); }
 
                     if (!split.MoveToContainer(itemContainer, slot, true))
@@ -158,8 +287,8 @@ namespace Oxide.Plugins
                     return true;
                 }
                 Item item2 = item.SplitItem(item.amount / 2);
-				if (!((item.amount + item2.amount) % 2 == 0)) { item2.amount++; item.amount--; }
-				
+                if (!((item.amount + item2.amount) % 2 == 0)) { item2.amount++; item.amount--; }
+
                 if (!item2.MoveToContainer(itemContainer, slot, true))
                 {
                     item.amount += item2.amount;
@@ -186,6 +315,7 @@ namespace Oxide.Plugins
             return null;
         }
         #endregion
+
         #region Commands
         [ChatCommand("stack")]
         private void StackCommand(BasePlayer player, string command, string[] args)
@@ -193,87 +323,118 @@ namespace Oxide.Plugins
             int stackAmount = 0;
 
             if (!hasPermission(player, "stacksizecontroller.canChangeStackSize"))
-			{
-				SendReply(player, "You don't have permission to use this command.");
-
-				return;
-			}
-
-			if (args.Length <= 1)
-			{
-                SendReply(player, "Syntax Error: Requires 2 arguments. Syntax Example: /stack ammo.rocket.hv 64 (Use shortname)");
-
-				return;
-			}
-
-            if (int.TryParse(args[1], out stackAmount) == false)
             {
-                SendReply(player, "Syntax Error: Stack Amount is not a number. Syntax Example: /stack ammo.rocket.hv 64 (Use shortname)");
-
+                SendReply(player, "You don't have permission to use this command.");
                 return;
             }
 
-            List<ItemDefinition> items = ItemManager.itemList.FindAll(x => x.shortname.Equals(args[0]));
+            if (args.Length <= 1)
+            {
+                SendReply(player, "Syntax Error: Requires 2 arguments. Syntax Example: /stack ammo.rocket.hv 64 (Use shortname)");
+                return;
+            }
 
-            if (items.Count == 0)
+            List<ItemDefinition> gameitems = ItemManager.itemList.FindAll(x => x.shortname.Equals(args[0]));
+
+            if (gameitems.Count == 0)
             {
                 SendReply(player, "Syntax Error: That is an incorrect item name. Please use a valid shortname.");
                 return;
             }
-            else
+
+            string replymessage = "";
+            switch (args[1].ToLower())
             {
-                if (items[0].condition.enabled && items[0].condition.max > 0) { SendReply(player, "Error: This item cannot be stacked higher than 1."); return; }
-
-                Config[items[0].displayName.english] = Convert.ToInt32(stackAmount);
-                items[0].stackable = Convert.ToInt32(stackAmount);
-
-                SaveConfig();
-
-                SendReply(player, "Updated Stack Size for " + items[0].displayName.english + " (" + items[0].shortname + ") to " + stackAmount + ".");
+                case "default":
+                {
+                    stackAmount = DetermineStack(gameitems[0]);
+                    replymessage = "Updated Stack Size for " + gameitems[0].displayName.english + " (" + gameitems[0].shortname + ") to " + stackAmount + " (Default value based on config).";
+                    break;
+                }
+                default:
+                {
+                    if (int.TryParse(args[1], out stackAmount) == false)
+                    {
+                        SendReply(player, "Syntax Error: Stack Amount is not a number. Syntax Example: /stack ammo.rocket.hv 64 (Use shortname)");
+                        return;
+                    }
+                    replymessage = "Updated Stack Size for " + gameitems[0].displayName.english + " (" + gameitems[0].shortname + ") to " + stackAmount + ".";
+                    break;
+                }
             }
+
+            if (gameitems[0].condition.enabled && gameitems[0].condition.max > 0)
+            {
+                if (!(configData.Settings.StackHealthItems))
+                {
+                    SendReply(player, "Error: Stacking health items is disabled in the config.");
+                    return;
+                }
+            }
+
+            items.itemlist[gameitems[0].displayName.english] = Convert.ToInt32(stackAmount);
+                
+            gameitems[0].stackable = Convert.ToInt32(stackAmount);
+
+            SaveData();
+
+            SendReply(player, replymessage);
         }
 
         [ChatCommand("stackall")]
         private void StackAllCommand(BasePlayer player, string command, string[] args)
         {
             if (!hasPermission(player, "stacksizecontroller.canChangeStackSize"))
-			{
-				SendReply(player, "You don't have permission to use this command.");
-
-				return;
-			}
-
-			if (args.Length == 0)
-			{
-                SendReply(player, "Syntax Error: Requires 1 argument. Syntax Example: /stackall 65000");
-
-				return;
-			}
-			
-            int stackAmount = 0;
-
-            if (int.TryParse(args[0], out stackAmount) == false)
             {
-                SendReply(player, "Syntax Error: Stack Amount is not a number. Syntax Example: /stackall 65000");
+                SendReply(player, "You don't have permission to use this command.");
 
                 return;
             }
 
+            if (args.Length == 0)
+            {
+                SendReply(player, "Syntax Error: Requires 1 argument. Syntax Example: /stackall 65000");
+
+                return;
+            }
+
+            int stackAmount = 0;
+            string replymessage = "";
+
             var itemList = ItemManager.itemList;
 
-			foreach (var item in itemList)
-			{
-                if (item.condition.enabled && item.condition.max > 0) { continue; }
-                if (item.displayName.english.ToString() == "Salt Water" ||
-                item.displayName.english.ToString() == "Water") { continue; }
+            foreach (var gameitem in itemList)
+            {
+                switch (args[0].ToLower())
+                {
+                    case "default":
+                    {
+                        stackAmount = DetermineStack(gameitem);
+                        replymessage = "The Stack Size of all stackable items has been set to their default values (specified in config).";
+                        break;
+                    }
+                    default:
+                    {
+                        if (int.TryParse(args[0], out stackAmount) == false)
+                        {
+                            SendReply(player, "Syntax Error: Stack Amount is not a number. Syntax Example: /stackall 65000");
+                            return;
+                        }
+                        replymessage = "The Stack Size of all stackable items has been set to " + stackAmount.ToString() + ".";
+                        break;
+                    }
+                }
 
-				Config[item.displayName.english] = Convert.ToInt32(args[0]);
-				item.stackable = Convert.ToInt32(args[0]);
-			}
+                if (gameitem.condition.enabled && gameitem.condition.max > 0 && !(configData.Settings.StackHealthItems)) { continue; }
+                if (gameitem.displayName.english.ToString() == "Salt Water" || gameitem.displayName.english.ToString() == "Water") { continue; }
 
-            SaveConfig();
+                items.itemlist[gameitem.displayName.english] = Convert.ToInt32(stackAmount);
+                gameitem.stackable = Convert.ToInt32(stackAmount);
+            }
 
-            SendReply(player, "The Stack Size of all stackable items has been set to " + args[0]);
+            SaveData();
+
+            SendReply(player, replymessage);
         }
 
         [ConsoleCommand("stack")]
@@ -281,7 +442,7 @@ namespace Oxide.Plugins
         {
             int stackAmount = 0;
 
-            if(arg.IsAdmin != true) { return; }
+            if (arg.IsAdmin != true) { return; }
 
             if (arg.Args == null)
             {
@@ -297,71 +458,106 @@ namespace Oxide.Plugins
                 return;
             }
 
-            if (int.TryParse(arg.Args[1], out stackAmount) == false)
-            {
-                Puts("Syntax Error: Stack Amount is not a number. Syntax Example: stack ammo.rocket.hv 64 (Use shortname)");
+            List<ItemDefinition> gameitems = ItemManager.itemList.FindAll(x => x.shortname.Equals(arg.Args[0]));
 
-                return;
-            }
-
-            List<ItemDefinition> items = ItemManager.itemList.FindAll(x => x.shortname.Equals(arg.Args[0]));
-
-            if (items.Count == 0)
+            if (gameitems.Count == 0)
             {
                 Puts("Syntax Error: That is an incorrect item name. Please use a valid shortname.");
                 return;
             }
-            else
+
+            string replymessage = "";
+            switch (arg.Args[1].ToLower())
             {
-                if (items[0].condition.enabled && items[0].condition.max > 0) { Puts("Error: This item cannot be stacked higher than 1."); return; }
-              
-                Config[items[0].displayName.english] = Convert.ToInt32(stackAmount);
-              
-                items[0].stackable = Convert.ToInt32(stackAmount);
-
-                SaveConfig();
-
-                Puts("Updated Stack Size for " + items[0].displayName.english + " (" + items[0].shortname + ") to " + stackAmount + ".");
+                case "default":
+                {
+                    stackAmount = DetermineStack(gameitems[0]);
+                    replymessage = "Updated Stack Size for " + gameitems[0].displayName.english + " (" + gameitems[0].shortname + ") to " + stackAmount + " (Default value based on config).";
+                    break;
+                }
+                default:
+                {
+                    if (int.TryParse(arg.Args[1], out stackAmount) == false)
+                    {
+                        Puts("Syntax Error: Stack Amount is not a number. Syntax Example: /stack ammo.rocket.hv 64 (Use shortname)");
+                        return;
+                    }
+                    replymessage = "Updated Stack Size for " + gameitems[0].displayName.english + " (" + gameitems[0].shortname + ") to " + stackAmount + ".";
+                    break;
+                }
             }
+
+            if (gameitems[0].condition.enabled && gameitems[0].condition.max > 0)
+            {
+                if (!(configData.Settings.StackHealthItems))
+                {
+                    Puts("Error: Stacking health items is disabled in the config.");
+                    return;
+                }
+            }
+
+            items.itemlist[gameitems[0].displayName.english] = Convert.ToInt32(stackAmount);
+
+            gameitems[0].stackable = Convert.ToInt32(stackAmount);
+
+            SaveData();
+
+            Puts(replymessage);
         }
 
         [ConsoleCommand("stackall")]
         private void StackAllConsoleCommand(ConsoleSystem.Arg arg)
         {
-            if(arg.IsAdmin != true) { return; }
+            if (arg.IsAdmin != true) { return; }
 
             if (arg.Args.Length == 0)
-			{
+            {
                 Puts("Syntax Error: Requires 1 argument. Syntax Example: stackall 65000");
 
-				return;
-			}
-
-			int stacksize;
-          
-            if (!(int.TryParse(arg.Args[0].ToString(), out stacksize)))
-            {
-                Puts("Syntax Error: That's not a number");
                 return;
             }
-			
+
+            int stackAmount = 0;
+            string replymessage = "";
+
             var itemList = ItemManager.itemList;
 
-			foreach (var item in itemList)
-			{
-                if (item.condition.enabled && item.condition.max > 0) { continue; }
-                if (item.displayName.english.ToString() == "Salt Water" ||
-                item.displayName.english.ToString() == "Water") { continue; }
+            foreach (var gameitem in itemList)
+            {
+                if (gameitem.condition.enabled && gameitem.condition.max > 0 && (!(configData.Settings.StackHealthItems))) { continue; }
+                if (gameitem.displayName.english.ToString() == "Salt Water" ||
+                gameitem.displayName.english.ToString() == "Water") { continue; }
 
-				Config[item.displayName.english] = Convert.ToInt32(arg.Args[0]);
-				item.stackable = Convert.ToInt32(arg.Args[0]);
-			}
+                switch (arg.Args[0].ToLower())
+                {
+                    case "default":
+                    {
+                        stackAmount = DetermineStack(gameitem);
+                        replymessage = "The Stack Size of all stackable items has been set to their default values (specified in config).";
+                        break;
+                    }
+                    default:
+                    {
+                        if (int.TryParse(arg.Args[0], out stackAmount) == false)
+                        {
+                            Puts("Syntax Error: Stack Amount is not a number. Syntax Example: /stackall 65000");
+                            return;
+                        }
+                        replymessage = "The Stack Size of all stackable items has been set to " + stackAmount.ToString() + ".";
+                        break;
+                    }
+                }
 
-            SaveConfig();
+                items.itemlist[gameitem.displayName.english] = Convert.ToInt32(stackAmount);
+                gameitem.stackable = Convert.ToInt32(stackAmount);
+            }
 
-            Puts("The Stack Size of all stackable items has been set to " + arg.Args[0]);
+            SaveData();
+
+            Puts(replymessage);
         }
         #endregion
+
         #region Plugin References
         [PluginReference("FurnaceSplitter")]
         private Plugin FurnaceSplitter;
